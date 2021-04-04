@@ -9,7 +9,7 @@
 <meta name="description" content="曾梦想仗剑走天涯，却发现过安检时被没收了">
 <meta name="theme-color" content="#000">
 <title>邵侠小站</title>
-<link rel="shortcut icon" href="/favicon.ico?v=1617560689905">
+<link rel="shortcut icon" href="/favicon.ico?v=1617563131828">
 <link rel="stylesheet" href="/styles/main.css">
 <link rel="stylesheet" href="/media/css/pisces.css">
 
@@ -169,7 +169,7 @@
     <div class="sidebar-item-box">
       <a href="/archives/">
         
-        <span class="site-item-stat-count">1</span>
+        <span class="site-item-stat-count">2</span>
         <span class="site-item-stat-name">文章</span>
       </a>
     </div>
@@ -223,9 +223,27 @@
   <div class="archive-timeline-box">
     <div class="archive-timeline-title">
       
-        <h2>非常好！目前共计1篇日志，继续努力！</h2>
+        <h2>非常好！目前共计2篇日志，继续努力！</h2>
       
     </div>
+    
+      
+      
+        <div class="node-title">
+          <h2 class="tag-year">2020</h2>
+        </div>    
+        
+      
+      <a href="https://ricky.shineteens.com/post/jiu-shou-ji-gai-zao-ji-hua-da-jian-aira2yi-ji-ji-qi-bian-jie-de-wang-ye-guan-li-wen-jian-fang-fa/">
+        <div class="motion-warpper tag-archive-node">
+          <div class="tag-node">
+            <h1>
+              02-05
+              <small>旧手机改造计划——搭建aira2，以及极其便捷的网页管理文件方法</small>
+            </h1>
+          </div>  
+      </div>
+      </a>
     
       
       
@@ -1087,6 +1105,51 @@
     <div class="result">
       
       <div class="item">
+        <a class="result-title" href="https://ricky.shineteens.com/post/jiu-shou-ji-gai-zao-ji-hua-da-jian-aira2yi-ji-ji-qi-bian-jie-de-wang-ye-guan-li-wen-jian-fang-fa/"" data-c="
+          &lt;h3 id=&#34;本文所需的工具ksweb可道云termux&#34;&gt;本文所需的工具：ksweb，可道云，termux&lt;/h3&gt;
+&lt;h3 id=&#34;网站管理文件方法&#34;&gt;网站管理文件方法：&lt;/h3&gt;
+&lt;p&gt;从&lt;a href=&#34;https://kodcloud.com/&#34;&gt;可道云官网&lt;/a&gt;下好源码解压到你用ksweb搭建的文件夹（参考我之前发的文章&lt;a href=&#34;http://ricky.shineteens.com/index.php/archives/13/&#34;&gt;旧手机搭建网站&lt;/a&gt;）然后建议文件夹改个好记的名字，然后进入&lt;a href=&#34;http://localhost/&#34;&gt;http://localhost&lt;/a&gt;:8080/你文件夹的名字。改个密码就完事了！以后你就可以随时访问这个目录访问你手机的文件夹了，只要你ksweb不被后台杀掉的话&lt;/p&gt;
+&lt;figure data-type=&#34;image&#34; tabindex=&#34;1&#34;&gt;&lt;img src=&#34;https://img.imgdb.cn/item/606a0d218322e6675ce6b2c2.jpg&#34; alt=&#34;&#34; loading=&#34;lazy&#34;&gt;&lt;/figure&gt;
+&lt;h3 id=&#34;aira2搭建&#34;&gt;aira2搭建&lt;/h3&gt;
+&lt;pre&gt;&lt;code&gt;pkg install aira2
+aria2c --enable-rpc --rpc-listen-all
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;如果你想在浏览器上访问你的aira2的话，可以执行以下代码 先安装nodejs环境&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;pkg install nodejs
+git clone https://github.com/ziahamza/webui-aria2.git
+cd webui-aria2
+node node-server.js
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2 id=&#34;利用ftp访问文件&#34;&gt;&lt;img src=&#34;https://img.imgdb.cn/item/606a0cd28322e6675ce68832.jpg&#34; alt=&#34;&#34; loading=&#34;lazy&#34;&gt;&lt;br&gt;
+利用ftp访问文件&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;ES浏览器——网络——从PC访问，然后在电脑上的资源管理器输入它给你的地址就好了，也可以在“增加一个网络位置”中输入那个地址&lt;br&gt;
+优点：&lt;br&gt;
+方便简单，对小白极其友好&lt;br&gt;
+缺点：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;手机后台多跑一个应用，除非你打算下次临时访问时去打开&lt;/li&gt;
+&lt;li&gt;如果映射到外网，没有用户名密码意味着别人输了地址就可以操作你手机文件了&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;KSweb上的ftp创建一个用户，然后电脑访问你的手机地址，一般为192.168.0.x:2121(x为随机地址，可以到路由器后台看，也可以在termux输入ipconfig -a查看，端口不一定是2121，具体看ksweb的主页怎么显示的），输入用户名密码就可以看见你手机的文件夹了&lt;br&gt;
+优点：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;网站在ftp就在，只要ksweb不死你就可以随时访问&lt;/li&gt;
+&lt;li&gt;有用户名密码，安全性很强&lt;br&gt;
+缺点：&lt;br&gt;
+除了有些小白可能操作半天外还真没什么缺点了，建议优先考虑&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;figure data-type=&#34;image&#34; tabindex=&#34;2&#34;&gt;&lt;img src=&#34;https://img.imgdb.cn/item/606a0cc28322e6675ce67ee3.jpg&#34; alt=&#34;&#34; loading=&#34;lazy&#34;&gt;&lt;/figure&gt;
+&lt;p&gt;另外我的图片是从电脑访问处截图的，所以请不要模仿上面的地址。&lt;/p&gt;
+">旧手机改造计划——搭建aira2，以及极其便捷的网页管理文件方法</a>
+      </div>
+      
+      <div class="item">
         <a class="result-title" href="https://ricky.shineteens.com/post/about/"" data-c="
           &lt;blockquote&gt;
 &lt;p&gt;欢迎来到我的小站呀，很高兴遇见你！🤝&lt;/p&gt;
@@ -1118,7 +1181,7 @@
   </div>
 </div>
 <script>
-  // var escape = "[{&#34;content&#34;:&#34;&lt;blockquote&gt;\n&lt;p&gt;欢迎来到我的小站呀，很高兴遇见你！🤝&lt;/p&gt;\n&lt;/blockquote&gt;\n&lt;h2 id=\&#34;关于本站\&#34;&gt;🏠 关于本站&lt;/h2&gt;\n&lt;p&gt;这是一个利用Gridea搭建的全新博客，不再采用php+mysql等方式去搭建，更加稳定安全了！&lt;/p&gt;\n&lt;h2 id=\&#34;博主是谁\&#34;&gt;👨‍💻 博主是谁&lt;/h2&gt;\n&lt;p&gt;厂大计算机学院行动上的矮子。&lt;/p&gt;\n&lt;h2 id=\&#34;兴趣爱好\&#34;&gt;⛹ 兴趣爱好&lt;/h2&gt;\n&lt;p&gt;三分钟热度，看心情吧。&lt;/p&gt;\n&lt;h2 id=\&#34;联系我呀\&#34;&gt;📬 联系我呀&lt;/h2&gt;\n&lt;p&gt;Email:veithly@163.com&lt;/p&gt;\n&#34;,&#34;fileName&#34;:&#34;about&#34;,&#34;abstract&#34;:&#34;&#34;,&#34;title&#34;:&#34;关于&#34;,&#34;tags&#34;:[],&#34;date&#34;:&#34;2019-01-25 19:09:48&#34;,&#34;dateFormat&#34;:&#34;2019-01-25&#34;,&#34;feature&#34;:&#34;&#34;,&#34;link&#34;:&#34;https://ricky.shineteens.com/post/about/&#34;,&#34;hideInList&#34;:true,&#34;isTop&#34;:false,&#34;stats&#34;:{&#34;text&#34;:&#34;1 min read&#34;,&#34;time&#34;:19000,&#34;words&#34;:90,&#34;minutes&#34;:1},&#34;description&#34;:&#34;\n欢迎来到我的小站呀，很高兴遇见你！🤝\n\n🏠 关于本站\n这是一个利用Gridea搭建的全新博客，不再采用php+mysql等方式去搭建，更加稳定安全了！\n👨‍💻 博主是谁\n厂大计算机学院行动上的矮子。\n⛹ 兴趣爱好\n三分钟热度，看心...&#34;,&#34;toc&#34;:&#34;&lt;ul class=\&#34;markdownIt-TOC\&#34;&gt;\n&lt;li&gt;\n&lt;ul&gt;\n&lt;li&gt;&lt;a href=\&#34;#%E5%85%B3%E4%BA%8E%E6%9C%AC%E7%AB%99\&#34;&gt;🏠 关于本站&lt;/a&gt;&lt;/li&gt;\n&lt;li&gt;&lt;a href=\&#34;#%E5%8D%9A%E4%B8%BB%E6%98%AF%E8%B0%81\&#34;&gt;👨‍💻 博主是谁&lt;/a&gt;&lt;/li&gt;\n&lt;li&gt;&lt;a href=\&#34;#%E5%85%B4%E8%B6%A3%E7%88%B1%E5%A5%BD\&#34;&gt;⛹ 兴趣爱好&lt;/a&gt;&lt;/li&gt;\n&lt;li&gt;&lt;a href=\&#34;#%E8%81%94%E7%B3%BB%E6%88%91%E5%91%80\&#34;&gt;📬 联系我呀&lt;/a&gt;&lt;/li&gt;\n&lt;/ul&gt;\n&lt;/li&gt;\n&lt;/ul&gt;\n&#34;},{&#34;content&#34;:&#34;&lt;p&gt;👏  欢迎使用 &lt;strong&gt;Gridea&lt;/strong&gt; ！&lt;br&gt;\n✍️  &lt;strong&gt;Gridea&lt;/strong&gt; 一个静态博客写作客户端。你可以用它来记录你的生活、心情、知识、笔记、创意... ...&lt;br&gt;\n😨讲真，这又是一次博客搬迁，从群晖偶然挂了我就觉得还是要找个可靠的地方记录文字，别再瞎整一些乱七八糟的玩意来浪费时间了。&lt;/p&gt;\n&lt;!-- more --&gt;\n&lt;p&gt;🤔再三思量后，我打算使用静态页面来配置搭建博客，之前php+mysql的cms像wordpress和typecho虽然简单无脑，但出事后重整太难受了。在做出静态页面的选择时我考虑过hexo,hugo，但还是偶然发现Gridea这个神奇的玩意，虽然说好像操作比较无脑，但考虑到我折腾hexo一直支棱不起来连发篇文章都费劲就觉得无脑的东西也挺好的。多花点时间看几篇paper，学学东西不香吗？&lt;br&gt;\n😏github的page功能访问确实蛋疼，其他的仓库又不太支持，但还好我域名备案了，这就可以每月嫖腾讯的10GB CDN，访问速度还是挺ok的，至少比之前白嫖frp时不时宕机要舒服点。&lt;br&gt;\n🤒用什么CSDN、知乎、简书记录东西也不是不行，但我还是不太喜欢自己的内容掌控在别的网站上，写个东西还要被放别人的广告白嫖挺不爽的。但毕竟人家流量是有的，等我有精力还是会考虑做个同步的玩意一键多平台分发。&lt;/p&gt;\n&#34;,&#34;fileName&#34;:&#34;hello-gridea&#34;,&#34;abstract&#34;:&#34;&lt;p&gt;👏  欢迎使用 &lt;strong&gt;Gridea&lt;/strong&gt; ！&lt;br&gt;\n✍️  &lt;strong&gt;Gridea&lt;/strong&gt; 一个静态博客写作客户端。你可以用它来记录你的生活、心情、知识、笔记、创意... ...&lt;br&gt;\n😨讲真，这又是一次博客搬迁，从群晖偶然挂了我就觉得还是要找个可靠的地方记录文字，别再瞎整一些乱七八糟的玩意来浪费时间了。&lt;/p&gt;\n&#34;,&#34;title&#34;:&#34;Hello Gridea&#34;,&#34;tags&#34;:[{&#34;name&#34;:&#34;Gridea&#34;,&#34;slug&#34;:&#34;hgp_pcWhT&#34;,&#34;used&#34;:true,&#34;link&#34;:&#34;https://ricky.shineteens.com/tag/hgp_pcWhT/&#34;}],&#34;date&#34;:&#34;2018-12-12 00:00:00&#34;,&#34;dateFormat&#34;:&#34;2018-12-12&#34;,&#34;feature&#34;:&#34;https://ricky.shineteens.com/post-images/hello-gridea.png&#34;,&#34;link&#34;:&#34;https://ricky.shineteens.com/post/hello-gridea/&#34;,&#34;hideInList&#34;:false,&#34;isTop&#34;:false,&#34;stats&#34;:{&#34;text&#34;:&#34;2 min read&#34;,&#34;time&#34;:80000,&#34;words&#34;:388,&#34;minutes&#34;:2},&#34;description&#34;:&#34;👏  欢迎使用 Gridea ！\n✍️  Gridea 一个静态博客写作客户端。你可以用它来记录你的生活、心情、知识、笔记、创意... ...\n😨讲真，这又是一次博客搬迁，从群晖偶然挂了我就觉得还是要找个可靠的地方记录文字，别再瞎整一些...&#34;,&#34;toc&#34;:&#34;&#34;}]";
+  // var escape = "[{&#34;content&#34;:&#34;&lt;h3 id=\&#34;本文所需的工具ksweb可道云termux\&#34;&gt;本文所需的工具：ksweb，可道云，termux&lt;/h3&gt;\n&lt;h3 id=\&#34;网站管理文件方法\&#34;&gt;网站管理文件方法：&lt;/h3&gt;\n&lt;p&gt;从&lt;a href=\&#34;https://kodcloud.com/\&#34;&gt;可道云官网&lt;/a&gt;下好源码解压到你用ksweb搭建的文件夹（参考我之前发的文章&lt;a href=\&#34;http://ricky.shineteens.com/index.php/archives/13/\&#34;&gt;旧手机搭建网站&lt;/a&gt;）然后建议文件夹改个好记的名字，然后进入&lt;a href=\&#34;http://localhost/\&#34;&gt;http://localhost&lt;/a&gt;:8080/你文件夹的名字。改个密码就完事了！以后你就可以随时访问这个目录访问你手机的文件夹了，只要你ksweb不被后台杀掉的话&lt;/p&gt;\n&lt;figure data-type=\&#34;image\&#34; tabindex=\&#34;1\&#34;&gt;&lt;img src=\&#34;https://img.imgdb.cn/item/606a0d218322e6675ce6b2c2.jpg\&#34; alt=\&#34;\&#34; loading=\&#34;lazy\&#34;&gt;&lt;/figure&gt;\n&lt;h3 id=\&#34;aira2搭建\&#34;&gt;aira2搭建&lt;/h3&gt;\n&lt;pre&gt;&lt;code&gt;pkg install aira2\naria2c --enable-rpc --rpc-listen-all\n&lt;/code&gt;&lt;/pre&gt;\n&lt;p&gt;如果你想在浏览器上访问你的aira2的话，可以执行以下代码 先安装nodejs环境&lt;/p&gt;\n&lt;pre&gt;&lt;code&gt;pkg install nodejs\ngit clone https://github.com/ziahamza/webui-aria2.git\ncd webui-aria2\nnode node-server.js\n&lt;/code&gt;&lt;/pre&gt;\n&lt;h2 id=\&#34;利用ftp访问文件\&#34;&gt;&lt;img src=\&#34;https://img.imgdb.cn/item/606a0cd28322e6675ce68832.jpg\&#34; alt=\&#34;\&#34; loading=\&#34;lazy\&#34;&gt;&lt;br&gt;\n利用ftp访问文件&lt;/h2&gt;\n&lt;ol&gt;\n&lt;li&gt;\n&lt;p&gt;ES浏览器——网络——从PC访问，然后在电脑上的资源管理器输入它给你的地址就好了，也可以在“增加一个网络位置”中输入那个地址&lt;br&gt;\n优点：&lt;br&gt;\n方便简单，对小白极其友好&lt;br&gt;\n缺点：&lt;/p&gt;\n&lt;ol&gt;\n&lt;li&gt;手机后台多跑一个应用，除非你打算下次临时访问时去打开&lt;/li&gt;\n&lt;li&gt;如果映射到外网，没有用户名密码意味着别人输了地址就可以操作你手机文件了&lt;/li&gt;\n&lt;/ol&gt;\n&lt;/li&gt;\n&lt;li&gt;\n&lt;p&gt;KSweb上的ftp创建一个用户，然后电脑访问你的手机地址，一般为192.168.0.x:2121(x为随机地址，可以到路由器后台看，也可以在termux输入ipconfig -a查看，端口不一定是2121，具体看ksweb的主页怎么显示的），输入用户名密码就可以看见你手机的文件夹了&lt;br&gt;\n优点：&lt;/p&gt;\n&lt;ol&gt;\n&lt;li&gt;网站在ftp就在，只要ksweb不死你就可以随时访问&lt;/li&gt;\n&lt;li&gt;有用户名密码，安全性很强&lt;br&gt;\n缺点：&lt;br&gt;\n除了有些小白可能操作半天外还真没什么缺点了，建议优先考虑&lt;/li&gt;\n&lt;/ol&gt;\n&lt;/li&gt;\n&lt;/ol&gt;\n&lt;figure data-type=\&#34;image\&#34; tabindex=\&#34;2\&#34;&gt;&lt;img src=\&#34;https://img.imgdb.cn/item/606a0cc28322e6675ce67ee3.jpg\&#34; alt=\&#34;\&#34; loading=\&#34;lazy\&#34;&gt;&lt;/figure&gt;\n&lt;p&gt;另外我的图片是从电脑访问处截图的，所以请不要模仿上面的地址。&lt;/p&gt;\n&#34;,&#34;fileName&#34;:&#34;jiu-shou-ji-gai-zao-ji-hua-da-jian-aira2yi-ji-ji-qi-bian-jie-de-wang-ye-guan-li-wen-jian-fang-fa&#34;,&#34;abstract&#34;:&#34;&#34;,&#34;title&#34;:&#34;旧手机改造计划——搭建aira2，以及极其便捷的网页管理文件方法&#34;,&#34;tags&#34;:[],&#34;date&#34;:&#34;2020-02-05 02:52:52&#34;,&#34;dateFormat&#34;:&#34;2020-02-05&#34;,&#34;feature&#34;:&#34;https://img.imgdb.cn/item/606a0da78322e6675ce6f899.jpg&#34;,&#34;link&#34;:&#34;https://ricky.shineteens.com/post/jiu-shou-ji-gai-zao-ji-hua-da-jian-aira2yi-ji-ji-qi-bian-jie-de-wang-ye-guan-li-wen-jian-fang-fa/&#34;,&#34;hideInList&#34;:false,&#34;isTop&#34;:false,&#34;stats&#34;:{&#34;text&#34;:&#34;2 min read&#34;,&#34;time&#34;:110000,&#34;words&#34;:506,&#34;minutes&#34;:2},&#34;description&#34;:&#34;本文所需的工具：ksweb，可道云，termux\n网站管理文件方法：\n从可道云官网下好源码解压到你用ksweb搭建的文件夹（参考我之前发的文章旧手机搭建网站）然后建议文件夹改个好记的名字，然后进入http://localhost:8080/...&#34;,&#34;toc&#34;:&#34;&lt;ul class=\&#34;markdownIt-TOC\&#34;&gt;\n&lt;li&gt;\n&lt;ul&gt;\n&lt;li&gt;\n&lt;ul&gt;\n&lt;li&gt;&lt;a href=\&#34;#%E6%9C%AC%E6%96%87%E6%89%80%E9%9C%80%E7%9A%84%E5%B7%A5%E5%85%B7ksweb%E5%8F%AF%E9%81%93%E4%BA%91termux\&#34;&gt;本文所需的工具：ksweb，可道云，termux&lt;/a&gt;&lt;/li&gt;\n&lt;li&gt;&lt;a href=\&#34;#%E7%BD%91%E7%AB%99%E7%AE%A1%E7%90%86%E6%96%87%E4%BB%B6%E6%96%B9%E6%B3%95\&#34;&gt;网站管理文件方法：&lt;/a&gt;&lt;/li&gt;\n&lt;li&gt;&lt;a href=\&#34;#aira2%E6%90%AD%E5%BB%BA\&#34;&gt;aira2搭建&lt;/a&gt;&lt;/li&gt;\n&lt;/ul&gt;\n&lt;/li&gt;\n&lt;li&gt;&lt;a href=\&#34;#%E5%88%A9%E7%94%A8ftp%E8%AE%BF%E9%97%AE%E6%96%87%E4%BB%B6\&#34;&gt;!&lt;br&gt;\n利用ftp访问文件&lt;/a&gt;&lt;/li&gt;\n&lt;/ul&gt;\n&lt;/li&gt;\n&lt;/ul&gt;\n&#34;},{&#34;content&#34;:&#34;&lt;blockquote&gt;\n&lt;p&gt;欢迎来到我的小站呀，很高兴遇见你！🤝&lt;/p&gt;\n&lt;/blockquote&gt;\n&lt;h2 id=\&#34;关于本站\&#34;&gt;🏠 关于本站&lt;/h2&gt;\n&lt;p&gt;这是一个利用Gridea搭建的全新博客，不再采用php+mysql等方式去搭建，更加稳定安全了！&lt;/p&gt;\n&lt;h2 id=\&#34;博主是谁\&#34;&gt;👨‍💻 博主是谁&lt;/h2&gt;\n&lt;p&gt;厂大计算机学院行动上的矮子。&lt;/p&gt;\n&lt;h2 id=\&#34;兴趣爱好\&#34;&gt;⛹ 兴趣爱好&lt;/h2&gt;\n&lt;p&gt;三分钟热度，看心情吧。&lt;/p&gt;\n&lt;h2 id=\&#34;联系我呀\&#34;&gt;📬 联系我呀&lt;/h2&gt;\n&lt;p&gt;Email:veithly@163.com&lt;/p&gt;\n&#34;,&#34;fileName&#34;:&#34;about&#34;,&#34;abstract&#34;:&#34;&#34;,&#34;title&#34;:&#34;关于&#34;,&#34;tags&#34;:[],&#34;date&#34;:&#34;2019-01-25 19:09:48&#34;,&#34;dateFormat&#34;:&#34;2019-01-25&#34;,&#34;feature&#34;:&#34;&#34;,&#34;link&#34;:&#34;https://ricky.shineteens.com/post/about/&#34;,&#34;hideInList&#34;:true,&#34;isTop&#34;:false,&#34;stats&#34;:{&#34;text&#34;:&#34;1 min read&#34;,&#34;time&#34;:19000,&#34;words&#34;:90,&#34;minutes&#34;:1},&#34;description&#34;:&#34;\n欢迎来到我的小站呀，很高兴遇见你！🤝\n\n🏠 关于本站\n这是一个利用Gridea搭建的全新博客，不再采用php+mysql等方式去搭建，更加稳定安全了！\n👨‍💻 博主是谁\n厂大计算机学院行动上的矮子。\n⛹ 兴趣爱好\n三分钟热度，看心...&#34;,&#34;toc&#34;:&#34;&lt;ul class=\&#34;markdownIt-TOC\&#34;&gt;\n&lt;li&gt;\n&lt;ul&gt;\n&lt;li&gt;&lt;a href=\&#34;#%E5%85%B3%E4%BA%8E%E6%9C%AC%E7%AB%99\&#34;&gt;🏠 关于本站&lt;/a&gt;&lt;/li&gt;\n&lt;li&gt;&lt;a href=\&#34;#%E5%8D%9A%E4%B8%BB%E6%98%AF%E8%B0%81\&#34;&gt;👨‍💻 博主是谁&lt;/a&gt;&lt;/li&gt;\n&lt;li&gt;&lt;a href=\&#34;#%E5%85%B4%E8%B6%A3%E7%88%B1%E5%A5%BD\&#34;&gt;⛹ 兴趣爱好&lt;/a&gt;&lt;/li&gt;\n&lt;li&gt;&lt;a href=\&#34;#%E8%81%94%E7%B3%BB%E6%88%91%E5%91%80\&#34;&gt;📬 联系我呀&lt;/a&gt;&lt;/li&gt;\n&lt;/ul&gt;\n&lt;/li&gt;\n&lt;/ul&gt;\n&#34;},{&#34;content&#34;:&#34;&lt;p&gt;👏  欢迎使用 &lt;strong&gt;Gridea&lt;/strong&gt; ！&lt;br&gt;\n✍️  &lt;strong&gt;Gridea&lt;/strong&gt; 一个静态博客写作客户端。你可以用它来记录你的生活、心情、知识、笔记、创意... ...&lt;br&gt;\n😨讲真，这又是一次博客搬迁，从群晖偶然挂了我就觉得还是要找个可靠的地方记录文字，别再瞎整一些乱七八糟的玩意来浪费时间了。&lt;/p&gt;\n&lt;!-- more --&gt;\n&lt;p&gt;🤔再三思量后，我打算使用静态页面来配置搭建博客，之前php+mysql的cms像wordpress和typecho虽然简单无脑，但出事后重整太难受了。在做出静态页面的选择时我考虑过hexo,hugo，但还是偶然发现Gridea这个神奇的玩意，虽然说好像操作比较无脑，但考虑到我折腾hexo一直支棱不起来连发篇文章都费劲就觉得无脑的东西也挺好的。多花点时间看几篇paper，学学东西不香吗？&lt;br&gt;\n😏github的page功能访问确实蛋疼，其他的仓库又不太支持，但还好我域名备案了，这就可以每月嫖腾讯的10GB CDN，访问速度还是挺ok的，至少比之前白嫖frp时不时宕机要舒服点。&lt;br&gt;\n🤒用什么CSDN、知乎、简书记录东西也不是不行，但我还是不太喜欢自己的内容掌控在别的网站上，写个东西还要被放别人的广告白嫖挺不爽的。但毕竟人家流量是有的，等我有精力还是会考虑做个同步的玩意一键多平台分发。&lt;/p&gt;\n&#34;,&#34;fileName&#34;:&#34;hello-gridea&#34;,&#34;abstract&#34;:&#34;&lt;p&gt;👏  欢迎使用 &lt;strong&gt;Gridea&lt;/strong&gt; ！&lt;br&gt;\n✍️  &lt;strong&gt;Gridea&lt;/strong&gt; 一个静态博客写作客户端。你可以用它来记录你的生活、心情、知识、笔记、创意... ...&lt;br&gt;\n😨讲真，这又是一次博客搬迁，从群晖偶然挂了我就觉得还是要找个可靠的地方记录文字，别再瞎整一些乱七八糟的玩意来浪费时间了。&lt;/p&gt;\n&#34;,&#34;title&#34;:&#34;Hello Gridea&#34;,&#34;tags&#34;:[{&#34;name&#34;:&#34;Gridea&#34;,&#34;slug&#34;:&#34;hgp_pcWhT&#34;,&#34;used&#34;:true,&#34;link&#34;:&#34;https://ricky.shineteens.com/tag/hgp_pcWhT/&#34;}],&#34;date&#34;:&#34;2018-12-12 00:00:00&#34;,&#34;dateFormat&#34;:&#34;2018-12-12&#34;,&#34;feature&#34;:&#34;https://ricky.shineteens.com/post-images/hello-gridea.png&#34;,&#34;link&#34;:&#34;https://ricky.shineteens.com/post/hello-gridea/&#34;,&#34;hideInList&#34;:false,&#34;isTop&#34;:false,&#34;stats&#34;:{&#34;text&#34;:&#34;2 min read&#34;,&#34;time&#34;:80000,&#34;words&#34;:388,&#34;minutes&#34;:2},&#34;description&#34;:&#34;👏  欢迎使用 Gridea ！\n✍️  Gridea 一个静态博客写作客户端。你可以用它来记录你的生活、心情、知识、笔记、创意... ...\n😨讲真，这又是一次博客搬迁，从群晖偶然挂了我就觉得还是要找个可靠的地方记录文字，别再瞎整一些...&#34;,&#34;toc&#34;:&#34;&#34;}]";
   // var json = escape.substr(1, escape.length - 2);
   // var datas = json.split(',');
   // for (let i=0; i < datas.length; i++) {

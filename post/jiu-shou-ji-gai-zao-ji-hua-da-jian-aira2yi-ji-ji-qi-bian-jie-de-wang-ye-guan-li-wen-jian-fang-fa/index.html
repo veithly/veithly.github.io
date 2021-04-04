@@ -8,7 +8,7 @@
 <meta name="keywords" content="Gridea静态个人博客">
 <meta name="description" content="曾梦想仗剑走天涯，却发现过安检时被没收了">
 <meta name="theme-color" content="#000">
-<title>邵侠小站</title>
+<title>旧手机改造计划——搭建aira2，以及极其便捷的网页管理文件方法 | 邵侠小站</title>
 <link rel="shortcut icon" href="/favicon.ico?v=1617563131828">
 <link rel="stylesheet" href="/styles/main.css">
 <link rel="stylesheet" href="/media/css/pisces.css">
@@ -29,6 +29,8 @@
 
 
 
+  <meta name="description" content="旧手机改造计划——搭建aira2，以及极其便捷的网页管理文件方法" />
+  <meta name="keywords" content="" />
 </head>
 
 <body>
@@ -90,7 +92,7 @@
             
               
             
-            <li class="nav-item nav-item-active">
+            <li class="nav-item ">
               
               
                 <a href="/tags/" target="_self">
@@ -154,10 +156,26 @@
   <div class="main-continer">
     
     <div
-      class="section-layout  pisces">
+      class="section-layout pisces ">
       <div class="section-layout-wrapper">
-        <div id="sidebarMeta" class="sidebar">
-    
+        
+
+<div class="sidebar">
+  
+    <div class="sidebar-box box-shadow-wrapper bg-color right-motion" id="sidebar">
+      
+        <div class="post-list-sidebar">
+          <div class="sidebar-title">
+            <span id="tocSideBar" class="sidebar-title-item sidebar-title-active">文章目录</span>
+            <span id="metaSideBar" class="sidebar-title-item">站点概览</span>
+          </div>
+        </div>
+      
+      <div class="sidebar-body pisces" id="sidebar_body">
+        
+          
+            <div class="post-side-meta" id="post_side_meta">
+              
 <div class="sidebar-wrapper box-shadow-wrapper bg-color">
   <div class="sidebar-item">
     <img class="site-author-image right-motion" src="/images/avatar.png"/>
@@ -199,96 +217,422 @@
 
 
 </div>
+            </div>
+            <div class="post-toc sidebar-body-active" id="post_toc" style="opacity: 1;">
+              <div class="toc-box right-motion">
+  <div class="toc-wrapper auto-number auto"
+    id="toc_wrapper">
+    <ul class="markdownIt-TOC">
+<li>
+<ul>
+<li>
+<ul>
+<li><a href="#%E6%9C%AC%E6%96%87%E6%89%80%E9%9C%80%E7%9A%84%E5%B7%A5%E5%85%B7ksweb%E5%8F%AF%E9%81%93%E4%BA%91termux">本文所需的工具：ksweb，可道云，termux</a></li>
+<li><a href="#%E7%BD%91%E7%AB%99%E7%AE%A1%E7%90%86%E6%96%87%E4%BB%B6%E6%96%B9%E6%B3%95">网站管理文件方法：</a></li>
+<li><a href="#aira2%E6%90%AD%E5%BB%BA">aira2搭建</a></li>
+</ul>
+</li>
+<li><a href="#%E5%88%A9%E7%94%A8ftp%E8%AE%BF%E9%97%AE%E6%96%87%E4%BB%B6">!<br>
+利用ftp访问文件</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
 </div>
+
 <script>
-  let sidebarMeta = document.querySelector('#sidebarMeta');
-  let scheme = 'pisces';
-  let sidebarWrapper = document.querySelector('.sidebar-wrapper');
-  if (sidebarMeta && (scheme === 'pisces' || scheme === 'gemini')) {
-    document.addEventListener('scroll', function(e) {
-      if (document.scrollingElement.scrollTop > parseInt(sidebarMeta.style.marginTop) + 10) {
-        sidebarWrapper.classList.add('home-sidebar-fixed')
-      } else {
-        sidebarWrapper.classList.remove('home-sidebar-fixed')
+
+  let lastTop = 0, lList = [], hList = [], postBody, lastIndex = -1;
+  let active = 'active-show', activeClass = 'active-current';
+  let tocWrapper = document.querySelector('#toc_wrapper');
+  let tocContent = tocWrapper.children[0];
+  let autoNumber = tocWrapper && tocWrapper.classList.contains('auto-number');
+
+  function addTocNumber(elem, deep) {
+    if (!elem) {
+      return;
+    }
+    let prop = elem.__proto__;
+
+    if (prop === HTMLUListElement.prototype) {
+      for (let i = 0; i < elem.children.length; i++) {
+        addTocNumber(elem.children[i], deep + (i + 1) + '.');
       }
+    } else if (prop === HTMLLIElement.prototype) {
+      // 保存li元素
+      if (elem.children[0].__proto__ === HTMLAnchorElement.prototype) {
+        lList.push(elem);
+      }
+      for (let i = 0; i < elem.children.length; i++) {
+        let cur = elem.children[i];
+        if (cur.__proto__ === HTMLAnchorElement.prototype) {
+          if (autoNumber) {
+            cur.text = deep + ' ' + cur.text;
+          }
+        } else if (cur.__proto__ === HTMLUListElement.prototype) {
+          addTocNumber(cur, deep);
+        }
+      }
+    }
+  }
+
+  function removeParentActiveClass() {
+    let parents = tocContent.querySelectorAll('.' + active)
+    parents.forEach(function (elem) {
+      elem.classList.remove(active);
     });
   }
-  </script>
-        <div class="section-box box-shadow-wrapper">
-          <section class="section tags-section bg-color posts-expand">
-            <div class="tags-box">
-  <div class="tag-cloud-title">
-    目前共计 1 个标签
-  </div>
-  <div class="tag-cloud-list" id="tags">
-    
-      
-      
-        
-      
-        
-      
-        
-          
-            
-      
-      <a class="cloud-tag" href="https://ricky.shineteens.com/tag/hgp_pcWhT/" rel="1">Gridea</a>
-    
-  </div>
-</div>
-<script>
 
-  let fontStart = 12, fontEnd = 30, colorStart = '#666', colorEnd = '#000';
-  let tags = document.querySelector('#tags').children;
-  let counts = [];
-  for(let i = 0; i < tags.length; i++) {
-    counts.push(tags[i].rel);
-  }
-  let lowest = Math.min.apply(null,counts), highest = Math.max.apply(null,counts);;
-  let range = highest - lowest;
-  if (range === 0) {
-    range = 1;
-  }
-  let fontIncr, colorIncr;
-  fontIncr = (fontEnd - fontStart) / range;
-  
-  let sColorArr = toRGB(colorStart), eColorArr = toRGB(colorEnd);
-
-  for(let i = 0; i < tags.length; i++) {
-    let disCount = tags[i].rel - lowest;
-    let fontSize = fontStart + disCount * fontIncr;
-    let style = 'font-size: ' + fontSize + 'px;';
-    let arr = [];
-    for(let c = 0; c < sColorArr.length; c++) {
-      if (disCount === 0) {
-        disCount = 1;
-      }
-      let val = (sColorArr[c] - eColorArr[c]) / range * disCount;
-      if (val >= 100) {
-        val = eColorArr[c];
-      } else if (val <= 0) {
-        val = sColorArr[c];
-      }
-      arr[c] = Math.floor(val);
+  function addActiveClass(index) {
+    if (index >= 0 && index < hList.length) {
+      lList[index].classList.add(activeClass);
     }
-    style += 'color: ' + toHex(arr);
-    tags[i].style = style;
   }
 
-  function toRGB(code) {
-    if (code.length === 4) {
-      code = code.replace(/(\w)(\w)(\w)/gi, "\$1\$1\$2\$2\$3\$3");
+  function removeActiveClass(index) {
+    if (index >= 0 && index < hList.length) {
+      lList[index].classList.remove(activeClass);
     }
-    var hex = /(\w{2})(\w{2})(\w{2})/.exec(code);
-    return [parseInt(hex[1], 16), parseInt(hex[2], 16), parseInt(hex[3], 16)];
   }
 
-  function toHex(ary) {
-    return "#" + ((1 << 24) + (ary[0] << 16) + (ary[1] << 8) + ary[2]).toString(16).slice(1);
+  function addActiveLiElemment(elem, parent) {
+    if (!elem || elem === parent) {
+      return;
+    } else {
+      if (elem.__proto__ === HTMLLIElement.prototype) {
+        elem.classList.add(active);
+      }
+      addActiveLiElemment(elem.parentElement, parent);
+    }
   }
+
+  function showToc() {
+    if (tocWrapper) {
+      postBody = document.querySelector('#post_body');
+      for (let i = 0; i < postBody.children.length; i++) {
+        if (postBody.children[i].__proto__ === HTMLHeadingElement.prototype) {
+          hList.push(postBody.children[i]);
+        }
+      }
+      if (tocWrapper.classList.contains('compress')) {
+        tocContent.classList.add('closed');
+      } else if (tocWrapper.classList.contains('no_compress')) {
+        tocContent.classList.add('expanded');
+      } else {
+        if (hList.length > 10) {
+          active = 'active-hidden'
+          tocContent.classList.add('closed');
+        } else {
+          tocContent.classList.add('expanded');
+        }
+      }
+    }
+  }
+
+  (function () {
+    // 处理不是从#一级标题开始目录
+    if (tocContent.children.length === 1 && tocContent.children[0].__proto__ === HTMLLIElement.prototype) {
+      let con = tocContent.children[0].children[0];
+      tocContent.innerHTML = con.innerHTML;
+    }
+    let markdownItTOC = document.querySelector('.markdownIt-TOC');
+    let innerHeight = window.innerHeight;
+    markdownItTOC.style = `max-height: ${innerHeight - 80 > 0 ? innerHeight - 80 : innerHeight}px`
+    addTocNumber(tocContent, '');
+  })();
+
+  document.addEventListener('scroll', function (e) {
+    if (lList.length <= 0) {
+      return;
+    }
+    let scrollTop = document.scrollingElement.scrollTop + 10;
+    let dir;
+
+    if (lastTop - scrollTop > 0) {
+      dir = 'up';
+    } else {
+      dir = 'down';
+    }
+
+    lastTop = scrollTop;
+    if (scrollTop <= 0) {
+      if (lastIndex >= 0 && lastIndex < hList.length) {
+        lList[lastIndex].classList.remove(activeClass);
+      }
+      return;
+    }
+
+    let current = 0, hasFind = false;
+    for (let i = 0; i < hList.length; i++) {
+      if (hList[i].offsetTop > scrollTop) {
+        current = i;
+        hasFind = true;
+        break;
+      }
+    }
+    if (!hasFind && scrollTop > lList[lList.length - 1].offsetTop) {
+      current = hList.length - 1;
+    } else {
+      current--;
+    }
+    if (dir === 'down') {
+      if (current > lastIndex) {
+        addActiveClass(current);
+        removeActiveClass(lastIndex)
+        lastIndex = current;
+        removeParentActiveClass();
+        lList[current] && addActiveLiElemment(lList[current].parentElement, tocContent);
+      }
+    } else {
+      if (current < lastIndex) {
+        addActiveClass(current);
+        removeActiveClass(lastIndex);
+        lastIndex = current;
+        removeParentActiveClass();
+        lList[current] && addActiveLiElemment(lList[current].parentElement, tocContent);
+      }
+    }
+  });
+
+
+  window.addEventListener('load', function () {
+    showToc();
+    document.querySelector('#sidebar').style = 'display: block;';
+    tocWrapper.classList.add('toc-active');
+    setTimeout(function () {
+      if ("createEvent" in document) {
+        let evt = document.createEvent("HTMLEvents");
+        evt.initEvent("scroll", false, true);
+        document.dispatchEvent(evt);
+      }
+      else {
+        document.fireEvent("scroll");
+      }
+    }, 500)
+  })
 
 </script>
-          </section>
+            </div>
+          
+        
+      </div>
+    </div>
+  
+</div>
+<script>
+  const SIDEBAR_TITLE_ACTIVE = 'sidebar-title-active';
+  const SIDEBAR_BODY_ACTIVE = 'sidebar-body-active';
+  const SLIDE_UP_IN = 'slide-up-in';
+
+  let sidebar = document.querySelector('#sidebar'),
+  tocSideBar = document.querySelector('#tocSideBar'),
+  metaSideBar = document.querySelector('#metaSideBar'),
+  postToc = document.querySelector('#post_toc'),
+  postSiteMeta = document.querySelector('#post_side_meta'),
+  sidebarTitle = document.querySelector('.sidebar-title'),
+  sidebarBody = document.querySelector('#sidebar_body');
+
+  tocSideBar && tocSideBar.addEventListener('click', (e) => {
+    toggleSidebar(e);
+  });
+
+  metaSideBar && metaSideBar.addEventListener('click', (e) => {
+    toggleSidebar(e);
+  });
+
+  function toggleSidebar(e) {
+    let currentTitle = document.querySelector("."+SIDEBAR_TITLE_ACTIVE);
+    if (currentTitle == e.srcElement) {
+      return ;
+    }
+    let current, showElement, hideElement;
+    if (e.srcElement == metaSideBar) {
+      showElement = postSiteMeta;
+      hideElement = postToc;
+    } else if (e.srcElement == tocSideBar){
+      showElement = postToc;
+      hideElement = postSiteMeta;
+    }
+    currentTitle.classList.remove(SIDEBAR_TITLE_ACTIVE);
+    e.srcElement.classList.add(SIDEBAR_TITLE_ACTIVE);
+
+    window.Velocity(hideElement, 'stop');
+    window.Velocity(hideElement, 'transition.slideUpOut', {
+      display: 'none',
+      duration: 200,
+      complete: function () {
+        window.Velocity(showElement, 'transition.slideDownIn', {
+          duration: 200
+        });
+      }
+    })
+    hideElement.classList.remove(SIDEBAR_BODY_ACTIVE);
+    showElement.classList.add(SIDEBAR_BODY_ACTIVE);
+  }
+
+  postToc && postToc.addEventListener('transitionend', function() {
+    this.classList.remove(SLIDE_UP_IN);
+  });
+
+  if (sidebarBody) {
+    if (sidebarBody.classList.contains('pisces') || sidebarBody.classList.contains('gemini')) {
+      let hasFix = false;
+      let scrollEl = document.querySelector('.main-continer');
+      let limitTop = document.querySelector('#nav_ul').children.length * 42 + 162;
+      window.addEventListener('scroll', function(e) {
+        if (document.scrollingElement.scrollTop >= limitTop) {
+          if (!hasFix) {
+            sidebar.classList.add('sidebar-fixed');
+            hasFix = true;
+          }
+        } else {
+          if (hasFix) {
+            sidebar.classList.remove('sidebar-fixed');
+            hasFix = false;
+          }
+        }
+      });
+    }
+  }
+  
+</script>
+        <div class="section-box box-shadow-wrapper">
+          <div class="section bg-color post post-page">
+            <header class="post-header">
+  <h1 class="post-title">
+    <a class="post-title-link" href="https://ricky.shineteens.com/post/jiu-shou-ji-gai-zao-ji-hua-da-jian-aira2yi-ji-ji-qi-bian-jie-de-wang-ye-guan-li-wen-jian-fang-fa/">
+      旧手机改造计划——搭建aira2，以及极其便捷的网页管理文件方法
+    </a>
+  </h1>
+  <div class="post-meta">
+    
+    <span class="meta-item pc-show">
+      <i class="fa fa-calendar-o"></i>
+      <span>发布于</span>
+      <span>2020-02-05</span>
+      <span class="post-meta-divider pc-show">|</span>
+    </span>
+    
+    <span class="meta-item">
+      <i class="fa fa-clock-o"></i>
+      <span>2分钟</span>
+    </span>
+    <span class="meta-item">
+      <span class="post-meta-divider">|</span>
+      <i class="fa fa-file-word-o"></i>
+      <span>506<span class="pc-show">字数</span></span>
+    </span>
+    
+    
+    
+    <span id="/post/jiu-shou-ji-gai-zao-ji-hua-da-jian-aira2yi-ji-ji-qi-bian-jie-de-wang-ye-guan-li-wen-jian-fang-fa/" data-flag-title="旧手机改造计划——搭建aira2，以及极其便捷的网页管理文件方法" class="meta-item pc-show leancloud_visitors">
+      <span class="post-meta-divider">|</span>
+      <i class="fa fa-eye"></i>
+      <span>浏览量：<span class="leancloud-visitors-count"></span></span>
+    </span>
+    
+  </div>
+</header>
+            <div class="post-body next-md-body" id="post_body">
+              <h3 id="本文所需的工具ksweb可道云termux">本文所需的工具：ksweb，可道云，termux</h3>
+<h3 id="网站管理文件方法">网站管理文件方法：</h3>
+<p>从<a href="https://kodcloud.com/">可道云官网</a>下好源码解压到你用ksweb搭建的文件夹（参考我之前发的文章<a href="http://ricky.shineteens.com/index.php/archives/13/">旧手机搭建网站</a>）然后建议文件夹改个好记的名字，然后进入<a href="http://localhost/">http://localhost</a>:8080/你文件夹的名字。改个密码就完事了！以后你就可以随时访问这个目录访问你手机的文件夹了，只要你ksweb不被后台杀掉的话</p>
+<figure data-type="image" tabindex="1"><img src="https://img.imgdb.cn/item/606a0d218322e6675ce6b2c2.jpg" alt="" loading="lazy"></figure>
+<h3 id="aira2搭建">aira2搭建</h3>
+<pre><code>pkg install aira2
+aria2c --enable-rpc --rpc-listen-all
+</code></pre>
+<p>如果你想在浏览器上访问你的aira2的话，可以执行以下代码 先安装nodejs环境</p>
+<pre><code>pkg install nodejs
+git clone https://github.com/ziahamza/webui-aria2.git
+cd webui-aria2
+node node-server.js
+</code></pre>
+<h2 id="利用ftp访问文件"><img src="https://img.imgdb.cn/item/606a0cd28322e6675ce68832.jpg" alt="" loading="lazy"><br>
+利用ftp访问文件</h2>
+<ol>
+<li>
+<p>ES浏览器——网络——从PC访问，然后在电脑上的资源管理器输入它给你的地址就好了，也可以在“增加一个网络位置”中输入那个地址<br>
+优点：<br>
+方便简单，对小白极其友好<br>
+缺点：</p>
+<ol>
+<li>手机后台多跑一个应用，除非你打算下次临时访问时去打开</li>
+<li>如果映射到外网，没有用户名密码意味着别人输了地址就可以操作你手机文件了</li>
+</ol>
+</li>
+<li>
+<p>KSweb上的ftp创建一个用户，然后电脑访问你的手机地址，一般为192.168.0.x:2121(x为随机地址，可以到路由器后台看，也可以在termux输入ipconfig -a查看，端口不一定是2121，具体看ksweb的主页怎么显示的），输入用户名密码就可以看见你手机的文件夹了<br>
+优点：</p>
+<ol>
+<li>网站在ftp就在，只要ksweb不死你就可以随时访问</li>
+<li>有用户名密码，安全性很强<br>
+缺点：<br>
+除了有些小白可能操作半天外还真没什么缺点了，建议优先考虑</li>
+</ol>
+</li>
+</ol>
+<figure data-type="image" tabindex="2"><img src="https://img.imgdb.cn/item/606a0cc28322e6675ce67ee3.jpg" alt="" loading="lazy"></figure>
+<p>另外我的图片是从电脑访问处截图的，所以请不要模仿上面的地址。</p>
+
+            </div>
+            <div class="post-footer">
+  <ul class="post-copyright">
+    <li class="post-copyright-author">
+      <strong>本文作者：</strong>
+      Ricky Shao
+    </li>
+    <li class="post-copyright-link">
+      <strong>本文链接：</strong>
+      <a href="https://ricky.shineteens.com/post/jiu-shou-ji-gai-zao-ji-hua-da-jian-aira2yi-ji-ji-qi-bian-jie-de-wang-ye-guan-li-wen-jian-fang-fa/" title="旧手机改造计划——搭建aira2，以及极其便捷的网页管理文件方法">https://ricky.shineteens.com/post/jiu-shou-ji-gai-zao-ji-hua-da-jian-aira2yi-ji-ji-qi-bian-jie-de-wang-ye-guan-li-wen-jian-fang-fa/</a>
+    </li>
+    <li class="post-copyright-license">
+      <strong>版权声明： </strong>
+      本博客所有文章除特别声明外，均采用<a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fa fa-fw fa-creative-commons"></i> BY-NC-SA</a> 许可协议。转载请注明出处！
+    </li>
+  </ul>
+  <div class="tags">
+    
+  </div>
+  <div class="nav">
+    <div class="nav-prev">
+      
+    </div>
+    <div class="nav-next">
+      
+        <a class="nav-pc-next" title="Hello Gridea" href="https://ricky.shineteens.com/post/hello-gridea/">Hello Gridea</a>
+        <a class="nav-mobile-next" title="Hello Gridea" href="https://ricky.shineteens.com/post/hello-gridea/">下一篇</a>
+        <i class="fa fa-chevron-right"></i>
+      
+    </div>
+  </div>
+</div>
+            
+  
+    
+      <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+<script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+
+<div id="gitalk-container"></div>
+
+<script>
+  var gitalk = new Gitalk({
+    clientID: '276d35b05bb7383590db',
+    clientSecret: 'b561390c2cc5e04b2a2d00b61cbf16f0a9500898',
+    repo: 'veithly.github.io',
+    owner: 'veithly',
+    admin: ['veithly'],
+    id: (location.pathname).substring(0, 49),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false  // Facebook-like distraction free mode
+  })
+  gitalk.render('gitalk-container')
+</script>
+    
+    
+  
+
+          </div>
         </div>
       </div>
     </div>
@@ -999,6 +1343,36 @@
   hljs.initHighlightingOnLoad();
 
 </script>
+    <div class="light-box" id="light_box"></div>
+<script>
+  let imgs = document.querySelectorAll('.post-body img');
+  let lightBox = document.querySelector('#light_box');
+  lightBox.addEventListener('mousedown', (e) => {
+    e.preventDefault()
+  })
+  lightBox.addEventListener('mousewheel', (e) => {
+    e.preventDefault()
+  })
+  let width = window.innerWidth * 0.8;
+  lightBox.onclick = () => {
+    let img = lightBox.querySelector('img');
+    lightBox.style = '';
+    img && img.remove();
+  }
+  imgs.forEach(item => {
+    item.onclick = function (e) {
+      let lightImg = document.createElement('img');
+      lightImg.src = this.src;
+      lightBox.style = `height: 100%; opacity: 1; background-color: rgba(0, 0, 0, 0.5);cursor: zoom-out;`;
+      lightImg.style = `width: ${width}px; border: 1px solid #fff; border-radius: 2px;`;
+      lightImg.onclick = function () {
+        lightBox.style = '';
+        this.remove();
+      }
+      lightBox.append(lightImg);
+    }
+  })
+</script>
   </div>
 </body>
 <input hidden id="copy" />
@@ -1206,7 +1580,6 @@ node node-server.js
 </script> -->
 
 <script src="/media/js/mouse/peace.js"></script>
-
 
 
 </html>
