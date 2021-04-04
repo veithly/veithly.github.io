@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://ricky.shineteens.com</id>
     <title>邵侠小站</title>
-    <updated>2021-04-04T19:10:37.808Z</updated>
+    <updated>2021-04-04T19:13:29.581Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://ricky.shineteens.com"/>
     <link rel="self" href="https://ricky.shineteens.com/atom.xml"/>
@@ -16,6 +16,14 @@
         <link href="https://ricky.shineteens.com/post/jiu-shou-ji-gai-zao-ji-hua-da-jian-aira2yi-ji-ji-qi-bian-jie-de-wang-ye-guan-li-wen-jian-fang-fa/">
         </link>
         <updated>2020-02-04T18:52:52.000Z</updated>
+        <summary type="html"><![CDATA[<h3 id="本文所需的工具ksweb可道云termux">本文所需的工具：ksweb，可道云，termux</h3>
+<h3 id="网站管理文件方法">网站管理文件方法：</h3>
+<p>从<a href="https://kodcloud.com/">可道云官网</a>下好源码解压到你用ksweb搭建的文件夹（参考我之前发的文章<a href="http://ricky.shineteens.com/index.php/archives/13/">旧手机搭建网站</a>）然后建议文件夹改个好记的名字，然后进入<a href="http://localhost/">http://localhost</a>:8080/你文件夹的名字。改个密码就完事了！以后你就可以随时访问这个目录访问你手机的文件夹了，只要你ksweb不被后台杀掉的话</p>
+]]></summary>
+        <content type="html"><![CDATA[<h3 id="本文所需的工具ksweb可道云termux">本文所需的工具：ksweb，可道云，termux</h3>
+<h3 id="网站管理文件方法">网站管理文件方法：</h3>
+<p>从<a href="https://kodcloud.com/">可道云官网</a>下好源码解压到你用ksweb搭建的文件夹（参考我之前发的文章<a href="http://ricky.shineteens.com/index.php/archives/13/">旧手机搭建网站</a>）然后建议文件夹改个好记的名字，然后进入<a href="http://localhost/">http://localhost</a>:8080/你文件夹的名字。改个密码就完事了！以后你就可以随时访问这个目录访问你手机的文件夹了，只要你ksweb不被后台杀掉的话</p>
+]]></content>
     </entry>
     <entry>
         <title type="html"><![CDATA[Hello Gridea]]></title>
