@@ -8,9 +8,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
 <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
-<link rel="shortcut icon" href="https://ricky.shineteens.com/favicon.ico?v=1617554485514">
+<link rel="shortcut icon" href="https://ricky.shineteens.com/favicon.ico?v=1617555150079">
 <link rel="stylesheet" href="https://ricky.shineteens.com/styles/main.css">
 
+
+  
+    <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css" />
+  
+
+  
 
 
 <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
@@ -36,7 +42,7 @@
   <div class="top-container" data-aos="fade-right">
     <div class="top-header-container">
       <a class="site-title-container" href="https://ricky.shineteens.com">
-        <img src="https://ricky.shineteens.com/images/avatar.png?v=1617554485514" class="site-logo">
+        <img src="https://ricky.shineteens.com/images/avatar.png?v=1617555150079" class="site-logo">
         <h1 class="site-title">邵侠小站</h1>
       </a>
       <div class="menu-btn" @click="menuVisible = !menuVisible">
@@ -127,6 +133,12 @@
             
 
             
+              
+                <div id="gitalk-container" data-aos="fade-in"></div>
+              
+
+              
+            
 
           </div>
 
@@ -154,6 +166,29 @@ var app = new Vue({
     hljs.initHighlightingOnLoad()
   </script>
 
+
+
+
+  
+    <script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+    <script>
+
+      var gitalk = new Gitalk({
+        clientID: '276d35b05bb7383590db',
+        clientSecret: 'b561390c2cc5e04b2a2d00b61cbf16f0a9500898',
+        repo: 'veithly.github.io',
+        owner: 'veithly',
+        admin: ['veithly'],
+        id: (location.pathname).substring(0, 49),      // Ensure uniqueness and length less than 50
+        distractionFreeMode: false  // Facebook-like distraction free mode
+      })
+
+      gitalk.render('gitalk-container')
+
+    </script>
+  
+
+  
 
 
 
