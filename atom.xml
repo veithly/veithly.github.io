@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
-    <id>https://github.com/veithly/veithly.github.io.git</id>
+    <id>https://veithly.github.io</id>
     <title>Gridea</title>
-    <updated>2021-04-04T13:10:26.805Z</updated>
+    <updated>2021-04-04T13:13:29.805Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
-    <link rel="alternate" href="https://github.com/veithly/veithly.github.io.git"/>
-    <link rel="self" href="https://github.com/veithly/veithly.github.io.git/atom.xml"/>
+    <link rel="alternate" href="https://veithly.github.io"/>
+    <link rel="self" href="https://veithly.github.io/atom.xml"/>
     <subtitle>温故而知新</subtitle>
-    <logo>https://github.com/veithly/veithly.github.io.git/images/avatar.png</logo>
-    <icon>https://github.com/veithly/veithly.github.io.git/favicon.ico</icon>
+    <logo>https://veithly.github.io/images/avatar.png</logo>
+    <icon>https://veithly.github.io/favicon.ico</icon>
     <rights>All rights reserved 2021, Gridea</rights>
     <entry>
         <title type="html"><![CDATA[Hello Gridea]]></title>
-        <id>https://github.com/veithly/veithly.github.io.git/post/hello-gridea/</id>
-        <link href="https://github.com/veithly/veithly.github.io.git/post/hello-gridea/">
+        <id>https://veithly.github.io/post/hello-gridea/</id>
+        <link href="https://veithly.github.io/post/hello-gridea/">
         </link>
         <updated>2018-12-11T16:00:00.000Z</updated>
         <summary type="html"><![CDATA[<p>👏  欢迎使用 <strong>Gridea</strong> ！<br>
