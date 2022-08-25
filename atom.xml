@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://ricky.shineteens.com</id>
+    <title>邵侠小站</title>
+    <updated>2022-08-25T03:01:43.568Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://ricky.shineteens.com"/>
+    <link rel="self" href="https://ricky.shineteens.com/atom.xml"/>
+    <subtitle>曾梦想仗剑走天涯，却发现过安检时被没收了</subtitle>
+    <logo>https://ricky.shineteens.com/images/avatar.png</logo>
+    <icon>https://ricky.shineteens.com/favicon.ico</icon>
+    <rights>All rights reserved 2022, 邵侠小站</rights>
+    <entry>
+        <title type="html"><![CDATA[微服务｜现有技术框架选型与资料整理]]></title>
+        <id>https://ricky.shineteens.com/post/2Xxn7pCb3/</id>
+        <link href="https://ricky.shineteens.com/post/2Xxn7pCb3/">
+        </link>
+        <updated>2022-08-25T03:01:16.000Z</updated>
+        <summary type="html"><![CDATA[<h2 id="框架集合">框架集合</h2>
+<p>微服务是分布式架构的最佳实践方案，那这种方案它也需要具体的技术框架去落地。所以在全球有很多的互联网公司也都在去尝试开发自己的微服务落地技术。但是在这些技术里，真正广为人知的就是Spring Cloud。Spring Cloud 以微服务为核心的分布式系统构建标准，是一系列框架的有序集合，直至现在，由不同编程语言、不同技术框架所开发的微服务系统中，基于 Spring Cloud 的解决方案仍然是最为主流的选择。</p>
+<p><a href="https://spring.io/projects/spring-cloud">Spring Cloud</a></p>
+<p><a href="https://spring.io/projects/spring-cloud-alibaba">Spring Cloud Alibaba</a></p>
+<figure data-type="image" tabindex="1"><img src="https://nas.shineteens.com:9999/i/2022/08/17/62fcb02ae2c64.jpg" alt="62fcb02ae2c64" loading="lazy"></figure>
+]]></summary>
+        <content type="html"><![CDATA[<h2 id="框架集合">框架集合</h2>
+<p>微服务是分布式架构的最佳实践方案，那这种方案它也需要具体的技术框架去落地。所以在全球有很多的互联网公司也都在去尝试开发自己的微服务落地技术。但是在这些技术里，真正广为人知的就是Spring Cloud。Spring Cloud 以微服务为核心的分布式系统构建标准，是一系列框架的有序集合，直至现在，由不同编程语言、不同技术框架所开发的微服务系统中，基于 Spring Cloud 的解决方案仍然是最为主流的选择。</p>
+<p><a href="https://spring.io/projects/spring-cloud">Spring Cloud</a></p>
+<p><a href="https://spring.io/projects/spring-cloud-alibaba">Spring Cloud Alibaba</a></p>
+<figure data-type="image" tabindex="1"><img src="https://nas.shineteens.com:9999/i/2022/08/17/62fcb02ae2c64.jpg" alt="62fcb02ae2c64" loading="lazy"></figure>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[JavaScript｜手写Promise]]></title>
+        <id>https://ricky.shineteens.com/post/IZaI2U_Lq/</id>
+        <link href="https://ricky.shineteens.com/post/IZaI2U_Lq/">
+        </link>
+        <updated>2022-08-23T01:43:30.000Z</updated>
+        <summary type="html"><![CDATA[<p>之前的文章里讲了Promise的好处以及具体应用，不了解Promise用法的读者可以移步到这里：<a href="https://ricky.shineteens.com/post/lgixxdcqc/">JavaScript｜Promise使用详解</a>。这里我们主要来看看Promise是怎么实现的。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>之前的文章里讲了Promise的好处以及具体应用，不了解Promise用法的读者可以移步到这里：<a href="https://ricky.shineteens.com/post/lgixxdcqc/">JavaScript｜Promise使用详解</a>。这里我们主要来看看Promise是怎么实现的。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[JavaScript｜Promise使用详解]]></title>
+        <id>https://ricky.shineteens.com/post/LGIXxDcQC/</id>
+        <link href="https://ricky.shineteens.com/post/LGIXxDcQC/">
+        </link>
+        <updated>2022-08-22T01:51:38.000Z</updated>
+        <summary type="html"><![CDATA[<h2 id="promise-之前实现异步的弊端">Promise 之前实现异步的弊端</h2>
+<p>首先看一个例子，再没有Promise之前，实现一个网络异步请求：</p>
+<pre><code class="language-JavaScript">function requestData(url, successCallback, failtureCallback) {
+    // 模拟网络请求
+    setTimeout(() =&gt; {
+        // 获取请求结果
+        // url 传入的是 ricky 则请求成功，否则请求失败
+        if (url === 'ricky') {
+            let res = {
+                name: 'ricky',
+                age: 18
+            };
+            successCallback(res);
+        } else {
+            let error = '请求失败';
+            failtureCallback(error);
+        }
+    }, 3000);
+}
+
+requestData('ricky', (res) =&gt; {
+    console.log(res);
+} , (error) =&gt; {
+    console.log(error);
+} );
+</code></pre>
+<p>这种实现方法有很多弊端：</p>
+<ol>
+<li>如果是我们自己封装的requestData,那么我们在封装的时候必须要自己设计好callback名称, 并且使用好</li>
+<li>如果我们使用的是别人封装的requestData或者一些第三方库, 那么我们必须去看别人的源码或者文档, 才知道它这个函数需要怎么去获取到结果</li>
+</ol>
+]]></summary>
+        <content type="html"><![CDATA[<h2 id="promise-之前实现异步的弊端">Promise 之前实现异步的弊端</h2>
+<p>首先看一个例子，再没有Promise之前，实现一个网络异步请求：</p>
+<pre><code class="language-JavaScript">function requestData(url, successCallback, failtureCallback) {
+    // 模拟网络请求
+    setTimeout(() =&gt; {
+        // 获取请求结果
+        // url 传入的是 ricky 则请求成功，否则请求失败
+        if (url === 'ricky') {
+            let res = {
+                name: 'ricky',
+                age: 18
+            };
+            successCallback(res);
+        } else {
+            let error = '请求失败';
+            failtureCallback(error);
+        }
+    }, 3000);
+}
+
+requestData('ricky', (res) =&gt; {
+    console.log(res);
+} , (error) =&gt; {
+    console.log(error);
+} );
+</code></pre>
+<p>这种实现方法有很多弊端：</p>
+<ol>
+<li>如果是我们自己封装的requestData,那么我们在封装的时候必须要自己设计好callback名称, 并且使用好</li>
+<li>如果我们使用的是别人封装的requestData或者一些第三方库, 那么我们必须去看别人的源码或者文档, 才知道它这个函数需要怎么去获取到结果</li>
+</ol>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[微服务｜概念认识与相关问题]]></title>
+        <id>https://ricky.shineteens.com/post/369HPigUO/</id>
+        <link href="https://ricky.shineteens.com/post/369HPigUO/">
+        </link>
+        <updated>2022-08-17T08:25:19.000Z</updated>
+        <summary type="html"><![CDATA[<h2 id="认识微服务">认识微服务</h2>
+<p>微服务其实是一种架构风格，我们在开发一个应用的时候这个应用应该是由一组小型服务组成，每个小型服务都运行在自己的进程内；小服务之间通过 HTTP 的方式进行互联互通。</p>
+<h3 id="扩展性">扩展性</h3>
+<p>在单体应用中，如果要对模块进行扩展，那么需要对所有模块进行扩展。比如一个电商系统，我可能只需要扩展秒杀服务，但是在单体应用下进行扩展时其他功能也会扩展，会造成大量的资源浪费。而利用微服务可以只扩展响应服务即可。</p>
+]]></summary>
+        <content type="html"><![CDATA[<h2 id="认识微服务">认识微服务</h2>
+<p>微服务其实是一种架构风格，我们在开发一个应用的时候这个应用应该是由一组小型服务组成，每个小型服务都运行在自己的进程内；小服务之间通过 HTTP 的方式进行互联互通。</p>
+<h3 id="扩展性">扩展性</h3>
+<p>在单体应用中，如果要对模块进行扩展，那么需要对所有模块进行扩展。比如一个电商系统，我可能只需要扩展秒杀服务，但是在单体应用下进行扩展时其他功能也会扩展，会造成大量的资源浪费。而利用微服务可以只扩展响应服务即可。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[JavaScript｜监听对象与响应式原理]]></title>
+        <id>https://ricky.shineteens.com/post/ylCQIx8xP/</id>
+        <link href="https://ricky.shineteens.com/post/ylCQIx8xP/">
+        </link>
+        <updated>2022-08-17T02:27:49.000Z</updated>
+        <summary type="html"><![CDATA[<p>很多前端 JavaScript 框架，包含但不限于（Angular，React，Vue）都拥有自己的响应式方法，而这些方法其实都是基于监听对象来实现的，这里我们来看看监听对象实现响应式的原理。</p>
+<h2 id="objectdefineproperty-监听对象">Object.defineProperty 监听对象</h2>
+<p>如果需要监听对象的属性变化，可以使用<strong>Object.defineProperty</strong>的存储属性描述符的方法来监听。</p>
+<pre><code class="language-js">const obj = {
+  a: 1,
+  b: 2,
+  c: 3
+}
+
+// 监听一个属性的变化
+Object.defineProperty(obj, 'a', {
+  set(val) {
+    console.log('a set', val)
+  },
+  get() {
+    console.log('a get')
+    return this.a
+  }
+})</code></pre>
+]]></summary>
+        <content type="html"><![CDATA[<p>很多前端 JavaScript 框架，包含但不限于（Angular，React，Vue）都拥有自己的响应式方法，而这些方法其实都是基于监听对象来实现的，这里我们来看看监听对象实现响应式的原理。</p>
+<h2 id="objectdefineproperty-监听对象">Object.defineProperty 监听对象</h2>
+<p>如果需要监听对象的属性变化，可以使用<strong>Object.defineProperty</strong>的存储属性描述符的方法来监听。</p>
+<pre><code class="language-js">const obj = {
+  a: 1,
+  b: 2,
+  c: 3
+}
+
+// 监听一个属性的变化
+Object.defineProperty(obj, 'a', {
+  set(val) {
+    console.log('a set', val)
+  },
+  get() {
+    console.log('a get')
+    return this.a
+  }
+})</code></pre>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[LeetCode 05.最长回文子串 动态规划]]></title>
+        <id>https://ricky.shineteens.com/post/vvOUWDU7T/</id>
+        <link href="https://ricky.shineteens.com/post/vvOUWDU7T/">
+        </link>
+        <updated>2022-08-16T09:15:38.000Z</updated>
+        <summary type="html"><![CDATA[<h2 id="题目介绍">题目介绍</h2>
+<p>给你一个字符串 s，找到 s 中最长的回文子串。</p>
+<p>示例 1：</p>
+<pre><code>输入：s = &quot;babad&quot;
+输出：&quot;bab&quot;
+解释：&quot;aba&quot; 同样是符合题意的答案。
+</code></pre>
+<p>示例 2：</p>
+<pre><code>输入：s = &quot;cbbd&quot;
+输出：&quot;bb&quot;
+</code></pre>
+]]></summary>
+        <content type="html"><![CDATA[<h2 id="题目介绍">题目介绍</h2>
+<p>给你一个字符串 s，找到 s 中最长的回文子串。</p>
+<p>示例 1：</p>
+<pre><code>输入：s = &quot;babad&quot;
+输出：&quot;bab&quot;
+解释：&quot;aba&quot; 同样是符合题意的答案。
+</code></pre>
+<p>示例 2：</p>
+<pre><code>输入：s = &quot;cbbd&quot;
+输出：&quot;bb&quot;
+</code></pre>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[JavaScript｜ES7~ES12常见基础用法]]></title>
+        <id>https://ricky.shineteens.com/post/tbAaAqNsf/</id>
+        <link href="https://ricky.shineteens.com/post/tbAaAqNsf/">
+        </link>
+        <updated>2022-08-15T10:51:55.000Z</updated>
+        <summary type="html"><![CDATA[<p>ES7~ES12是 ES6 的补充，里面有很多比较灵活的用法可以在日常中使用，如果对 ES6 不太熟悉的可以看看这里：<a href="https://ricky.shineteens.com/post/j9qm98nhv/">JavaScript｜ES6日常用法详解</a></p>
+<h2 id="es7-array-includes">ES7 - Array Includes</h2>
+<p>在ES7之前，如果我们想判断一个数组中是否包含某个元素，需要通过 indexOf 获取结果，并且判断是否为 -1。 在ES7中，我们可以通过includes来判断一个数组中是否包含一个指定的元素，根据情况，如果包含则返回 true， 否则返回false。<br>
+<code>arr.includes(valueToFind[, fromIndex])</code><br>
+fromIndex(可选): 从fromIndex 索引处开始查找 valueToFind。如果为负值，则按升序从 array.length + fromIndex 的索引开始搜 （即使从末尾开始往前跳 fromIndex 的绝对值个索引，然后往后搜寻）。默认为 0。</p>
+<pre><code class="language-js">const arr = [1, 2, 3, 4, 5];
+console.log(arr.includes(3)); // true
+console.log(arr.includes(6)); // false
+console.log(arr.includes(3, 3)); // false
+console.log(arr.includes(3, -1)); // true
+</code></pre>
+]]></summary>
+        <content type="html"><![CDATA[<p>ES7~ES12是 ES6 的补充，里面有很多比较灵活的用法可以在日常中使用，如果对 ES6 不太熟悉的可以看看这里：<a href="https://ricky.shineteens.com/post/j9qm98nhv/">JavaScript｜ES6日常用法详解</a></p>
+<h2 id="es7-array-includes">ES7 - Array Includes</h2>
+<p>在ES7之前，如果我们想判断一个数组中是否包含某个元素，需要通过 indexOf 获取结果，并且判断是否为 -1。 在ES7中，我们可以通过includes来判断一个数组中是否包含一个指定的元素，根据情况，如果包含则返回 true， 否则返回false。<br>
+<code>arr.includes(valueToFind[, fromIndex])</code><br>
+fromIndex(可选): 从fromIndex 索引处开始查找 valueToFind。如果为负值，则按升序从 array.length + fromIndex 的索引开始搜 （即使从末尾开始往前跳 fromIndex 的绝对值个索引，然后往后搜寻）。默认为 0。</p>
+<pre><code class="language-js">const arr = [1, 2, 3, 4, 5];
+console.log(arr.includes(3)); // true
+console.log(arr.includes(6)); // false
+console.log(arr.includes(3, 3)); // false
+console.log(arr.includes(3, -1)); // true
+</code></pre>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[微服务｜系统应用架构演变]]></title>
+        <id>https://ricky.shineteens.com/post/7cQbwosME/</id>
+        <link href="https://ricky.shineteens.com/post/7cQbwosME/">
+        </link>
+        <updated>2022-08-12T02:19:12.000Z</updated>
+        <summary type="html"><![CDATA[<h2 id="单体架构">单体架构</h2>
+<figure data-type="image" tabindex="1"><img src="https://nas.shineteens.com:9999/i/2022/08/12/62f5fddcc6f67.png" alt="1660288475283.png" loading="lazy"></figure>
+<p>单体架构即将所有的业务放在一个项目中开发，作为一个应用部署，这样的架构比较简单，但是不能满足复杂的业务需求。早期互联网产品因为流量小所以靠单体应用也能维持业务，但现在随着业务更加复杂单体应用已经满足不了。</p>
+]]></summary>
+        <content type="html"><![CDATA[<h2 id="单体架构">单体架构</h2>
+<figure data-type="image" tabindex="1"><img src="https://nas.shineteens.com:9999/i/2022/08/12/62f5fddcc6f67.png" alt="1660288475283.png" loading="lazy"></figure>
+<p>单体架构即将所有的业务放在一个项目中开发，作为一个应用部署，这样的架构比较简单，但是不能满足复杂的业务需求。早期互联网产品因为流量小所以靠单体应用也能维持业务，但现在随着业务更加复杂单体应用已经满足不了。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[JavaScript｜ES6日常用法详解]]></title>
+        <id>https://ricky.shineteens.com/post/J9qM98Nhv/</id>
+        <link href="https://ricky.shineteens.com/post/J9qM98Nhv/">
+        </link>
+        <updated>2022-08-09T03:16:22.000Z</updated>
+        <summary type="html"><![CDATA[<p>ES6全称ECMAScript 6.0 ，是JavaScript 的下一个版本标准。它的目标，是使得JavaScript语言可以用来编写复杂的大型应用程序，成为企业级开发语言。</p>
+<p>在前文中提到了ES6的新特性——class语法糖的使用。本文来讲讲除了class外ES6～ES12其他的新的特性，如果没有读的可以去看看：<a href="https://ricky.shineteens.com/post/u7zwdeg-m/">JavaScript｜Class定义类</a>。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>ES6全称ECMAScript 6.0 ，是JavaScript 的下一个版本标准。它的目标，是使得JavaScript语言可以用来编写复杂的大型应用程序，成为企业级开发语言。</p>
+<p>在前文中提到了ES6的新特性——class语法糖的使用。本文来讲讲除了class外ES6～ES12其他的新的特性，如果没有读的可以去看看：<a href="https://ricky.shineteens.com/post/u7zwdeg-m/">JavaScript｜Class定义类</a>。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[JavaScript｜Class定义类]]></title>
+        <id>https://ricky.shineteens.com/post/U7Zwdeg-m/</id>
+        <link href="https://ricky.shineteens.com/post/U7Zwdeg-m/">
+        </link>
+        <updated>2022-08-09T01:42:28.000Z</updated>
+        <summary type="html"><![CDATA[<h2 id="认识class和class的构造函数">认识class和class的构造函数</h2>
+<p>在之前我讲原型的文章中，按构造函数创建的类不仅和普通的函数相似，还不容易理解。在ES6中，我们可以使用class来定义类，class的本质其实是构造函数的语法糖而已。</p>
+<pre><code class="language-javascript">class Person {
+  constructor(name, age) {
+    this.name = name;
+    this.age = age;
+  }
+  say() {
+    console.log(`${this.name} is ${this.age} years old.`);
+  }
+}
+
+var person = new Person('Tom', 18);
+
+person.say(); // Tom is 18 years old.
+
+console.log(person); // Person { name: 'Tom', age: 18 }
+console.log(person.__proto__); // {}
+</code></pre>
+]]></summary>
+        <content type="html"><![CDATA[<h2 id="认识class和class的构造函数">认识class和class的构造函数</h2>
+<p>在之前我讲原型的文章中，按构造函数创建的类不仅和普通的函数相似，还不容易理解。在ES6中，我们可以使用class来定义类，class的本质其实是构造函数的语法糖而已。</p>
+<pre><code class="language-javascript">class Person {
+  constructor(name, age) {
+    this.name = name;
+    this.age = age;
+  }
+  say() {
+    console.log(`${this.name} is ${this.age} years old.`);
+  }
+}
+
+var person = new Person('Tom', 18);
+
+person.say(); // Tom is 18 years old.
+
+console.log(person); // Person { name: 'Tom', age: 18 }
+console.log(person.__proto__); // {}
+</code></pre>
+]]></content>
+    </entry>
+</feed>
