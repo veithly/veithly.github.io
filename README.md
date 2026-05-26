@@ -1,8 +1,8 @@
-# Agent Harness Architecture · Docs Site
+# Harness Architecture · Docs Site
 
-> Public bilingual documentation site for Agent Harness Architecture Patterns.
+> Public bilingual documentation site for Harness Architecture.
 >
-> Live site: <https://agent-architecture-patterns.pages.dev>
+> Live site: <https://harness-architecture.pages.dev>
 >
 > **Harness 释义**：指 LLM 之外那一整套支撑——loop、上下文、工具、沙箱、verifier、memory、observability。本书横向拆 4 个真实 Harness，作为自己做 Agent 的参考蓝本。
 
@@ -45,9 +45,9 @@ pnpm dev          # http://localhost:4321
 
 This repository is designed for Cloudflare Pages as the public project site:
 
-- Repository: `veithly/agent-architecture-patterns`
-- Domain: `https://agent-architecture-patterns.pages.dev`
-- Cloudflare Pages project: `agent-architecture-patterns`
+- Repository: `veithly/harness-architecture`
+- Domain: `https://harness-architecture.pages.dev`
+- Cloudflare Pages project: `harness-architecture`
 - Manual deploy command: `pnpm deploy:cloudflare`
 
 The GitHub workflow validates every push with:

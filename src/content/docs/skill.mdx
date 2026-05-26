@@ -58,15 +58,14 @@ skill 已随仓库一起开源。两种安装方式：
 ### 选 A · Claude Code（推荐）
 
 ```bash
-git clone https://github.com/your-org/AgentArchitecturePatterns.git
-cp -r AgentArchitecturePatterns/skills/build-your-own-agent ~/.claude/skills/
+git clone https://github.com/veithly/build-your-own-agent.git ~/.claude/skills/build-your-own-agent
 # 重启 Claude Code 后即可在 skill 选择器看到
 ```
 
 ### 选 B · 项目内嵌
 
 ```bash
-cp -r path/to/AgentArchitecturePatterns/skills/build-your-own-agent ./skills/
+git clone https://github.com/veithly/build-your-own-agent.git ./skills/build-your-own-agent
 # 在 AGENTS.md / CLAUDE.md 里声明：
 # "When designing an agent, load skill at ./skills/build-your-own-agent/SKILL.md."
 ```

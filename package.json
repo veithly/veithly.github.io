@@ -1,9 +1,9 @@
 {
-  "name": "agent-harness-docs",
+  "name": "harness-architecture-docs",
   "type": "module",
   "version": "0.0.1",
   "private": true,
-  "description": "Agent Harness 架构设计：拆 Codex / Claude Code / OpenClaw / Hermes 四个真实 Harness，作为自己做 Agent 的参考蓝本",
+  "description": "Harness Architecture：拆 Codex / Claude Code / OpenClaw / Hermes 四个真实 Harness，作为自己做 Agent 的参考蓝本",
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
@@ -14,7 +14,7 @@
     "check:template": "node scripts/check-chapter-template.mjs",
     "check:i18n": "node scripts/check-i18n-parity.mjs",
     "check:all": "pnpm check && pnpm check:template && pnpm check:i18n",
-    "deploy:cloudflare": "pnpm build && npx wrangler pages deploy dist --project-name agent-architecture-patterns --branch main"
+    "deploy:cloudflare": "pnpm build && npx wrangler pages deploy dist --project-name harness-architecture --branch main"
   },
   "dependencies": {
     "@astrojs/mdx": "^5.0.5",

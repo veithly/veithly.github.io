@@ -58,15 +58,14 @@ Two ways to install:
 ### Option A · Claude Code (recommended)
 
 ```bash
-git clone https://github.com/your-org/AgentArchitecturePatterns.git
-cp -r AgentArchitecturePatterns/skills/build-your-own-agent ~/.claude/skills/
+git clone https://github.com/veithly/build-your-own-agent.git ~/.claude/skills/build-your-own-agent
 # Restart Claude Code; appears in the skill picker.
 ```
 
 ### Option B · Vendor it in your project
 
 ```bash
-cp -r path/to/AgentArchitecturePatterns/skills/build-your-own-agent ./skills/
+git clone https://github.com/veithly/build-your-own-agent.git ./skills/build-your-own-agent
 # Declare in AGENTS.md / CLAUDE.md:
 # "When designing an agent, load skill at ./skills/build-your-own-agent/SKILL.md."
 ```

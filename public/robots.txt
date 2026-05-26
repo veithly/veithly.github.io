@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://agent-architecture-patterns.pages.dev/sitemap-index.xml
+Sitemap: https://harness-architecture.pages.dev/sitemap-index.xml

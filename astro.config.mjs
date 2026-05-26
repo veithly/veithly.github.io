@@ -6,21 +6,21 @@ import react from '@astrojs/react';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://agent-architecture-patterns.pages.dev',
+  site: 'https://harness-architecture.pages.dev',
   integrations: [
     starlight({
       title: {
-        'zh-CN': 'Agent Harness 架构设计',
-        en: 'Agent Harness Architecture',
+        'zh-CN': 'Harness Architecture',
+        en: 'Harness Architecture',
       },
-      description: 'Source-grounded architecture notes on Codex, Claude Code, OpenClaw, and Hermes for engineers building agent harnesses.',
+      description: 'Source-grounded architecture notes on Codex, Claude Code, OpenClaw, and Hermes for engineers building harnesses.',
       defaultLocale: 'root',
       locales: {
         root: { label: '中文', lang: 'zh-CN' },
         en: { label: 'English', lang: 'en' },
       },
       social: [
-        { icon: 'github', label: 'GitHub', href: 'https://github.com/veithly/agent-architecture-patterns' },
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/veithly/harness-architecture' },
       ],
       customCss: ['./src/styles/tokens.css', './src/styles/handdrawn.css'],
       head: [
@@ -28,14 +28,14 @@ export default defineConfig({
           tag: 'meta',
           attrs: {
             property: 'og:title',
-            content: 'Agent Harness Architecture Patterns',
+            content: 'Harness Architecture',
           },
         },
         {
           tag: 'meta',
           attrs: {
             property: 'og:description',
-            content: 'Bilingual source-grounded notes on Codex, Claude Code, OpenClaw, and Hermes for engineers building agent harnesses.',
+            content: 'Bilingual source-grounded notes on Codex, Claude Code, OpenClaw, and Hermes for engineers building harnesses.',
           },
         },
         {
@@ -44,7 +44,7 @@ export default defineConfig({
         },
         {
           tag: 'meta',
-          attrs: { property: 'og:url', content: 'https://agent-architecture-patterns.pages.dev' },
+          attrs: { property: 'og:url', content: 'https://harness-architecture.pages.dev' },
         },
         {
           tag: 'meta',
@@ -52,13 +52,13 @@ export default defineConfig({
         },
         {
           tag: 'meta',
-          attrs: { name: 'twitter:title', content: 'Agent Harness Architecture Patterns' },
+          attrs: { name: 'twitter:title', content: 'Harness Architecture' },
         },
         {
           tag: 'meta',
           attrs: {
             name: 'twitter:description',
-            content: 'A bilingual field guide to real agent harness architecture.',
+            content: 'A bilingual field guide to real harness architecture.',
           },
         },
         {
