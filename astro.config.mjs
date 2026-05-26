@@ -25,6 +25,43 @@ export default defineConfig({
       customCss: ['./src/styles/tokens.css', './src/styles/handdrawn.css'],
       head: [
         {
+          tag: 'meta',
+          attrs: {
+            property: 'og:title',
+            content: 'Agent Harness Architecture Patterns',
+          },
+        },
+        {
+          tag: 'meta',
+          attrs: {
+            property: 'og:description',
+            content: 'Bilingual source-grounded notes on Codex, Claude Code, OpenClaw, and Hermes for engineers building agent harnesses.',
+          },
+        },
+        {
+          tag: 'meta',
+          attrs: { property: 'og:type', content: 'website' },
+        },
+        {
+          tag: 'meta',
+          attrs: { property: 'og:url', content: 'https://veithly.github.io' },
+        },
+        {
+          tag: 'meta',
+          attrs: { name: 'twitter:card', content: 'summary_large_image' },
+        },
+        {
+          tag: 'meta',
+          attrs: { name: 'twitter:title', content: 'Agent Harness Architecture Patterns' },
+        },
+        {
+          tag: 'meta',
+          attrs: {
+            name: 'twitter:description',
+            content: 'A bilingual field guide to real agent harness architecture.',
+          },
+        },
+        {
           tag: 'link',
           attrs: { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         },
