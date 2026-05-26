@@ -1,4 +1,4 @@
-name: Deploy docs to GitHub Pages
+name: Validate docs
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -10,15 +10,9 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: github-pages
-  cancel-in-progress: false
 
 jobs:
-  build:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -43,22 +37,3 @@ jobs:
 
       - name: Build site
         run: pnpm build
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4

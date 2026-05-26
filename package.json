@@ -13,7 +13,8 @@
     "check": "astro check",
     "check:template": "node scripts/check-chapter-template.mjs",
     "check:i18n": "node scripts/check-i18n-parity.mjs",
-    "check:all": "pnpm check && pnpm check:template && pnpm check:i18n"
+    "check:all": "pnpm check && pnpm check:template && pnpm check:i18n",
+    "deploy:cloudflare": "pnpm build && npx wrangler pages deploy dist --project-name agent-architecture-patterns --branch main"
   },
   "dependencies": {
     "@astrojs/mdx": "^5.0.5",

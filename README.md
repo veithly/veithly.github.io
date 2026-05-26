@@ -2,7 +2,7 @@
 
 > Public bilingual documentation site for Agent Harness Architecture Patterns.
 >
-> Live site: <https://veithly.github.io>
+> Live site: <https://agent-architecture-patterns.pages.dev>
 >
 > **Harness 释义**：指 LLM 之外那一整套支撑——loop、上下文、工具、沙箱、verifier、memory、observability。本书横向拆 4 个真实 Harness，作为自己做 Agent 的参考蓝本。
 
@@ -43,13 +43,14 @@ pnpm dev          # http://localhost:4321
 
 ## Deploy
 
-This repository is designed for GitHub Pages as the user site repository:
+This repository is designed for Cloudflare Pages as the public project site:
 
-- Repository: `veithly/veithly.github.io`
-- Domain: `https://veithly.github.io`
-- Deployment: GitHub Actions workflow at `.github/workflows/deploy.yml`
+- Repository: `veithly/agent-architecture-patterns`
+- Domain: `https://agent-architecture-patterns.pages.dev`
+- Cloudflare Pages project: `agent-architecture-patterns`
+- Manual deploy command: `pnpm deploy:cloudflare`
 
-Pushing to `main` runs:
+The GitHub workflow validates every push with:
 
 ```bash
 pnpm install --frozen-lockfile
@@ -57,7 +58,7 @@ pnpm check:all
 pnpm build
 ```
 
-The generated `dist/` artifact is then published through GitHub Pages.
+Publishing runs the same build and uploads `dist/` to Cloudflare Pages.
 
 ## 目录约定
 

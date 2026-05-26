@@ -6,7 +6,7 @@ import react from '@astrojs/react';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://veithly.github.io',
+  site: 'https://agent-architecture-patterns.pages.dev',
   integrations: [
     starlight({
       title: {
@@ -20,7 +20,7 @@ export default defineConfig({
         en: { label: 'English', lang: 'en' },
       },
       social: [
-        { icon: 'github', label: 'GitHub', href: 'https://github.com/veithly/veithly.github.io' },
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/veithly/agent-architecture-patterns' },
       ],
       customCss: ['./src/styles/tokens.css', './src/styles/handdrawn.css'],
       head: [
@@ -44,7 +44,7 @@ export default defineConfig({
         },
         {
           tag: 'meta',
-          attrs: { property: 'og:url', content: 'https://veithly.github.io' },
+          attrs: { property: 'og:url', content: 'https://agent-architecture-patterns.pages.dev' },
         },
         {
           tag: 'meta',
