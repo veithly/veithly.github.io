@@ -1,0 +1,258 @@
+#!/usr/bin/env python3
+"""Chapter 13 SVGs: TradeOff (自管深度 x 部署灵活度) + 四种沙箱方案并列图."""
+from pathlib import Path
+
+PUBLIC = Path("public/diagrams")
+
+TRADEOFF_SVG = """<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 480" role="img"
+     aria-label="四家沙箱方案在自管深度 x 部署灵活度上的位置">
+  <defs>
+    <filter id="wb13"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="131" /><feDisplacementMap in="SourceGraphic" scale="2" /></filter>
+    <marker id="ar13" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#1e293b" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #1e293b; }
+      .ax   { font: 600 12.5px sans-serif; fill: #1e293b; }
+      .t    { font: 11.5px sans-serif; fill: #334155; }
+      .t-s  { font: 10.5px sans-serif; fill: #64748b; }
+      .pin  { font: 700 12.5px sans-serif; fill: #fff; }
+      .note { font: italic 10.5px sans-serif; fill: #475569; }
+    </style>
+  </defs>
+
+  <text x="390" y="26" class="h" text-anchor="middle">沙箱方案：自管深度 x 部署灵活度</text>
+  <text x="390" y="44" class="t-s" text-anchor="middle">越往右自己写沙箱代码越深；越往上后端选项越多；选哪种取决于你给谁部署</text>
+
+  <g filter="url(#wb13)">
+    <rect x="100" y="80" width="280" height="160" fill="#fef9c3" opacity="0.4" />
+    <rect x="380" y="80" width="280" height="160" fill="#dcfce7" opacity="0.4" />
+    <rect x="100" y="240" width="280" height="160" fill="#dbeafe" opacity="0.4" />
+    <rect x="380" y="240" width="280" height="160" fill="#fee2e2" opacity="0.4" />
+
+    <text x="120" y="100" class="t-s">不自管 · 多后端</text>
+    <text x="640" y="100" class="t-s" text-anchor="end">深自管 · 多后端</text>
+    <text x="120" y="260" class="t-s">不自管 · 单后端</text>
+    <text x="640" y="260" class="t-s" text-anchor="end">深自管 · 单后端</text>
+
+    <line x1="100" y1="400" x2="660" y2="400" stroke="#1e293b" stroke-width="2.5" marker-end="url(#ar13)" />
+    <line x1="100" y1="400" x2="100" y2="70" stroke="#1e293b" stroke-width="2.5" marker-end="url(#ar13)" />
+    <line x1="380" y1="80" x2="380" y2="400" stroke="#1e293b" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="100" y1="240" x2="660" y2="240" stroke="#1e293b" stroke-width="1" stroke-dasharray="3 3" />
+
+    <text x="660" y="420" class="ax" text-anchor="end">自己实现沙箱代码的深度 →</text>
+    <text x="110" y="68" class="ax">↑ 用户可选的后端 / 部署方案数</text>
+
+    <!-- Hermes: top-left (6 backend 但自己不写沙箱代码) -->
+    <circle cx="170" cy="120" r="14" fill="#f97316" stroke="#1e293b" stroke-width="2" />
+    <text x="170" y="124" class="pin" text-anchor="middle">HM</text>
+    <text x="170" y="151" class="t" text-anchor="middle">Hermes</text>
+    <text x="170" y="166" class="t-s" text-anchor="middle">TERMINAL_ENV 6 后端</text>
+    <text x="170" y="179" class="t-s" text-anchor="middle">local/docker/modal/ssh...</text>
+
+    <!-- OpenClaw: top-middle (3 backend 外包给 host) -->
+    <circle cx="340" cy="170" r="14" fill="#16a34a" stroke="#1e293b" stroke-width="2" />
+    <text x="340" y="174" class="pin" text-anchor="middle">OC</text>
+    <text x="340" y="201" class="t" text-anchor="middle">OpenClaw</text>
+    <text x="340" y="216" class="t-s" text-anchor="middle">ExecHost 3 backend</text>
+    <text x="340" y="229" class="t-s" text-anchor="middle">sandbox/gateway/node</text>
+
+    <!-- Claude Code: middle-right (schema 配置 + 跨平台) -->
+    <circle cx="500" cy="200" r="14" fill="#7c3aed" stroke="#1e293b" stroke-width="2" />
+    <text x="500" y="204" class="pin" text-anchor="middle">CC</text>
+    <text x="500" y="231" class="t" text-anchor="middle">Claude Code</text>
+    <text x="500" y="246" class="t-s" text-anchor="middle">schema 化配置</text>
+    <text x="500" y="259" class="t-s" text-anchor="middle">+ enabledPlatforms</text>
+
+    <!-- Codex: right-bottom (自己写三平台沙箱) -->
+    <circle cx="620" cy="320" r="14" fill="#2563eb" stroke="#1e293b" stroke-width="2" />
+    <text x="620" y="324" class="pin" text-anchor="middle">CX</text>
+    <text x="620" y="351" class="t" text-anchor="middle">Codex</text>
+    <text x="620" y="366" class="t-s" text-anchor="middle">三平台自管</text>
+    <text x="620" y="379" class="t-s" text-anchor="middle">bwrap+seccomp+landlock</text>
+  </g>
+
+  <text x="20" y="465" class="t-s">CX = Codex · CC = Claude Code · OC = OpenClaw · HM = Hermes</text>
+</svg>
+"""
+
+FLOWS_SVG = """<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 600" role="img"
+     aria-label="四种沙箱方案并列对照">
+  <defs>
+    <filter id="wb13F"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="137" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar13F" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#1e293b" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #1e293b; }
+      .col  { font: 700 13px sans-serif; fill: #1e293b; }
+      .lbl  { font: 700 11px sans-serif; fill: #1e293b; }
+      .t-s  { font: 10.5px sans-serif; fill: #475569; }
+      .note { font: italic 10.5px sans-serif; fill: #b45309; }
+    </style>
+  </defs>
+
+  <text x="440" y="24" class="h" text-anchor="middle">四种沙箱方案并列</text>
+  <text x="440" y="42" class="t-s" text-anchor="middle">自管三件套（Codex）· schema 配置（Claude Code）· 3 后端外包（OpenClaw）· 6 后端容器（Hermes）</text>
+
+  <g filter="url(#wb13F)">
+    <!-- Codex column -->
+    <text x="120" y="70" class="col" text-anchor="middle">Codex · 自管三平台</text>
+    <rect x="40" y="80" width="160" height="36" rx="8" fill="#fef9c3" stroke="#1e293b" stroke-width="1.6" />
+    <text x="120" y="103" class="lbl" text-anchor="middle">命令准备执行</text>
+
+    <line x1="120" y1="116" x2="120" y2="135" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar13F)" />
+
+    <rect x="40" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#1e293b" stroke-width="1.6" />
+    <text x="120" y="158" class="lbl" text-anchor="middle">Linux 路径</text>
+    <text x="120" y="174" class="t-s" text-anchor="middle">bubblewrap FS 挂载</text>
+    <text x="120" y="188" class="t-s" text-anchor="middle">seccomp 拦 connect</text>
+
+    <line x1="120" y1="198" x2="120" y2="217" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar13F)" />
+
+    <rect x="40" y="220" width="160" height="60" rx="8" fill="#dcfce7" stroke="#1e293b" stroke-width="1.6" />
+    <text x="120" y="240" class="lbl" text-anchor="middle">macOS 路径</text>
+    <text x="120" y="256" class="t-s" text-anchor="middle">sandbox-exec + .sb</text>
+    <text x="120" y="270" class="t-s" text-anchor="middle">seatbelt profile</text>
+
+    <line x1="120" y1="280" x2="120" y2="299" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar13F)" />
+
+    <rect x="40" y="302" width="160" height="48" rx="8" fill="#fed7aa" stroke="#1e293b" stroke-width="1.6" />
+    <text x="120" y="322" class="lbl" text-anchor="middle">Windows 路径</text>
+    <text x="120" y="338" class="t-s" text-anchor="middle">windows-sandbox-rs</text>
+
+    <line x1="120" y1="350" x2="120" y2="369" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar13F)" />
+
+    <rect x="40" y="372" width="160" height="48" rx="8" fill="#e2e8f0" stroke="#1e293b" stroke-width="1.6" />
+    <text x="120" y="392" class="lbl" text-anchor="middle">PR_SET_NO_NEW_PRIVS</text>
+    <text x="120" y="408" class="t-s" text-anchor="middle">按需启用，避破 setuid</text>
+
+    <text x="120" y="445" class="note" text-anchor="middle">thread-level apply</text>
+    <text x="120" y="460" class="note" text-anchor="middle">子进程继承</text>
+
+    <!-- Claude Code column -->
+    <text x="330" y="70" class="col" text-anchor="middle">Claude Code · schema 配置</text>
+    <rect x="250" y="80" width="160" height="36" rx="8" fill="#fef9c3" stroke="#1e293b" stroke-width="1.6" />
+    <text x="330" y="103" class="lbl" text-anchor="middle">读 SandboxSettings</text>
+
+    <line x1="330" y1="116" x2="330" y2="135" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar13F)" />
+
+    <rect x="250" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#1e293b" stroke-width="1.6" />
+    <text x="330" y="158" class="lbl" text-anchor="middle">enabled + 平台过滤</text>
+    <text x="330" y="174" class="t-s" text-anchor="middle">enabledPlatforms</text>
+    <text x="330" y="188" class="t-s" text-anchor="middle">NVIDIA macOS-only rollout</text>
+
+    <line x1="330" y1="198" x2="330" y2="217" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar13F)" />
+
+    <rect x="250" y="220" width="160" height="60" rx="8" fill="#dcfce7" stroke="#1e293b" stroke-width="1.6" />
+    <text x="330" y="240" class="lbl" text-anchor="middle">SandboxNetworkConfig</text>
+    <text x="330" y="256" class="t-s" text-anchor="middle">allowedDomains</text>
+    <text x="330" y="270" class="t-s" text-anchor="middle">httpProxyPort/socksProxyPort</text>
+
+    <line x1="330" y1="280" x2="330" y2="299" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar13F)" />
+
+    <rect x="250" y="302" width="160" height="60" rx="8" fill="#fed7aa" stroke="#1e293b" stroke-width="1.6" />
+    <text x="330" y="322" class="lbl" text-anchor="middle">SandboxFilesystemConfig</text>
+    <text x="330" y="338" class="t-s" text-anchor="middle">allowWrite/denyWrite</text>
+    <text x="330" y="352" class="t-s" text-anchor="middle">allowManagedReadPathsOnly</text>
+
+    <line x1="330" y1="362" x2="330" y2="381" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar13F)" />
+
+    <rect x="250" y="384" width="160" height="48" rx="8" fill="#e2e8f0" stroke="#1e293b" stroke-width="1.6" />
+    <text x="330" y="404" class="lbl" text-anchor="middle">failIfUnavailable</text>
+    <text x="330" y="420" class="t-s" text-anchor="middle">true=startup fail · false=退化</text>
+
+    <text x="330" y="455" class="note" text-anchor="middle">enableWeakerNetworkIsolation</text>
+    <text x="330" y="470" class="note" text-anchor="middle">明确标 「Reduces security」</text>
+
+    <!-- OpenClaw column -->
+    <text x="540" y="70" class="col" text-anchor="middle">OpenClaw · ExecHost 3 backend</text>
+    <rect x="460" y="80" width="160" height="36" rx="8" fill="#fef9c3" stroke="#1e293b" stroke-width="1.6" />
+    <text x="540" y="103" class="lbl" text-anchor="middle">tool 请求执行</text>
+
+    <line x1="540" y1="116" x2="540" y2="135" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar13F)" />
+
+    <rect x="460" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#1e293b" stroke-width="1.6" />
+    <text x="540" y="158" class="lbl" text-anchor="middle">ExecHost = sandbox</text>
+    <text x="540" y="174" class="t-s" text-anchor="middle">外部容器执行</text>
+    <text x="540" y="188" class="t-s" text-anchor="middle">具体怎么隔离由部署方决定</text>
+
+    <line x1="540" y1="198" x2="540" y2="217" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar13F)" />
+
+    <rect x="460" y="220" width="160" height="60" rx="8" fill="#dcfce7" stroke="#1e293b" stroke-width="1.6" />
+    <text x="540" y="240" class="lbl" text-anchor="middle">ExecHost = gateway</text>
+    <text x="540" y="256" class="t-s" text-anchor="middle">gateway 进程</text>
+    <text x="540" y="270" class="t-s" text-anchor="middle">轻量 fs 操作</text>
+
+    <line x1="540" y1="280" x2="540" y2="299" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar13F)" />
+
+    <rect x="460" y="302" width="160" height="60" rx="8" fill="#fed7aa" stroke="#1e293b" stroke-width="1.6" />
+    <text x="540" y="322" class="lbl" text-anchor="middle">ExecHost = node</text>
+    <text x="540" y="338" class="t-s" text-anchor="middle">直接 host</text>
+    <text x="540" y="352" class="t-s" text-anchor="middle">信任的命令</text>
+
+    <line x1="540" y1="362" x2="540" y2="381" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar13F)" />
+
+    <rect x="460" y="384" width="160" height="48" rx="8" fill="#e2e8f0" stroke="#1e293b" stroke-width="1.6" />
+    <text x="540" y="404" class="lbl" text-anchor="middle">交 ExecSecurity 决策</text>
+    <text x="540" y="420" class="t-s" text-anchor="middle">deny/allowlist/full</text>
+
+    <text x="540" y="455" class="note" text-anchor="middle">自己不实现沙箱</text>
+    <text x="540" y="470" class="note" text-anchor="middle">host 不沙箱 = 没沙箱</text>
+
+    <!-- Hermes column -->
+    <text x="760" y="70" class="col" text-anchor="middle">Hermes · TERMINAL_ENV 6 后端</text>
+    <rect x="680" y="80" width="160" height="36" rx="8" fill="#fef9c3" stroke="#1e293b" stroke-width="1.6" />
+    <text x="760" y="103" class="lbl" text-anchor="middle">读 TERMINAL_ENV</text>
+
+    <line x1="760" y1="116" x2="760" y2="135" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar13F)" />
+
+    <rect x="680" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#1e293b" stroke-width="1.6" />
+    <text x="760" y="158" class="lbl" text-anchor="middle">local / docker</text>
+    <text x="760" y="174" class="t-s" text-anchor="middle">os.getcwd / 本地容器</text>
+    <text x="760" y="188" class="t-s" text-anchor="middle">默认不挂 host cwd</text>
+
+    <line x1="760" y1="198" x2="760" y2="217" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar13F)" />
+
+    <rect x="680" y="220" width="160" height="60" rx="8" fill="#dcfce7" stroke="#1e293b" stroke-width="1.6" />
+    <text x="760" y="240" class="lbl" text-anchor="middle">singularity / modal</text>
+    <text x="760" y="256" class="t-s" text-anchor="middle">HPC / serverless</text>
+    <text x="760" y="270" class="t-s" text-anchor="middle">按需启停</text>
+
+    <line x1="760" y1="280" x2="760" y2="299" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar13F)" />
+
+    <rect x="680" y="302" width="160" height="60" rx="8" fill="#fed7aa" stroke="#1e293b" stroke-width="1.6" />
+    <text x="760" y="322" class="lbl" text-anchor="middle">daytona / ssh</text>
+    <text x="760" y="338" class="t-s" text-anchor="middle">dev-env / 远程 VM</text>
+    <text x="760" y="352" class="t-s" text-anchor="middle">真实远程网络</text>
+
+    <line x1="760" y1="362" x2="760" y2="381" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar13F)" />
+
+    <rect x="680" y="384" width="160" height="48" rx="8" fill="#e2e8f0" stroke="#1e293b" stroke-width="1.6" />
+    <text x="760" y="404" class="lbl" text-anchor="middle">per-backend 5 维配置</text>
+    <text x="760" y="420" class="t-s" text-anchor="middle">image/cpu/mem/disk/persistent</text>
+
+    <text x="760" y="455" class="note" text-anchor="middle">不做应用层沙箱</text>
+    <text x="760" y="470" class="note" text-anchor="middle">安全交给后端</text>
+  </g>
+
+  <text x="440" y="500" class="t-s" text-anchor="middle">谁负责实现沙箱？四种回答给四种 agent 形态</text>
+
+  <g>
+    <rect x="40" y="515" width="800" height="70" rx="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1" />
+    <text x="60" y="535" class="lbl">共同点：</text>
+    <text x="60" y="553" class="t-s">· 都承认沙箱会失败（SandboxErr / failIfUnavailable / backend miss / TERMINAL_ENV 提示）</text>
+    <text x="60" y="569" class="t-s">· 网络跟 FS 都是独立维度（不同 schema / config / backend）</text>
+    <text x="60" y="585" class="t-s">· 平台差异要显式（三平台 / enabledPlatforms / host / 6 backend）</text>
+  </g>
+</svg>
+"""
+
+def write(slug, svg):
+    out = PUBLIC / f"{slug}.svg"
+    out.write_text(svg, encoding="utf-8")
+    print(f"wrote {out} ({out.stat().st_size} bytes)")
+
+
+if __name__ == "__main__":
+    PUBLIC.mkdir(parents=True, exist_ok=True)
+    write("13-tradeoff", TRADEOFF_SVG)
+    write("13-sandbox-flows", FLOWS_SVG)

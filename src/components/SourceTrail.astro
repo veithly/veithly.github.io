@@ -1,0 +1,167 @@
+---
+/**
+ * <SourceTrail /> 支持两种 schema:
+ *  A. entries=[{ system, path, lines?, desc, external? }]
+ *  B. pins=[{ label, path, system, lines?, external? }]   (system 可写 codex/claudeCode/openclaw/hermes)
+ *
+ * 章末 §9「延伸阅读 / 源码入口」。
+ * 对 Codex / OpenClaw / Hermes 的 REF 路径自动转为 GitHub blob 链接（基于固定 SHA），
+ * Claude Code 因闭源保留为纯文本。
+ */
+import { resolveRepoLink } from '@lib/repoLinks';
+
+interface Entry {
+  system: string;
+  path: string;
+  lines?: string;
+  desc?: string;
+  label?: string;
+  external?: string;
+}
+interface Props {
+  entries?: Entry[];
+  pins?: Entry[];
+  title?: string;
+  externalLabel?: string;
+}
+const {
+  entries,
+  pins,
+  title = '延伸阅读 / 源码入口',
+  externalLabel = '官方文档 ↗',
+} = Astro.props;
+
+const systemColor: Record<string, string> = {
+  Codex: '#2563eb',
+  'Claude Code': '#7c3aed',
+  OpenClaw: '#16a34a',
+  Hermes: '#f97316',
+};
+
+const systemAlias: Record<string, string> = {
+  codex: 'Codex',
+  Codex: 'Codex',
+  claudecode: 'Claude Code',
+  claudeCode: 'Claude Code',
+  'claude-code': 'Claude Code',
+  'Claude Code': 'Claude Code',
+  openclaw: 'OpenClaw',
+  OpenClaw: 'OpenClaw',
+  hermes: 'Hermes',
+  Hermes: 'Hermes',
+};
+
+const raw = entries ?? pins ?? [];
+const normalized = raw.map((e) => {
+  const resolved = resolveRepoLink(e.path, e.lines);
+  return {
+    system: systemAlias[e.system] ?? e.system,
+    display: resolved.display,
+    lines: e.lines,
+    desc: e.desc ?? e.label ?? '',
+    external: e.external,
+    githubUrl: resolved.url,
+  };
+});
+---
+
+<aside class="aap-trail" aria-label={title}>
+  <h3>{title}</h3>
+  <ul>
+    {normalized.map((e) => (
+      <li>
+        <span class="aap-trail__tag" style={`--tag: ${systemColor[e.system] ?? '#444'}`}>{e.system}</span>
+        {e.githubUrl ? (
+          <a class="aap-trail__path" href={e.githubUrl} target="_blank" rel="noreferrer">
+            <code>{e.display}</code>
+          </a>
+        ) : (
+          <code class="aap-trail__path aap-trail__path--plain">{e.display}</code>
+        )}
+        {e.desc && <span class="aap-trail__desc">— {e.desc}</span>}
+        {e.external && (
+          <a href={e.external} target="_blank" rel="noreferrer">{externalLabel}</a>
+        )}
+      </li>
+    ))}
+  </ul>
+</aside>
+
+<style>
+  .aap-trail {
+    margin: var(--aap-sp-8) 0;
+    padding: var(--aap-sp-4) var(--aap-sp-6);
+    background: var(--aap-paper);
+    border: 1px solid var(--aap-paper-line);
+    border-left: 3px solid var(--aap-color-source);
+    border-radius: var(--aap-radius-md);
+    box-shadow: var(--aap-shadow-soft);
+  }
+  .aap-trail h3 {
+    margin: 0 0 var(--aap-sp-3);
+    font-size: var(--aap-fs-xs);
+    font-family: var(--aap-font-body);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 700;
+    color: var(--aap-color-source);
+  }
+  .aap-trail ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .aap-trail li {
+    padding: var(--aap-sp-2) 0;
+    border-bottom: 1px solid var(--aap-paper-line);
+    font-size: var(--aap-fs-sm);
+    line-height: 1.6;
+  }
+  .aap-trail li:last-child { border-bottom: 0; }
+  .aap-trail__tag {
+    display: inline-block;
+    background: var(--tag);
+    color: white;
+    padding: 0.12rem 0.5rem;
+    border-radius: var(--aap-radius-sm);
+    font-size: 0.65rem;
+    margin-right: var(--aap-sp-2);
+    font-family: var(--aap-font-mono);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    vertical-align: 1px;
+  }
+  .aap-trail code {
+    font-size: var(--aap-fs-xs);
+    background: var(--aap-paper-strong);
+    padding: 0.1rem 0.4rem;
+    border-radius: var(--aap-radius-sm);
+    font-family: var(--aap-font-mono);
+    color: var(--aap-ink);
+  }
+  a.aap-trail__path {
+    text-decoration: none;
+    color: var(--aap-color-source);
+    transition: background 0.12s ease;
+  }
+  a.aap-trail__path code {
+    color: inherit;
+    background: color-mix(in srgb, currentColor 8%, transparent);
+  }
+  a.aap-trail__path:hover code {
+    background: color-mix(in srgb, currentColor 18%, transparent);
+  }
+  .aap-trail__path--plain code {
+    color: var(--aap-ink-muted);
+  }
+  .aap-trail__desc {
+    color: var(--aap-ink-muted);
+    margin-left: var(--aap-sp-1);
+    font-style: italic;
+  }
+  .aap-trail a {
+    margin-left: var(--aap-sp-2);
+    font-size: var(--aap-fs-xs);
+  }
+</style>

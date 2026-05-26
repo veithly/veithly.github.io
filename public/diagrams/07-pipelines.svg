@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 580" role="img"
+     aria-label="一条 git push --force 在四家 Shell pipeline 里的命运">
+  <defs>
+    <filter id="wb07p"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="47" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar07p" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .col  { font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .gate { font: italic 10.5px sans-serif; fill: #b91c1c; }
+    </style>
+  </defs>
+
+  <text x="410" y="24" class="h" text-anchor="middle">一条 git push --force 进四个 pipeline 的命运</text>
+  <text x="410" y="42" class="t-s" text-anchor="middle">四家拦的地方完全不重叠——做自己的 shell 拦截可以挑两到三层组合</text>
+
+  <g filter="url(#wb07p)">
+    <!-- Column headers -->
+    <text x="105" y="75" class="col" text-anchor="middle">Codex</text>
+    <text x="305" y="75" class="col" text-anchor="middle">Claude Code</text>
+    <text x="505" y="75" class="col" text-anchor="middle">OpenClaw</text>
+    <text x="705" y="75" class="col" text-anchor="middle">Hermes</text>
+
+    <line x1="200" y1="55" x2="200" y2="540" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="400" y1="55" x2="400" y2="540" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="600" y1="55" x2="600" y2="540" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="3 3" />
+
+    <!-- Codex pipeline -->
+    <rect x="35" y="90" width="140" height="42" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="105" y="107" class="lbl" text-anchor="middle">1. shlex 分词</text>
+    <text x="105" y="122" class="t-s" text-anchor="middle">["git","push","--force"]</text>
+
+    <line x1="105" y1="132" x2="105" y2="152" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar07p)" />
+
+    <rect x="35" y="155" width="140" height="50" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.5" />
+    <text x="105" y="172" class="lbl" text-anchor="middle">2. execpolicy</text>
+    <text x="105" y="187" class="t-s" text-anchor="middle">prefix_rule 命中</text>
+    <text x="105" y="200" class="t-s" text-anchor="middle">→ Prompt</text>
+
+    <line x1="105" y1="205" x2="105" y2="225" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar07p)" />
+
+    <rect x="35" y="228" width="140" height="42" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.5" />
+    <text x="105" y="245" class="lbl" text-anchor="middle">3. TUI 审批</text>
+    <text x="105" y="260" class="t-s" text-anchor="middle">justification 弹窗</text>
+
+    <line x1="105" y1="270" x2="105" y2="290" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar07p)" />
+
+    <rect x="35" y="293" width="140" height="50" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="105" y="310" class="lbl" text-anchor="middle">4. sandbox_mode</text>
+    <text x="105" y="325" class="t-s" text-anchor="middle">workspace-write?</text>
+    <text x="105" y="338" class="t-s" text-anchor="middle">Landlock + seccomp</text>
+
+    <line x1="105" y1="343" x2="105" y2="363" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar07p)" />
+
+    <rect x="35" y="366" width="140" height="36" rx="8" fill="#e2e8f0" stroke="#0f172a" stroke-width="1.5" />
+    <text x="105" y="389" class="lbl" text-anchor="middle">5. fork + exec</text>
+
+    <!-- Claude Code pipeline -->
+    <rect x="235" y="90" width="140" height="42" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="305" y="107" class="lbl" text-anchor="middle">1. tree-sitter</text>
+    <text x="305" y="122" class="t-s" text-anchor="middle">+ shell-quote 双解析</text>
+
+    <line x1="305" y1="132" x2="305" y2="152" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar07p)" />
+
+    <rect x="235" y="155" width="140" height="50" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.5" />
+    <text x="305" y="172" class="lbl" text-anchor="middle">2. 23 项安全 ID</text>
+    <text x="305" y="187" class="t-s" text-anchor="middle">#5 metachars · #8 cmdsub</text>
+    <text x="305" y="200" class="t-s" text-anchor="middle">#20 ZSH_DANGEROUS</text>
+
+    <line x1="305" y1="205" x2="305" y2="225" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar07p)" />
+
+    <rect x="235" y="228" width="140" height="42" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.5" />
+    <text x="305" y="245" class="lbl" text-anchor="middle">3. bashPermission</text>
+    <text x="305" y="260" class="t-s" text-anchor="middle">prefix / exact / wildcard</text>
+
+    <line x1="305" y1="270" x2="305" y2="290" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar07p)" />
+
+    <rect x="235" y="293" width="140" height="42" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.5" />
+    <text x="305" y="310" class="lbl" text-anchor="middle">4. permission mode</text>
+    <text x="305" y="325" class="t-s" text-anchor="middle">+ canUseTool hook</text>
+
+    <line x1="305" y1="335" x2="305" y2="355" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar07p)" />
+
+    <rect x="235" y="358" width="140" height="50" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="305" y="375" class="lbl" text-anchor="middle">5. SandboxManager</text>
+    <text x="305" y="390" class="t-s" text-anchor="middle">sandbox-exec /</text>
+    <text x="305" y="403" class="t-s" text-anchor="middle">bubblewrap</text>
+
+    <line x1="305" y1="408" x2="305" y2="428" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar07p)" />
+
+    <rect x="235" y="431" width="140" height="36" rx="8" fill="#e2e8f0" stroke="#0f172a" stroke-width="1.5" />
+    <text x="305" y="454" class="lbl" text-anchor="middle">6. fork</text>
+
+    <!-- OpenClaw pipeline -->
+    <rect x="435" y="90" width="140" height="42" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="505" y="107" class="lbl" text-anchor="middle">1. splitCommand</text>
+    <text x="505" y="122" class="t-s" text-anchor="middle">+ obfuscation-detect</text>
+
+    <line x1="505" y1="132" x2="505" y2="152" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar07p)" />
+
+    <rect x="435" y="155" width="140" height="50" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.5" />
+    <text x="505" y="172" class="lbl" text-anchor="middle">2. security 模式?</text>
+    <text x="505" y="187" class="gate" text-anchor="middle">deny → 直接拒绝</text>
+    <text x="505" y="200" class="t-s" text-anchor="middle">allowlist? full?</text>
+
+    <line x1="505" y1="205" x2="505" y2="225" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar07p)" />
+
+    <rect x="435" y="228" width="140" height="50" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.5" />
+    <text x="505" y="245" class="lbl" text-anchor="middle">3. safe-bin profile</text>
+    <text x="505" y="260" class="t-s" text-anchor="middle">git --force 黑名单?</text>
+    <text x="505" y="273" class="t-s" text-anchor="middle">GNU long-flag 缩写</text>
+
+    <line x1="505" y1="278" x2="505" y2="298" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar07p)" />
+
+    <rect x="435" y="301" width="140" height="42" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.5" />
+    <text x="505" y="318" class="lbl" text-anchor="middle">4. ask 模式?</text>
+    <text x="505" y="333" class="t-s" text-anchor="middle">JSONL → UI / Discord</text>
+
+    <line x1="505" y1="343" x2="505" y2="363" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar07p)" />
+
+    <rect x="435" y="366" width="140" height="42" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="505" y="383" class="lbl" text-anchor="middle">5. ExecHost?</text>
+    <text x="505" y="398" class="t-s" text-anchor="middle">sandbox / gateway / node</text>
+
+    <line x1="505" y1="408" x2="505" y2="428" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar07p)" />
+
+    <rect x="435" y="431" width="140" height="36" rx="8" fill="#e2e8f0" stroke="#0f172a" stroke-width="1.5" />
+    <text x="505" y="454" class="lbl" text-anchor="middle">6. spawn</text>
+
+    <!-- Hermes pipeline -->
+    <rect x="635" y="90" width="140" height="42" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="705" y="107" class="lbl" text-anchor="middle">1. workdir 校验</text>
+    <text x="705" y="122" class="t-s" text-anchor="middle">字符 allowlist 正则</text>
+
+    <line x1="705" y1="132" x2="705" y2="152" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar07p)" />
+
+    <rect x="635" y="155" width="140" height="50" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.5" />
+    <text x="705" y="172" class="lbl" text-anchor="middle">2. _check_all_guards</text>
+    <text x="705" y="187" class="t-s" text-anchor="middle">tirith 危险命令</text>
+    <text x="705" y="200" class="t-s" text-anchor="middle">+ approval_callback</text>
+
+    <line x1="705" y1="205" x2="705" y2="225" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar07p)" />
+
+    <rect x="635" y="228" width="140" height="42" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.5" />
+    <text x="705" y="245" class="lbl" text-anchor="middle">3. 决策</text>
+    <text x="705" y="260" class="t-s" text-anchor="middle">once / session / always / deny</text>
+
+    <line x1="705" y1="270" x2="705" y2="290" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar07p)" />
+
+    <rect x="635" y="293" width="140" height="50" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="705" y="310" class="lbl" text-anchor="middle">4. TERMINAL_ENV?</text>
+    <text x="705" y="325" class="t-s" text-anchor="middle">local / docker / modal</text>
+    <text x="705" y="338" class="t-s" text-anchor="middle">ssh / singularity / daytona</text>
+
+    <line x1="705" y1="343" x2="705" y2="363" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar07p)" />
+
+    <rect x="635" y="366" width="140" height="42" rx="8" fill="#e2e8f0" stroke="#0f172a" stroke-width="1.5" />
+    <text x="705" y="383" class="lbl" text-anchor="middle">5. 选定后端 run</text>
+    <text x="705" y="398" class="t-s" text-anchor="middle">docker run / modal sandbox</text>
+  </g>
+
+  <text x="20" y="510" class="t-s">关键差别：</text>
+  <text x="20" y="528" class="t-s">· Codex 把决策外置成 Starlark DSL，规则 git 化 · Claude Code 在 bash 解析层穷举 23 类风险 pattern</text>
+  <text x="20" y="546" class="t-s">· OpenClaw 走 security × ask 矩阵 + per-binary safe-bin profile · Hermes 不挡命令本体，挡执行环境</text>
+  <text x="20" y="564" class="t-s">做自己的 shell 拦截系统：从 allowlist 起步，按需加 DSL（Codex 风）、深度解析（Claude Code 风）、执行隔离（Hermes 风）</text>
+</svg>

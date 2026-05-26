@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 480" role="img"
+     aria-label="Four verifiers on strictness vs extensibility">
+  <defs>
+    <filter id="wb05"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="17" /><feDisplacementMap in="SourceGraphic" scale="2" /></filter>
+    <marker id="ar05" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .ax   { font: 600 12.5px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #64748b; }
+      .pin  { font: 700 12.5px sans-serif; fill: #fff; }
+      .note { font: italic 10.5px sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <text x="390" y="26" class="h" text-anchor="middle">Verifier: strictness &#x00D7; extensibility</text>
+  <text x="390" y="44" class="t-s" text-anchor="middle">More hard verifiers make a loop externally trusted; high extensibility lets third parties plug in their own checks</text>
+
+  <g filter="url(#wb05)">
+    <rect x="100" y="80" width="280" height="160" fill="#fef3c7" opacity="0.4" />
+    <rect x="380" y="80" width="280" height="160" fill="#dcfce7" opacity="0.4" />
+    <rect x="100" y="240" width="280" height="160" fill="#fee2e2" opacity="0.4" />
+    <rect x="380" y="240" width="280" height="160" fill="#dbeafe" opacity="0.4" />
+
+    <text x="120" y="100" class="t-s">loose + extensible</text>
+    <text x="640" y="100" class="t-s" text-anchor="end">strict + extensible &#x00B7; holy grail</text>
+    <text x="110" y="394" class="t-s">loose + not extensible (worst)</text>
+    <text x="650" y="394" class="t-s" text-anchor="end">strict + not extensible</text>
+
+    <line x1="100" y1="400" x2="660" y2="400" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar05)" />
+    <line x1="100" y1="400" x2="100" y2="70" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar05)" />
+    <line x1="380" y1="80" x2="380" y2="400" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="100" y1="240" x2="660" y2="240" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+
+    <text x="660" y="420" class="ax" text-anchor="end">single-loop verifier strictness (external artifacts &#x2192; lazy) &#x2192;</text>
+    <text x="110" y="68" class="ax">&#x2191; extensibility (how many verifiers the outside can attach)</text>
+
+    <circle cx="240" cy="120" r="15" fill="#15803d" stroke="#0f172a" stroke-width="2" />
+    <text x="240" y="124" class="pin" text-anchor="middle">OC</text>
+    <text x="240" y="153" class="t" text-anchor="middle">OpenClaw</text>
+    <text x="240" y="168" class="t-s" text-anchor="middle">middleware + 4 detectors</text>
+    <text x="240" y="181" class="t-s" text-anchor="middle">extensibility ceiling</text>
+
+    <circle cx="610" cy="285" r="15" fill="#1d4ed8" stroke="#0f172a" stroke-width="2" />
+    <text x="610" y="289" class="pin" text-anchor="middle">CX</text>
+    <text x="610" y="317" class="t" text-anchor="middle">Codex</text>
+    <text x="610" y="332" class="t-s" text-anchor="middle">4-piece hard verifier set</text>
+    <text x="610" y="345" class="t-s" text-anchor="middle">3-state execpolicy &#x00B7; strictest</text>
+
+    <circle cx="450" cy="295" r="15" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+    <text x="450" y="299" class="pin" text-anchor="middle">CC</text>
+    <text x="450" y="327" class="t" text-anchor="middle">Claude Code</text>
+    <text x="450" y="342" class="t-s" text-anchor="middle">tokenBudget 0.9/500/3</text>
+    <text x="450" y="355" class="t-s" text-anchor="middle">no hard verifier hook</text>
+
+    <circle cx="220" cy="290" r="15" fill="#ea580c" stroke="#0f172a" stroke-width="2" />
+    <text x="220" y="294" class="pin" text-anchor="middle">HM</text>
+    <text x="220" y="322" class="t" text-anchor="middle">Hermes</text>
+    <text x="220" y="337" class="t-s" text-anchor="middle">IterationBudget + grace</text>
+    <text x="220" y="350" class="t-s" text-anchor="middle">almost no hard verifier at runtime</text>
+
+    <text x="540" y="135" class="note" text-anchor="middle">Upper-right is empty</text>
+    <text x="540" y="152" class="note" text-anchor="middle">strictness and pluggability crowd each other</text>
+  </g>
+
+  <text x="20" y="465" class="t-s">CX = Codex &#x00B7; CC = Claude Code &#x00B7; OC = OpenClaw &#x00B7; HM = Hermes</text>
+</svg>

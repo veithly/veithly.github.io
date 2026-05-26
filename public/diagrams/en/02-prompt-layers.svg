@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 460" role="img"
+     aria-label="The 7-layer prompt skeleton common to all four agents">
+  <defs>
+    <filter id="wb02p">
+      <feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="11" />
+      <feDisplacementMap in="SourceGraphic" scale="1.6" />
+    </filter>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12.5px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .num  { font: 700 14px sans-serif; fill: #ea580c; }
+    </style>
+  </defs>
+
+  <text x="380" y="28" class="h" text-anchor="middle">Common skeleton: all four systems stack the same 7 layers</text>
+  <text x="380" y="46" class="t-s" text-anchor="middle">Differences are in &#x201C;how many files / which layers cached / who injects&#x201D;, not in the layers themselves</text>
+
+  <g filter="url(#wb02p)">
+    <rect x="60" y="70" width="640" height="40" rx="6" fill="#fef3c7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="78" y="95" class="num">0</text>
+    <text x="110" y="89" class="lbl">Identity</text>
+    <text x="110" y="104" class="t-s">&#x201C;who you are&#x201D; &#x2014; a one-line role definition (Codex agent / Claude Code / Hermes / etc.)</text>
+    <text x="680" y="95" class="t-s" text-anchor="end">static, always cached</text>
+
+    <rect x="60" y="118" width="640" height="40" rx="6" fill="#fde68a" stroke="#0f172a" stroke-width="1.8" />
+    <text x="78" y="143" class="num">1</text>
+    <text x="110" y="137" class="lbl">Task framing</text>
+    <text x="110" y="152" class="t-s">&#x201C;what's the current job&#x201D; &#x2014; interactive mode / agent mode / review mode</text>
+    <text x="680" y="143" class="t-s" text-anchor="end">semi-static</text>
+
+    <rect x="60" y="166" width="640" height="40" rx="6" fill="#fed7aa" stroke="#0f172a" stroke-width="1.8" />
+    <text x="78" y="191" class="num">2</text>
+    <text x="110" y="185" class="lbl">Tool guidance</text>
+    <text x="110" y="200" class="t-s">&#x201C;how to use tools&#x201D; &#x2014; parallel vs serial, when to confirm, rules for dangerous operations</text>
+    <text x="680" y="191" class="t-s" text-anchor="end">static, high cache hit rate</text>
+
+    <rect x="60" y="214" width="640" height="40" rx="6" fill="#fecaca" stroke="#0f172a" stroke-width="1.8" />
+    <text x="78" y="239" class="num">3</text>
+    <text x="110" y="233" class="lbl">Memory</text>
+    <text x="110" y="248" class="t-s">&#x201C;what happened before&#x201D; &#x2014; last session summary / SOUL.md / Memory facts</text>
+    <text x="680" y="239" class="t-s" text-anchor="end">dynamic, cache boundary</text>
+
+    <rect x="60" y="262" width="640" height="40" rx="6" fill="#fce7f3" stroke="#0f172a" stroke-width="1.8" />
+    <text x="78" y="287" class="num">4</text>
+    <text x="110" y="281" class="lbl">Context files</text>
+    <text x="110" y="296" class="t-s">&#x201C;project-local conventions&#x201D; &#x2014; AGENTS.md / CLAUDE.md / .claude/system-prompt.md</text>
+    <text x="680" y="287" class="t-s" text-anchor="end">dynamic, machine-local</text>
+
+    <rect x="60" y="310" width="640" height="40" rx="6" fill="#ede9fe" stroke="#0f172a" stroke-width="1.8" />
+    <text x="78" y="335" class="num">5</text>
+    <text x="110" y="329" class="lbl">Env hints</text>
+    <text x="110" y="344" class="t-s">&#x201C;time / platform / permissions&#x201D; &#x2014; OS, cwd, sandbox state, current model limits</text>
+    <text x="680" y="335" class="t-s" text-anchor="end">may change every turn</text>
+
+    <rect x="60" y="358" width="640" height="40" rx="6" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.8" />
+    <text x="78" y="383" class="num">6</text>
+    <text x="110" y="377" class="lbl">Output style</text>
+    <text x="110" y="392" class="t-s">&#x201C;how to speak&#x201D; &#x2014; markdown or not, citation rules, whether to expose reasoning</text>
+    <text x="680" y="383" class="t-s" text-anchor="end">static, very last layer</text>
+  </g>
+
+  <text x="20" y="430" class="t-s">Cache boundary (typically between layer 2-3 or 3-4): above is static and cacheable; below is dynamic and ephemeral.</text>
+  <text x="20" y="446" class="t-s">Codex uses one big markdown without a boundary; Claude Code uses an explicit SYSTEM_PROMPT_DYNAMIC_BOUNDARY; OpenClaw approximates with a 3-mode PromptMode; Hermes uses 10 layers + skip_* flags.</text>
+</svg>

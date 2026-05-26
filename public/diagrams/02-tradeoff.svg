@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 480" role="img"
+     aria-label="四家 Agent Loop 在执行自由度 × 可验证性 两条轴上的位置">
+  <defs>
+    <filter id="wobble02">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="2" />
+      <feDisplacementMap in="SourceGraphic" scale="2" />
+    </filter>
+    <marker id="arr02" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#0f172a" />
+    </marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .ax   { font: 600 12px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #64748b; }
+      .pin  { font: 700 12.5px sans-serif; fill: #fff; }
+      .note { font: italic 10.5px sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="760" height="480" fill="transparent" />
+
+  <text x="380" y="26" class="h" text-anchor="middle">Agent Loop：执行自由度 × 可验证性</text>
+  <text x="380" y="44" class="note" text-anchor="middle">同一个 Observe-Plan-Act-Verify 闭环，四家的取舍连成一片，但没有一家在右上角</text>
+
+  <g filter="url(#wobble02)">
+    <rect x="100" y="80" width="280" height="160" fill="#fef3c7" opacity="0.45" />
+    <rect x="380" y="80" width="280" height="160" fill="#dcfce7" opacity="0.45" />
+    <rect x="100" y="240" width="280" height="160" fill="#fee2e2" opacity="0.45" />
+    <rect x="380" y="240" width="280" height="160" fill="#dbeafe" opacity="0.45" />
+
+    <text x="120" y="100" class="t-s">紧但难外推</text>
+    <text x="640" y="100" class="t-s" text-anchor="end">理想：自由 + 可验证</text>
+    <text x="120" y="260" class="t-s">死板 + 黑盒</text>
+    <text x="640" y="260" class="t-s" text-anchor="end">自由 + 黑盒</text>
+
+    <line x1="100" y1="400" x2="660" y2="400" stroke="#0f172a" stroke-width="2.5" marker-end="url(#arr02)" />
+    <line x1="100" y1="400" x2="100" y2="70" stroke="#0f172a" stroke-width="2.5" marker-end="url(#arr02)" />
+    <line x1="380" y1="80" x2="380" y2="400" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="100" y1="240" x2="660" y2="240" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+
+    <text x="380" y="420" class="ax" text-anchor="middle">执行自由度（少 → 多）</text>
+    <text x="105" y="68" class="ax">↑ 可验证性</text>
+
+    <circle cx="200" cy="125" r="14" fill="#1d4ed8" stroke="#0f172a" stroke-width="2" />
+    <text x="200" y="129" class="pin" text-anchor="middle">CX</text>
+    <line x1="200" y1="125" x2="200" y2="170" stroke="#1d4ed8" stroke-width="1" stroke-dasharray="2 2" />
+    <text x="200" y="184" class="t" text-anchor="middle">Codex</text>
+    <text x="200" y="200" class="t-s" text-anchor="middle">goals.rs + execpolicy</text>
+    <text x="200" y="214" class="t-s" text-anchor="middle">4 段串联 verifier</text>
+
+    <circle cx="340" cy="155" r="14" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+    <text x="340" y="159" class="pin" text-anchor="middle">CC</text>
+    <line x1="340" y1="155" x2="340" y2="180" stroke="#6d28d9" stroke-width="1" stroke-dasharray="2 2" />
+    <text x="340" y="194" class="t" text-anchor="middle">Claude Code</text>
+    <text x="340" y="210" class="t-s" text-anchor="middle">7 transition.reason</text>
+    <text x="340" y="224" class="t-s" text-anchor="middle">TOKEN_BUDGET 软退</text>
+
+    <circle cx="500" cy="200" r="14" fill="#15803d" stroke="#0f172a" stroke-width="2" />
+    <text x="500" y="204" class="pin" text-anchor="middle">OC</text>
+    <line x1="500" y1="200" x2="500" y2="260" stroke="#15803d" stroke-width="1" stroke-dasharray="2 2" />
+    <text x="500" y="275" class="t" text-anchor="middle">OpenClaw</text>
+    <text x="500" y="291" class="t-s" text-anchor="middle">十几个 plugin hook</text>
+    <text x="500" y="305" class="t-s" text-anchor="middle">toolloop / 兜底 verifier</text>
+
+    <circle cx="600" cy="285" r="14" fill="#ea580c" stroke="#0f172a" stroke-width="2" />
+    <text x="600" y="289" class="pin" text-anchor="middle">HM</text>
+    <line x1="600" y1="285" x2="600" y2="320" stroke="#ea580c" stroke-width="1" stroke-dasharray="2 2" />
+    <text x="600" y="335" class="t" text-anchor="middle">Hermes</text>
+    <text x="600" y="351" class="t-s" text-anchor="middle">IterationBudget 90/50</text>
+    <text x="600" y="365" class="t-s" text-anchor="middle">skill 自评 / memory 长跑</text>
+
+    <text x="520" y="140" class="note" text-anchor="middle">没人能同时拿满，两条轴永远有取舍</text>
+  </g>
+
+  <text x="20" y="465" class="t-s">CX = Codex · CC = Claude Code · OC = OpenClaw · HM = Hermes</text>
+  <text x="740" y="465" class="t-s" text-anchor="end">越靠右越敢让 loop 自由跑；越靠上越能在外部判这一步对错</text>
+</svg>

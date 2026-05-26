@@ -1,0 +1,90 @@
+---
+title: 组件预览 (dev only)
+description: 8 个 MVP 组件的视觉与 props 预览，用于内容创作时挑选
+sidebar:
+  order: 999
+  badge:
+    text: dev
+    variant: caution
+---
+
+import Verdict from '@components/Verdict.astro';
+import CompareTable from '@components/CompareTable.astro';
+import Diagram from '@components/Diagram.astro';
+import TradeOff from '@components/TradeOff.astro';
+import ScoreCard from '@components/ScoreCard.astro';
+import BuildRecipe from '@components/BuildRecipe.astro';
+import SourceTrail from '@components/SourceTrail.astro';
+import AgentLoopSVG from '@components/AgentLoopSVG.astro';
+
+# 组件预览
+
+每个章节都从这 8 个组件里挑用。tone / 颜色 / 排版严禁自定义，统一在此处迭代。
+
+## 1. `<Verdict>`
+
+<Verdict tldr="这是 TL;DR 一段话结论的样子。覆盖四家核心取舍，密集但可一气读完。" />
+<Verdict tone="warn" tldr="warn 变体：用于风险提示型结论。" />
+<Verdict tone="insight" tldr="insight 变体：用于点评式结论。" />
+
+## 2. `<CompareTable>`
+
+<CompareTable
+  rows={[
+    { label: '核心定位', values: ['本地/云端 coding agent', 'agentic coding tool', '多通道控制面', '长期 + 自改进 agent'] },
+    { label: '主要入口', values: ['Terminal', 'Terminal / IDE / Web / Desktop', '多通道', 'CLI / IM'] },
+  ]}
+  caption="所有比较表强制四列：Codex / Claude Code / OpenClaw / Hermes"
+/>
+
+## 3. `<Diagram>`
+
+<Diagram src="/diagrams/placeholder.svg" alt="架构图占位 — 实际章节请用 .excalidraw 导出" caption="待用 Excalidraw 画" />
+
+## 4. `<TradeOff>`
+
+<TradeOff
+  axes={[{ label: 'Speed' }, { label: 'Control' }]}
+  placements={[
+    { label: 'Codex', x: 0.6, y: 0.7 },
+    { label: 'Claude Code', x: 0.8, y: 0.5 },
+    { label: 'OpenClaw', x: 0.4, y: 0.75 },
+    { label: 'Hermes', x: 0.85, y: 0.3 },
+  ]}
+  caption="二维取舍图（每章 §5 标配）"
+/>
+
+## 5. `<ScoreCard>`
+
+<ScoreCard
+  rows={[
+    { system: 'Codex', value: '★★★★★', reason: '示例理由', risk: '示例风险' },
+    { system: 'Claude Code', value: '★★★★', reason: '示例理由', risk: '示例风险' },
+    { system: 'OpenClaw', value: '★★★★', reason: '示例理由', risk: '示例风险' },
+    { system: 'Hermes', value: '★★★', reason: '示例理由', risk: '示例风险' },
+  ]}
+/>
+
+## 6. `<BuildRecipe>`
+
+<BuildRecipe
+  minimal={['最小可行 A', '最小可行 B', '最小可行 C']}
+  advanced={['进阶 A', '进阶 B']}
+  avoid={['别做 A', '别做 B', '别做 C']}
+/>
+
+## 7. `<SourceTrail>`
+
+<SourceTrail
+  entries={[
+    { system: 'Codex', path: 'REF/codex/codex-rs/core/src/codex_thread.rs', desc: '主循环' },
+    { system: 'OpenClaw', path: 'REF/openclaw/docs/concepts/agent-loop.md', desc: 'agent-loop 高层文档' },
+    { system: 'Hermes', path: 'REF/hermes-agent/agent/trajectory.py', desc: 'trajectory 记录' },
+    { system: 'Claude Code', path: 'REF/ClaudeCode/tmp-claude-fetch/package/', desc: '解包后的 npm 包' },
+  ]}
+/>
+
+## 8. `<AgentLoopSVG>`
+
+<AgentLoopSVG />
+<AgentLoopSVG nodes={['Read', 'Patch', 'Test', 'Repair']} duration={4} caption="可换节点名做 coding loop 专用变体" />

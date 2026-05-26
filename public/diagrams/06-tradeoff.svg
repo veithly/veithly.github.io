@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 480" role="img"
+     aria-label="四家文件编辑系统在 一轮可改规模 × 可审计/可回滚 两条轴上的位置">
+  <defs>
+    <filter id="wb06"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="29" /><feDisplacementMap in="SourceGraphic" scale="2" /></filter>
+    <marker id="ar06" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .ax   { font: 600 12.5px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #64748b; }
+      .pin  { font: 700 12.5px sans-serif; fill: #fff; }
+      .note { font: italic 10.5px sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <text x="390" y="26" class="h" text-anchor="middle">文件编辑：一轮规模 × 可审计/可回滚</text>
+  <text x="390" y="44" class="t-s" text-anchor="middle">V4A 一次性多文件、str_replace 单点最小；两条路在两条轴上分得很开</text>
+
+  <g filter="url(#wb06)">
+    <rect x="100" y="80" width="280" height="160" fill="#fef3c7" opacity="0.4" />
+    <rect x="380" y="80" width="280" height="160" fill="#dcfce7" opacity="0.4" />
+    <rect x="100" y="240" width="280" height="160" fill="#fee2e2" opacity="0.4" />
+    <rect x="380" y="240" width="280" height="160" fill="#dbeafe" opacity="0.4" />
+
+    <text x="120" y="100" class="t-s">小 + 易审 · str_replace 区</text>
+    <text x="640" y="100" class="t-s" text-anchor="end">大 + 易审 · 圣杯</text>
+    <text x="110" y="394" class="t-s">小 + 难审（最差）</text>
+    <text x="650" y="394" class="t-s" text-anchor="end">大 + 难审</text>
+
+    <line x1="100" y1="400" x2="660" y2="400" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar06)" />
+    <line x1="100" y1="400" x2="100" y2="70" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar06)" />
+    <line x1="380" y1="80" x2="380" y2="400" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="100" y1="240" x2="660" y2="240" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+
+    <text x="660" y="420" class="ax" text-anchor="end">单轮可改的规模（行数 / 文件数）→</text>
+    <text x="110" y="68" class="ax">↑ 可审计 / 可回滚（reviewer 体验）</text>
+
+    <!-- Claude Code: left top (small + auditable) -->
+    <circle cx="235" cy="115" r="15" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+    <text x="235" y="119" class="pin" text-anchor="middle">CC</text>
+    <text x="235" y="148" class="t" text-anchor="middle">Claude Code</text>
+    <text x="235" y="163" class="t-s" text-anchor="middle">str_replace 单点</text>
+    <text x="235" y="176" class="t-s" text-anchor="middle">unique + mtime · 每步可审</text>
+
+    <!-- Codex: right top (big + auditable) -->
+    <circle cx="595" cy="125" r="15" fill="#1d4ed8" stroke="#0f172a" stroke-width="2" />
+    <text x="595" y="129" class="pin" text-anchor="middle">CX</text>
+    <text x="595" y="158" class="t" text-anchor="middle">Codex (V4A)</text>
+    <text x="595" y="173" class="t-s" text-anchor="middle">inline DSL · rollout 落盘</text>
+    <text x="595" y="186" class="t-s" text-anchor="middle">原子多文件 · 易回滚</text>
+
+    <!-- Hermes: right, slightly lower (V4A but function arg) -->
+    <circle cx="470" cy="200" r="15" fill="#ea580c" stroke="#0f172a" stroke-width="2" />
+    <text x="470" y="204" class="pin" text-anchor="middle">HM</text>
+    <text x="470" y="232" class="t" text-anchor="middle">Hermes (V4A)</text>
+    <text x="470" y="247" class="t-s" text-anchor="middle">V4A 当 function arg</text>
+    <text x="470" y="260" class="t-s" text-anchor="middle">受 token 上限</text>
+
+    <!-- OpenClaw: middle, lower (medium + low audit) -->
+    <circle cx="500" cy="320" r="15" fill="#15803d" stroke="#0f172a" stroke-width="2" />
+    <text x="500" y="324" class="pin" text-anchor="middle">OC</text>
+    <text x="500" y="352" class="t" text-anchor="middle">OpenClaw (fs)</text>
+    <text x="500" y="367" class="t-s" text-anchor="middle">通用工具栈 · 无 DSL</text>
+    <text x="500" y="380" class="t-s" text-anchor="middle">无多文件原子语义</text>
+  </g>
+
+  <text x="20" y="465" class="t-s">CX = Codex · CC = Claude Code · OC = OpenClaw · HM = Hermes</text>
+</svg>

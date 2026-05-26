@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 540" role="img"
+     aria-label="Verifier three-layer decision flow">
+  <defs>
+    
+    <filter id="wobble">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="7" />
+      <feDisplacementMap in="SourceGraphic" scale="2" />
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#0f172a" />
+    </marker>
+
+    <style>
+    .h     { font: 600 14px sans-serif; fill: #0f172a; }
+    .t     { font: 12px sans-serif; fill: #0f172a; }
+    .t-sub { font: 12px sans-serif; fill: #334155; }
+    .sys   { font: 700 13px sans-serif; fill: #fbfaf7; }
+    .stage { font: 600 12px sans-serif; fill: #0f172a; }
+    .num   { font: 700 16px sans-serif; fill: #ea580c; }
+</style>
+  </defs>
+
+  <text x="20" y="30" class="h">Verifier three-layer decision flow</text>
+  <text x="20" y="50" class="t-sub">Top to bottom: external artifacts &#x2192; internal budgets &#x2192; model self-report</text>
+
+  <g filter="url(#wobble)">
+    <rect x="240" y="80" width="220" height="36" rx="6"
+          fill="#0f172a" stroke="#0f172a" stroke-width="2" />
+    <text x="350" y="103" class="sys" text-anchor="middle">Turn N output</text>
+    <line x1="350" y1="116" x2="350" y2="146" stroke="#0f172a" stroke-width="2" marker-end="url(#arrow)" />
+
+    <rect x="60" y="150" width="580" height="100" rx="10"
+          fill="#fbfaf7" stroke="#b91c1c" stroke-width="2.5" />
+    <text x="80" y="178" class="t" fill="#b91c1c" font-weight="700">1 &#x00B7; hard verifier</text>
+    <text x="80" y="200" class="t">apply_patch legal? &#x00B7; tests exit 0? &#x00B7; lint passes? &#x00B7; execpolicy Allow?</text>
+    <text x="80" y="220" class="t-sub">fail &#x2192; force the loop to continue (don't let the model opt out)</text>
+    <text x="80" y="237" class="t-sub">pass &#x2192; descend to next layer</text>
+    <line x1="350" y1="250" x2="350" y2="276" stroke="#0f172a" stroke-width="2" marker-end="url(#arrow)" />
+
+    <rect x="60" y="280" width="580" height="100" rx="10"
+          fill="#fbfaf7" stroke="#ea580c" stroke-width="2.5" />
+    <text x="80" y="308" class="t" fill="#ea580c" font-weight="700">2 &#x00B7; soft verifier</text>
+    <text x="80" y="330" class="t">token usage &lt; 90%? &#x00B7; retries &lt; limit? &#x00B7; 3 consecutive turns with &gt; 500 token delta?</text>
+    <text x="80" y="350" class="t-sub">over budget &#x2192; force stop / nudge (diminishing returns)</text>
+    <text x="80" y="367" class="t-sub">normal &#x2192; descend to next layer</text>
+    <line x1="350" y1="380" x2="350" y2="406" stroke="#0f172a" stroke-width="2" marker-end="url(#arrow)" />
+
+    <rect x="60" y="410" width="580" height="100" rx="10"
+          fill="#fbfaf7" stroke="#15803d" stroke-width="2.5" />
+    <text x="80" y="438" class="t" fill="#15803d" font-weight="700">3 &#x00B7; lazy verifier</text>
+    <text x="80" y="460" class="t">finish_reason == "stop"? &#x00B7; no tool_use block in the stream?</text>
+    <text x="80" y="480" class="t-sub">trust comes purely from the model's self-report; the loop can't rely on this layer alone</text>
+    <text x="80" y="497" class="t-sub">pass &#x2192; exit the loop</text>
+  </g>
+</svg>

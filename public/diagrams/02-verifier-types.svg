@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" role="img"
+     aria-label="Verifier 3 种类型">
+  <defs>
+    <filter id="wb02"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="221" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar02" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .col  { font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .note { font: italic 10.5px sans-serif; fill: #92400e; }
+      .num  { font: 700 12.5px sans-serif; fill: #fff; }
+    </style>
+  </defs>
+  <text x="380" y="26" class="h" text-anchor="middle">Verifier 的 3 种类型</text>
+  <text x="380" y="44" class="t-s" text-anchor="middle">停得早 = 任务没完成；停得晚 = 烧 token / 死循环</text>
+
+  <g filter="url(#wb02)">
+    <rect x="60" y="70" width="640" height="80" rx="10" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="90" y="93" class="lbl">硬 verifier</text>
+    <text x="90" y="111" class="t">外部规则 / 工具执行结果说话</text>
+    <text x="90" y="128" class="t-s">run tests / lint / exit_code · 不通过 = 一定要继续</text>
+    <text x="90" y="143" class="note">Codex 用这种最多（apply_patch + run tests + execpolicy）</text>
+
+    <rect x="60" y="158" width="640" height="80" rx="10" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="90" y="181" class="lbl">软 verifier</text>
+    <text x="90" y="199" class="t">内部状态 / 预算 / 启发式判断</text>
+    <text x="90" y="216" class="t-s">token budget / 收敛率 / 重试次数 · 触发 = 软停或 nudge</text>
+    <text x="90" y="231" class="note">Claude Code 90% 阈值 + 3 次 &lt; 500 token diminishing returns</text>
+
+    <rect x="60" y="246" width="640" height="80" rx="10" fill="#fee2e2" stroke="#0f172a" stroke-width="1.6" />
+    <text x="90" y="269" class="lbl">放任型 verifier</text>
+    <text x="90" y="287" class="t">模型自己说停</text>
+    <text x="90" y="304" class="t-s">finish_reason / 没有 tool_use · 信不信全凭模型自觉</text>
+    <text x="90" y="319" class="note">兜底，所有系统都有，但单独用极不可靠</text>
+  </g>
+
+  <text x="380" y="355" class="t-s" text-anchor="middle">production 至少要硬 + 软双层；放任型作为兜底</text>
+</svg>

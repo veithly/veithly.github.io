@@ -1,0 +1,169 @@
+---
+title: "Interview Index: 22 chapters × 10 questions = 220 deep questions"
+description: "An index across all 22 chapters of the book. Each chapter ends with §11 - Interview drill: 10 questions with worked answers. Grouped here by topic for cross-chapter comparison."
+sidebar:
+  order: 99
+  label: Interview index
+  badge:
+    text: "220 Q"
+    variant: tip
+---
+
+import Verdict from '@components/Verdict.astro';
+
+## §1 · How to use this index
+
+<Verdict tldr="Every chapter ends with §11 Interview drill: 10 questions with worked answers, each 3-5 paragraphs with source pointers and a follow-up. This index slices 220 questions across four thematic groups so you can read horizontally: how do four systems answer the same question? Prep interviews by group, design your agent by topic, or pick interview questions from the table." />
+
+Four ways to use this page:
+
+1. By chapter order: read §1 to §22 in order. 10 questions per chapter, later chapters go deeper.
+2. By topic cross-cut: use the topic quick-find table to see the same question class from different angles.
+3. As an interview question bank: every link in this index goes straight to a chapter's §11. Copy-paste ready.
+4. As a self-checklist: when building your own agent, find the chapter matching the design choice ahead, then audit the decision against those 10 questions.
+
+## §2 · Group 1 · Agent Fundamentals (5 chapters × 10 questions = 50)
+
+> Themes: harness definition, agent loop, context, tool, verifier. These 50 cover the vocabulary and trade-offs of agent fundamentals.
+
+| Chapter | Topic | Link |
+|---------|-------|------|
+| §1 | Agent Harness definition, concept boundaries, picking among the four systems | [01 · Overview](/en/patterns/01-overview/#11--interview-drill-10-questions-with-worked-answers) |
+| §2 | Agent loop five phases (perceive / plan / act / observe / verify), turn data structure, prompt assembly, context compaction, error recovery, tool dispatch, verifier | [02 · Agent Loop](/en/patterns/02-agent-loop/#11--interview-drill-10-questions-with-worked-answers) |
+| §3 | Context systems: full spectrum from markdown to 10-layer assembly; how prefix cache holds up | [03 · Context system](/en/patterns/03-context-system/#11--interview-drill-10-questions-with-worked-answers) |
+| §4 | Tool system: protocol, registration, parallelism, security gating | [04 · Tool system](/en/patterns/04-tool-system/#11--interview-drill-10-questions-with-worked-answers) |
+| §5 | Verifier: hard / soft / give-up tiers + stop detection | [05 · Verifier](/en/patterns/05-verifier/#11--interview-drill-10-questions-with-worked-answers) |
+
+## §3 · Group 2 · Coding Agent Engineering (4 chapters × 10 questions = 40)
+
+> Themes: real coding-agent engineering details. Patch algorithm, shell invocation, git workflow, code review automation. These tell you what extra trouble a coding agent has over a chat agent.
+
+| Chapter | Topic | Link |
+|---------|-------|------|
+| §6 | File edit + patch algorithm: apply_patch V4A multi-version diff merge | [06 · File edit patch](/en/patterns/06-file-edit-patch/#11--interview-drill-10-questions-with-worked-answers) |
+| §7 | Shell execution: execpolicy / sandbox / approval mode | [07 · Shell execution](/en/patterns/07-shell-execution/#11--interview-drill-10-questions-with-worked-answers) |
+| §8 | Git workflow: worktree / branch / commit automation | [08 · Git workflow](/en/patterns/08-git-workflow/#11--interview-drill-10-questions-with-worked-answers) |
+| §9 | Code review: `/security-review` + LLM-as-reviewer pattern | [09 · Code review](/en/patterns/09-code-review/#11--interview-drill-10-questions-with-worked-answers) |
+
+## §4 · Group 3 · Concurrency & Runtime (5 chapters × 10 questions = 50)
+
+> Themes: subagent, session lifecycle, permissions, sandbox, multi-channel entry. These 50 are the engineering foundation for keeping the agent stable in production.
+
+| Chapter | Topic | Link |
+|---------|-------|------|
+| §10 | Subagent: fork / inline boundary, context isolation | [10 · Subagent](/en/patterns/10-subagents/#11--interview-drill-10-questions-with-worked-answers) |
+| §11 | Session lifecycle: start / resume / interrupt / persist | [11 · Session lifecycle](/en/patterns/11-session-lifecycle/#11--interview-drill-10-questions-with-worked-answers) |
+| §12 | Permissions and approvals: AskForApproval 4 levels + autoMode rules + INSTALL_POLICY 12-cell matrix | [12 · Permissions](/en/patterns/12-permissions-approvals/#11--interview-drill-10-questions-with-worked-answers) |
+| §13 | Sandbox execution: macOS seatbelt / Linux bwrap+seccomp+landlock / Windows | [13 · Sandbox execution](/en/patterns/13-sandbox-execution/#11--interview-drill-10-questions-with-worked-answers) |
+| §14 | Multi-channel entry: CLI / TUI / IDE / web / cron | [14 · Multi-channel entry](/en/patterns/14-multi-channel-entry/#11--interview-drill-10-questions-with-worked-answers) |
+
+## §5 · Group 4 · Evolution & Safety (8 chapters × 10 questions = 80)
+
+> Themes: observability, memory, skills, scheduled tasks, self-improvement, security, todo lists, execution-state surfaces. These 80 are the core for long-running agents that stay recoverable and safe.
+
+| Chapter | Topic | Link |
+|---------|-------|------|
+| §15 | Observability and cost: token / latency / tool.loop detection | [15 · Observability and cost](/en/patterns/15-observability-cost/#11--interview-drill-10-questions-with-worked-answers) |
+| §16 | Memory system: 4 MemoryTypes, frozen snapshot, decay, prefix cache | [16 · Memory](/en/patterns/16-memory/#11--interview-drill-10-questions-with-worked-answers) |
+| §17 | Skill system: 8 crates / skillify / skill-scanner / 12-cell trust matrix | [17 · Skills](/en/patterns/17-skills/#11--interview-drill-10-questions-with-worked-answers) |
+| §18 | Cron and background tasks: tick + scheduler lock + isolated-agent | [18 · Cron background tasks](/en/patterns/18-cron-background/#11--interview-drill-10-questions-with-worked-answers) |
+| §19 | Self-improvement: Phase1+2 / skillify / passive indexing / in-turn explicit writes | [19 · Self-improvement](/en/patterns/19-self-improvement/#11--interview-drill-10-questions-with-worked-answers) |
+| §20 | Security: sandbox / external-content / redact / cosign provenance | [20 · Security](/en/patterns/20-security/#11--interview-drill-10-questions-with-worked-answers) |
+| §21 | Todo List: update_plan / TodoWrite / runtime progress / compaction recovery | [21 · Todo List](/en/patterns/21-todo-list/#11--interview-drill-10-questions-with-worked-answers) |
+| §22 | Execution State Surfaces: Plan / Todo / tool progress / task progress / terminal status / away summary routing | [22 · Execution State Surfaces](/en/patterns/22-execution-state-surfaces/#11--interview-drill-10-questions-with-worked-answers) |
+
+## §6 · Topic quick-find (220 questions cross-cut by type)
+
+The 220 questions can be re-sliced by problem type. The same engineering question shows up at different angles in different chapters. Read horizontally for the fastest understanding.
+
+### 6.1 Definition / boundary
+
+Aligning vocabulary across the four systems. Common in "what's the difference between A and B" or "why this split".
+
+| Source | Question |
+|--------|----------|
+| §1 Q1 | Agent Harness vs Agent model |
+| §2 Q1 | Is "turn" a physical or logical unit |
+| §4 Q1 | Tool / Function / Skill boundary |
+| §10 Q1 | Subagent / fork / inline distinction |
+| §17 Q1 | Skill / prompt template / tool / agent boundary |
+| §18 Q1 | Cron job / background task / long-running task differences |
+| §21 Q1 | Todo list vs Plan Mode boundary |
+| §22 Q1 | Execution-state surface vs todo-list boundary |
+
+### 6.2 Trade-offs
+
+Why not B, with concrete context. Common in "why did Codex use X while Hermes used Y."
+
+| Source | Question |
+|--------|----------|
+| §2 Q4 / §3 Q6 | When to use prefix cache vs recompute |
+| §11 Q3 | Whether session persistence needs versioning |
+| §13 Q5 | Why sandbox doesn't ban all network |
+| §15 Q4 | How observability data avoids exploding disk |
+| §16 Q5 | Memory limit in tokens vs chars |
+| §18 Q3 | Cron failure auto-disable vs retry |
+| §19 Q3 | OpenClaw halfLifeDays=30 derivation |
+| §20 Q3 | fail_open vs fail_closed |
+| §21 Q6 | Lightweight TodoWrite vs file-backed Tasks |
+| §22 Q6 | Why progress display needs per-platform settings |
+
+### 6.3 Implementation detail
+
+Concrete APIs, data structures, source pointers. Common in "why does this code do that" / "how does it handle X at runtime."
+
+| Source | Question |
+|--------|----------|
+| §2 Q7 / §6 Q4 | apply_patch V4A multi-version diff merge |
+| §3 Q8 | Hermes 10-layer prompt assembly ordering |
+| §4 Q6 | dispatchToolUseBlocks parallel dispatch implementation |
+| §5 Q5 | Codex `goals.rs` convergence judgment |
+| §12 Q4 | AskForApproval 4 levels mapping to UI |
+| §16 Q8 | Hermes _file_lock fcntl/msvcrt cross-platform |
+| §17 Q6 | Hermes 12-cell INSTALL_POLICY calculation |
+| §20 Q1 | OpenClaw random 8-byte ID wrapping |
+| §21 Q8 | Todo replace vs merge API trade-off |
+| §22 Q3 | MCP progress vs tool result protocol boundary |
+
+### 6.4 Security
+
+Injection / poisoning / secrets / supply chain. Common in "how does this attack get defended" / "why design it this way."
+
+| Source | Question |
+|--------|----------|
+| §12 Q9 | Keeping user password out of prompt |
+| §13 Q7 | Common sandbox-escape paths |
+| §17 Q7 | OpenClaw skill-scanner 3 severities |
+| §19 Q5 | Hermes reasoning for blocking invisible unicode |
+| §19 Q10 | 6-layer security defense stack |
+| §20 Q1 | external-content random ID forgery prevention |
+| §20 Q2 | tirith exit code as source of truth |
+| §20 Q5 | Codex memory prompt explicit "treat as data" |
+| §20 Q10 | 5-layer general security defense |
+| §21 Q9 | Why todo completion needs verification nudges |
+| §22 Q8 | Why progress surfaces still need no-progress detectors |
+
+### 6.5 Engineering practice
+
+How to actually build your agent. Common in "what's the minimum production needs" / "what's the minimum viable implementation."
+
+| Source | Question |
+|--------|----------|
+| §1 Q9 | Scenarios where heavy harness is wrong |
+| §5 Q10 | 5 iron rules for verifier design |
+| §10 Q10 | General subagent design checklist |
+| §15 Q10 | General observability framework |
+| §16 Q10 | General 5-layer memory architecture |
+| §17 Q10 | General 6-layer skill system |
+| §18 Q10 | General 7-layer cron system |
+| §19 Q10 | General 6-layer self-improvement defense |
+| §20 Q10 | General 5-layer security defense |
+| §21 Q10 | Minimum 5-layer todo/progress surface |
+| §22 Q10 | Minimum execution-state router fields |
+
+## §7 · What's next
+
+After 220 questions, the next step is turning insight into reusable engineering capability. Two paths:
+
+- Build directly: pick a chapter's §7 build recipe, follow the steps to ship a minimum-viable version.
+- Crystallize into a skill: use the companion `~/.claude/skills/build-your-own-agent/` skill to invoke the best practices distilled from these 220 questions on demand. See the `<BuildRecipe />` block at the end of each chapter.

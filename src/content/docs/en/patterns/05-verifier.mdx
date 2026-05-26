@@ -1,0 +1,653 @@
+---
+title: 05 · Verifier · how to close the loop without trusting the model
+sidebar:
+  order: 5
+description: Three verifier tiers (hard / soft / lazy) and how the four systems wire them, with real source from Codex execpolicy, Claude Code TOKEN_BUDGET, OpenClaw loop detection, and Hermes insights
+---
+
+import Verdict from '@components/Verdict.astro';
+import CompareTable from '@components/CompareTable.astro';
+import Diagram from '@components/Diagram.astro';
+import TradeOff from '@components/TradeOff.astro';
+import ScoreCard from '@components/ScoreCard.astro';
+import BuildRecipe from '@components/BuildRecipe.astro';
+import SourceTrail from '@components/SourceTrail.astro';
+import SourceBlock from '@components/SourceBlock.astro';
+
+> **Builds on ch. 02 §3.9 "When to stop"**: that section sketched the three verifier tiers. This chapter shows the real source code, the failure modes, and how to pick a tier for your own agent.
+
+## §1 · TL;DR
+
+<Verdict tldr="A verifier is the only external judge an agent loop can fall back to. «The model says it's done» basically cannot be trusted in production — the model often claims completion when the task isn't actually done (sometimes hallucinating that it did something, sometimes because it does not see all the context and thinks what it has is enough). If the loop depends entirely on model self-evaluation to decide whether to stop, disasters like «the bug isn't fixed but the agent says it's done» are inevitable, so every production-grade agent needs a verifier layer independent of the model as a backstop. Verifier design splits into three tiers. The hard verifier looks at external artefacts (command exit codes, patch validity, lint, tests) — objectively verifiable. The soft verifier looks at internal budgets and convergence signals (tokens running out, the same tool called repeatedly, the rate of new output dropping) — heuristics on loop state. The lazy verifier trusts the model's own stop signal (the final backstop, only triggered when the first two tiers did not intercept). Production agents need all three; missing one is a failure mode. Missing the hard verifier means the model declares victory before it has any (the worst). Missing the soft verifier means burning through quota in an OOM state. Missing the lazy verifier means simple turns get stuck in the loop and cannot exit. The four systems' coverage of the three tiers differs widely. Codex takes the strictest route — four hard verifiers in series: `apply_patch` grammar check refuses illegal patches; `run tests` non-zero exit code = task not done; `execpolicy` three-state decider (`Allow` / `Prompt` / `Forbidden`) intercepts dangerous commands; `goals.rs` (1500+ line `GoalRuntimeEvent` state machine) does goal convergence detection. Soft verifier is `Goal`'s `token_budget` exhausted reporting `GOAL_BUDGET_LIMITED_METRIC`; lazy tier is just the model's `output_type: completed`. Claude Code goes «soft-verifier-as-algorithm»: `TOKEN_BUDGET` turns «judging stop by token convergence rate» into a 60-line algorithm (90% threshold as soft boundary, 500 tokens as increment threshold, 3 rounds of consecutive low increments judges diminishing returns) — three numbers together decide «we're in minor edits, that's enough». But Claude Code has no hard verifier interface (`query.ts` is 1729 lines and opens no external hooks; forcing the loop to wait for `pnpm test` before exiting requires forking the code). OpenClaw makes verifiers fully middleware-driven plus 4 loop detectors: `tool-policy-pipeline` abstracts the verifier into registerable middleware (a dozen hooks let externals plug in lint, typecheck, human approval). The most reusable piece is `tool-loop-detection.ts`'s 4 detectors — `generic_repeat` (same call repeated), `known_poll_no_progress` (long-poll with no progress), `ping_pong` (two tools toggling), `global_circuit_breaker` (global cap). This is the key to OpenClaw's extreme fork-friendliness. Hermes runs «soft verifier + skill self-evaluation»: no runtime hard verifier, only skill-layer policy; soft verifier is `IterationBudget` (parent 90 / sub 50 + grace call); lazy tier depends on the model not emitting `tool_call`, which ends the turn. Most distinctively, post-loop `insights` self-evaluation (`agent/insights.py` calls an LLM to evaluate «how did this run go») writes the judgement to memory so the next similar task gets smarter. Strict coding agent? Borrow Codex's four hard verifiers. IDE tools with complete soft fallbacks? Borrow Claude Code's `TOKEN_BUDGET`. Enterprise-level middleware-driven verifier? Borrow OpenClaw's policy-pipeline + loop detector. Long-running assistant with verifier spread across the time axis? Borrow Hermes's `insights` + memory." />
+
+## §2 · The base diagram
+
+<Diagram
+  src="/diagrams/05-verifier-base.svg"
+  alt="Three-tier verifier decision flow: external artifacts → internal budget → model self-report"
+  caption="Every Turn N output runs through these three tiers; failing either of the first two forces continuation, only the last lets the model say stop."
+/>
+
+The four systems cover those tiers very differently:
+
+<CompareTable
+  rows={[
+    { label: 'Hard verifier', values: ['`goals.rs` convergence + `apply_patch` validation + tests exit code + `execpolicy::Decision::{Allow, Prompt, Forbidden}` tri-state', 'None. query.ts opens no verifier hook', '`before/after_tool_call` and a dozen more plugin hooks; verifier is fully mountable', 'No runtime hard verifier. Only skill-layer policy'] },
+    { label: 'Soft verifier', values: ['Goal token_budget + retry backoff + Turn cap', '`TOKEN_BUDGET` 90% threshold + three sub-500-token rounds = diminishing returns', '`tool-loop-detection.ts` four detectors (generic_repeat / poll_no_progress / ping_pong / global_circuit_breaker)', 'IterationBudget 90/50 + grace call'] },
+    { label: 'Lazy verifier', values: ['model emits `output_type: completed`', 'No `tool_use` block in stream', 'lifecycle:end event', 'Model stops emitting tool_call ends the turn'] },
+    { label: 'Hard cap', values: ['Turn counter + server-side ratelimit + `GOAL_BUDGET_LIMITED_METRIC`', 'maxTurns (default very large)', 'runtime timeout + 30-call global circuit breaker', 'iteration_budget exhausted → grace call → forced summary'] },
+  ]}
+  caption="Verifier coverage across the four systems"
+  dimensionLabel="Tier"
+/>
+
+## §3 · How each system does it
+
+### Codex · Four hard verifiers in series, making the loop completely independent of model self-evaluation
+
+Codex's core judgement on verifier design is: the model saying "I'm done" basically can't be trusted — many cases where the model didn't actually complete the task but thinks it did (e.g. changed one file thinking the whole bug is fixed but 3 related files weren't changed; or ran one test seeing it pass thinking it's fixed but actually test coverage is incomplete). The advantage of coding scenarios is having lots of "objectively verifiable" signals — exit code 0 vs non-zero, whether the patch grammar is correct, whether lint passes, whether tests fully pass — these signals are machine-readable and don't need model judgement. Codex strings these objective signals all together; the loop entirely doesn't depend on model self-evaluation.
+
+Actual implementation is the 1500+ line `goals.rs` running a `GoalRuntimeEvent` state machine over each turn's budget, convergence, and external goal changes, unifying all events into a machine-checkable "task complete" signal:
+
+<SourceBlock path="REF/codex/codex-rs/core/src/goals.rs" lines="98-130" system="codex" summary="GoalRuntimeEvent collapses turn / tool / abort into one state machine">
+
+```rust
+pub(crate) enum GoalRuntimeEvent<'a> {
+    TurnStarted {
+        turn_context: &'a TurnContext,
+        token_usage: TokenUsage,
+    },
+    ToolCompleted {
+        turn_context: &'a TurnContext,
+        tool_name: &'a str,
+    },
+    ToolCompletedGoal {
+        turn_context: &'a TurnContext,
+    },
+    TurnFinished {
+        turn_context: &'a TurnContext,
+        turn_completed: bool,
+    },
+    MaybeContinueIfIdle,
+    TaskAborted { /* ... */ },
+}
+```
+
+</SourceBlock>
+
+`execpolicy` is even stricter. Every shell command goes through a tri-state decider, not a boolean:
+
+<SourceBlock path="REF/codex/codex-rs/execpolicy/src/decision.rs" lines="7-28" system="codex" summary="execpolicy: Allow / Prompt / Forbidden">
+
+```rust
+pub enum Decision {
+    /// Command may run without further approval.
+    Allow,
+    /// Request explicit user approval; rejected outright
+    /// when running with `approval_policy="never"`.
+    Prompt,
+    /// Command is blocked without further consideration.
+    Forbidden,
+}
+```
+
+</SourceBlock>
+
+Codex's hard verifier 4-piece — each corresponds to a specific "objective completion signal":
+
+**1. `apply_patch` validation** (detailed in ch. 06 V4A) — model-generated patches must pass V4A diff algorithm grammar check; illegal patches directly refused for execution, loop forced to retry. This verifier prevents "the model generated a pile of garbage pretending to be a patch" — the model sometimes fabricates patches (especially after context compression forgets file original content); without checking before apply destroys the file.
+
+**2. `run tests` exit code** — must run relevant tests once before task ends, non-zero exit code directly judges "task not done"; goal not converging, loop forced to continue. This verifier prevents "the model finishes changing code but doesn't run tests and claims completion" — many agents stop after changing code without running and don't know if it changed correctly.
+
+**3. `execpolicy::Decision`** — every shell command runs through three-state decider before execution: `Allow` runs (whitelisted or low-risk), `Prompt` user approval (medium-risk needs confirmation), `Forbidden` directly blocks (blacklisted or high-risk). This verifier prevents "the model momentarily confused and runs rm -rf /" — execpolicy intercepts before the sandbox; it's a command-level hard wall.
+
+**4. `goals.rs` convergence detection** — when Goal's `token_budget` is exhausted, fires `GOAL_BUDGET_LIMITED_METRIC` metric reporting + steering (injects system message guiding model to "first narrate current progress clearly before exiting"), forcing the loop to not exit hard without explanation. This verifier prevents "tokens burned out, model silent fail" — without steering the model would directly cut off mid tool call; users seeing partial execution don't know what happened.
+
+Four verifiers in series form a network making the loop completely independent of model self-evaluation — any tier failing forces continuation, all passing means truly done. The cost is this only works in coding scenarios — let Codex write a PRD or do research and all four verifiers fall silent (no exit code, no tests to run); so Codex outside coding scenarios needs other backstops just like the other three.
+
+### Claude Code · 60-line algorithm making "minor edits" stop, judging by token convergence rate
+
+Claude Code's core judgement on verifier design is: as an IDE-integrated coding agent, hard verifier (exit code / tests) integration cost is too high (user's project may have no tests / tests may be slow / IDE shouldn't presume to run tests); but completely depending on model self-evaluation produces "model rambling endlessly" (especially user asks a simple question but model writes a big analysis). So Claude Code chose to push soft verifier to the extreme — using "token convergence rate" as the main stop signal, cheap (no need to run external commands), fast (computable each iteration), universal across scenarios (any task can compute token increment).
+
+Actual implementation in `query/tokenBudget.ts` is just dozens of lines — making "judging stop by token convergence rate" a standard algorithm:
+
+<SourceBlock path="REF/claude-code-2.1.88-expanded/src/query/tokenBudget.ts" lines="1-82" system="claude" summary="checkTokenBudget: 90% threshold + 3 consecutive sub-500-token rounds = diminishing">
+
+```ts
+const COMPLETION_THRESHOLD = 0.9
+const DIMINISHING_THRESHOLD = 500
+
+export function checkTokenBudget(
+  tracker: BudgetTracker,
+  agentId: string | undefined,
+  budget: number | null,
+  globalTurnTokens: number,
+): TokenBudgetDecision {
+  if (agentId || budget === null || budget <= 0) {
+    return { action: 'stop', completionEvent: null }
+  }
+
+  const turnTokens = globalTurnTokens
+  const pct = Math.round((turnTokens / budget) * 100)
+  const deltaSinceLastCheck = globalTurnTokens - tracker.lastGlobalTurnTokens
+
+  const isDiminishing =
+    tracker.continuationCount >= 3 &&
+    deltaSinceLastCheck < DIMINISHING_THRESHOLD &&
+    tracker.lastDeltaTokens < DIMINISHING_THRESHOLD
+
+  if (!isDiminishing && turnTokens < budget * COMPLETION_THRESHOLD) {
+    tracker.continuationCount++
+    /* ... nudge model to continue ... */
+    return { action: 'continue', /* ... */ }
+  }
+
+  /* over budget OR diminishing returns → stop */
+  return { action: 'stop', /* ... */ }
+}
+```
+
+</SourceBlock>
+
+Three numbers determine loop shape — `0.9` is the soft boundary (every iteration nudges model to continue before 90% token budget), `500` is the token increment threshold (each iteration adding under 500 tokens means "didn't do much real work"), `3` is the consecutive round count (3 consecutive rounds all under the increment threshold judges diminishing returns). The three combined judge the "already in minor edits, that's enough" state — this is the representative of soft verifier engineering, dozens of lines of code making a universal stop algorithm for all scenarios.
+
+This design has one particularly clever spot: the algorithm doesn't look at "absolute token count" (absolute counts vary hugely by task complexity) but at "token increment trends" (regardless of task complexity, 3 consecutive rounds of small increments mean it's in a holding pattern). This "relative trend" design means the algorithm doesn't need per-task threshold tuning.
+
+But Claude Code's design only goes so far — there's no hard verifier interface. The 1729-line `query.ts` opens no external hooks; wanting to force the loop to wait until `pnpm test` passes can only be done by forking the entire file. The `stopHooks` system only allows reverse gating (preventing the model from self-stopping, letting the loop continue), not "first pass this external check" forward requirements (forcing pass before exiting). This is Claude Code's obvious blind spot in verifier — for workflows that need strictly guaranteed "tests pass before PR", Claude Code is not directly suitable.
+
+### OpenClaw · Makes verifier completely middleware-driven + designs 4 loop detectors
+
+OpenClaw's core judgement on verifier design is: as a generic agent control plane (not just serving coding), verifier can't be hardcoded into the loop — different enterprises / different business scenarios define "what counts as done" completely differently (sales agent done = CRM fields all filled / customer service agent done = ticket closed / coding agent done = tests pass); if verifier is hardcoded it can't adapt to diversity; the best approach is to make verifier a middleware interface, letting specific check logic be registered by users themselves.
+
+Actual implementation is `tool-policy-pipeline` abstracting verifier into registerable middleware; a dozen hook points (`before_tool_call` / `after_tool_call` / `tool_result_persist` etc.) let externals plug lint check / typecheck / human approval / business rule validation. E.g. wanting to add "PR must have reviewer to merge" verifier to a corporate agent? Write a plugin registered to after_tool_call; no need to modify OpenClaw source.
+
+But this "verifier middleware" only solves the "external can inject checks" problem; OpenClaw also has an internal problem to solve — loop dead-loop detection. The model sometimes falls into "ceaselessly calling the same tool" or "toggling between two tools" dead loops; relying purely on user-written middleware doesn't necessarily catch this in time, so OpenClaw built in a specialised subsystem `tool-loop-detection.ts` — 4 detectors managing different dead-loop patterns:
+
+<SourceBlock path="REF/openclaw/src/agents/tool-loop-detection.ts" lines="9-42" system="openclaw" summary="Four loop detectors plus three thresholds">
+
+```ts
+export type LoopDetectorKind =
+  | "generic_repeat"          // same call repeated
+  | "known_poll_no_progress"  // command_status / process poll without progress
+  | "global_circuit_breaker"  // total threshold tripped
+  | "ping_pong";              // A→B→A→B oscillation
+
+export const TOOL_CALL_HISTORY_SIZE = 30;
+export const WARNING_THRESHOLD = 10;
+export const CRITICAL_THRESHOLD = 20;
+export const GLOBAL_CIRCUIT_BREAKER_THRESHOLD = 30;
+```
+
+</SourceBlock>
+
+Each of the four detectors targets one typical dead-loop pattern; design trade-offs are as follows:
+
+**`generic_repeat`** — same call repeated past the threshold warns. Implementation hashes `toolName + stably-serialized params` (uses `sha256(stableStringify(params))` rather than direct JSON.stringify, avoiding misses from different key order — same parameters `{a:1,b:2}` and `{b:2,a:1}` JSON.stringify differently but semantically the same), with same hash appearing 10 times (WARNING_THRESHOLD) in last 30 calls warning, 20 times (CRITICAL_THRESHOLD) circuit breaking. This tier mainly intercepts "model stuck repeatedly calling some tool".
+
+**`known_poll_no_progress`** — specifically identifies `command_status` and `process: poll/log` long-polls. These two tools' semantic is "poll some state"; repeated calls themselves are legitimate (poll once per second is normal), but "call result hasn't changed" is abnormal (means the polled process is dead or didn't start). Implementation has hash include "call result text", with no result change counting as "no progress" (different from generic_repeat which only looks at input). This tier intercepts "model continuously polling a state that won't change" wasting tokens.
+
+**`ping_pong`** — identifies A→B→A→B oscillation. Two tools depending on each other might trap the model in "call A see result not satisfied call B fix a bit then come back to call A see result" cycle. This tier intercepts "two tools cancelling each other's work".
+
+**`global_circuit_breaker`** — 30-call total threshold backstop when narrower detectors all miss, forces circuit break. This is the "last wall" — the first three detectors are pattern-specific, possibly with uncovered dead-loop patterns; the global threshold ensures dead loops of any pattern get intercepted within 30 calls.
+
+Default `enabled: false`. OpenClaw doesn't force every session to enable loop detection because there are legitimate high-repeat workflows — e.g. `watch + recompile` continuous monitoring naturally needs to repeatedly call the same tool dozens of times, enabling loop detection would friendly-fire. This is OpenClaw's switch for users — "open it when needed, close it when not".
+
+### Hermes · No runtime hard verifier in single loops, spreads verifier across time axis for cross-session accumulation
+
+Hermes' core judgement on verifier design is: the verifier of a long-running assistant (companion to users for months / years) shouldn't be "must judge right or wrong strictly within a single loop" — this strictness makes the agent too rigid to handle scenario diversity, hurting user experience. The right approach is to spread verifier across the time axis — a single loop is not strict but post-loop does post-hoc analysis writing back to memory; next similar task prefetch injects context; the agent gets smarter and smarter.
+
+In actual implementation Hermes runs up to 90 steps per loop (50 for subagents); on exhaustion goes to grace call → summary → stop. `agent/insights.py` is not a runtime verifier; it is the **post-hoc** session analyzer that looks at tokens, cost, and tool patterns:
+
+<SourceBlock path="REF/hermes-agent/agent/insights.py" lines="1-17" system="hermes" summary="insights.py is a post-run analyzer, not an in-loop verifier">
+
+```python
+"""
+Session Insights Engine for Hermes Agent.
+
+Analyzes historical session data from the SQLite state database to produce
+comprehensive usage insights: token consumption, cost estimates, tool usage
+patterns, activity trends, model/platform breakdowns, and session metrics.
+
+Inspired by Claude Code's /insights command, adapted for Hermes Agent's
+multi-platform architecture with additional cost estimation and platform
+breakdown capabilities.
+"""
+```
+
+</SourceBlock>
+
+Hermes splits verifier across three time dimensions:
+
+**Runtime (within the loop)** — only `IterationBudget(90/50)` soft cap + grace call backstop. Parent 90 / subagent 50 steps; exhaustion gives the model one grace call to say a last word; even insufficient strips tools and forces a summary. This tier only ensures the loop won't run infinitely, doesn't ensure the task is truly done.
+
+**Across sessions (between loops)** — `memory_manager.prefetch_all()` injects "last time I screwed up similar tasks / nailed them" before the loop starts. This is the core innovation in Hermes' verifier design — turning verifier from "hard check inside a single loop" into "experience accumulated across sessions". Same user a month later, Hermes is much smarter than day one (because memory accumulates, skills get triggered, insights get written back); verifier's effect emerges rather than being hardcoded.
+
+**Training side (doesn't participate in normal run)** — `environments/*.py` ships `evaluate()` and `score()` methods (e.g. `yc_bench_env.py:475`) for RL training data collection, not for normal agent run. This part is the Hermes team's experiment in "letting the agent self-improve via RL"; unrelated to users actually running the agent.
+
+Hermes picked the "short-term not strict, long-term converging" route. The cost is single loop can't machine-judge right or wrong (user asks "did this task succeed?", Hermes can't give an objective answer, only the user can judge), depending on memory accumulation + skill self-evaluation — so Hermes isn't suitable for "single loop must strictly judge correct" scenarios (CI / auto merge / critical business processes), more suitable for "companion-style assistants".
+
+## §4 · The four systems' shared understanding of verifier design
+
+The four systems share five obvious common understandings on verifier design — these are engineering bottom lines that all agents should follow:
+
+**First, must always have hard caps (preventing the loop from running infinitely)** — Turn counter / token budget / iteration cap / circuit breaker, every system has its own hard cap mechanism. Model confidence can't bypass it. Agents without any hard cap, once falling into a dead loop, will burn through quota (see Claude Code comments' "wasting ~250K API calls/day globally" case).
+
+**Second, hard verifier reads external artifacts (not depending on model self-evaluation)** — exit code, diff validity, policy decisions, lint output, all machine-judgeable signals. Model saying "I'm done" doesn't count; there must be objective signals confirming. Codex and OpenClaw both make hard verifier this layer.
+
+**Third, soft verifier uses budgets and heuristics (cheap but enough)** — token increment, retry count, call pattern hash, these signals have low cost (no need to run external commands) but can intercept most waste. Claude Code pushes soft verifier to the extreme; 60 lines of algorithm handle main scenarios.
+
+**Fourth, lazy verifier is the last backstop (can't let the loop only depend on it)** — model no longer emitting tool_use is treated as complete, it's a backstop not a primary force. Agents entirely depending on model self-evaluation are definitely untrustworthy.
+
+**Fifth, verifier signals must be observable (exposed to monitoring)** — `transition.reason` (Claude Code) / `GOAL_*_METRIC` (Codex) / `LoopDetectorKind` (OpenClaw) all explicitly expose exit reasons to monitoring systems. Agents whose monitoring can't see verifier signals can't be located when problems occur.
+
+## §5 · The four systems' key divergences on verifier design
+
+<Diagram
+  src="/diagrams/05-tradeoff.svg"
+  alt="Four systems on a 2D plane: per-loop strictness × verifier extensibility"
+  caption="X: per-loop strictness (external products → soft → lazy). Y: extensibility (how easily outsiders can mount their own verifiers). Codex maxes out strictness with limited hooks; OpenClaw goes the opposite way; Claude Code and Hermes share the lower half."
+/>
+
+The four systems represent four typical trade-offs in verifier design:
+
+**If you need an externally-trusted loop (CI / auto-merge / critical business processes)**: borrow from Codex's four hard verifiers (apply_patch validation / tests exit code / execpolicy tri-state / goals.rs convergence). Requires the task have external judges (tests / lint / type check / API schema); without external judges this is unusable. This strictness is the lowest requirement for CI auto-merge — without hard verifier the agent shouldn't auto-merge.
+
+**If you want to save tokens and avoid pointless writes**: borrow from Claude Code's TOKEN_BUDGET algorithm (90% threshold + 3 consecutive sub-500-token rounds). Directly copying the three constants works, universal across scenarios. This is the masterpiece of soft verifier engineering, 60 lines of code making a universal algorithm.
+
+**If you want pluggable verifiers for downstream**: borrow from OpenClaw's middleware pipeline + 4 loop detectors. tool-policy-pipeline makes verifier completely middleware (externals plug lint / typecheck / human approval / business rules), with 4 loop detectors blocking main dead-loop patterns. The cost is longer debug chains (one tool call passes through 5-6 layers of middleware, hard to locate issues). This is the optimal solution for enterprise-level / multi-tenant scenarios.
+
+**If you want long-term cumulative learning without forcing per-loop strictness**: borrow from Hermes' memory.prefetch + insights route. Spreads verifier across the time axis; per-loop not strict but cross-session converging. But still keep hard cap backstops within single loops (IterationBudget); you can't have nothing. This is the optimal solution for long-running companion-style agents.
+
+## §6 · My take
+
+<ScoreCard
+  rows={[
+    { system: 'Codex', value: '★★★★★', reason: 'Four hard verifiers in series + tri-state execpolicy + GoalRuntimeEvent state machine. The ceiling for engineered verifier design', risk: 'Tied to coding workloads. Outside the world of tests / lint / diff, the four verifiers go quiet. No built-in loop-pattern detection.' },
+    { system: 'Claude Code', value: '★★★★', reason: 'Roughly 80 lines of `tokenBudget.ts` define "this is now polishing." Algorithm copies cleanly.', risk: 'No hook for hard verifiers. Adding external checks means forking 1729 lines.' },
+    { system: 'OpenClaw', value: '★★★★★', reason: 'Verifier as middleware + four loop detectors + 30-call circuit breaker. Best verifier extensibility', risk: 'Default `enabled: false` so callers must opt in. Hook chains are long to debug; use --trace.' },
+    { system: 'Hermes', value: '★★★', reason: 'memory.prefetch + long-term learning is unique. Grace call is a clean soft backstop', risk: 'No runtime verifier worth the name. Single loop cannot be externally trusted. insights.py is reporting only, not part of the decision.' },
+  ]}
+  caption="Score basis: coverage of the three tiers + engineering depth + fork-friendliness"
+  headers={['System', 'Score', 'What stands out', 'Risk']}
+/>
+
+## §7 · Build recipe
+
+Below is the recipe distilled from the four systems for writing your own Verifier. Fill the basic three tiers first, then add production-grade features, finally avoid four common dead ends.
+
+<BuildRecipe
+  title="Build recipe"
+  minimalLabel="Minimum viable"
+  advancedLabel="Once that works"
+  avoidLabel="Don't do this"
+  minimal={[
+    'A hard-cap triplet: max_iterations / token_budget / wall_clock_timeout — lock all three first; any one exceeded forces stop; this is the lowest baseline (preventing agent from burning quota / hanging the server)',
+    'One hard verifier as backstop: coding = tests exit code (most reliable objective signal); non-coding = output-schema validation (forcing model to produce schema-compliant final result); never let model self-evaluation decide stop',
+    'Expose at least one transition.reason label (borrow from Claude Code) so monitoring can read why the loop stopped — was budget exhausted? verifier rejected? model proactively stopped? external observer sees at a glance',
+  ]}
+  advanced={[
+    "Borrow from Claude Code's `0.9 / 500 / 3` constants into your token budget soft verifier — using \"token increment trend\" rather than \"absolute token count\" as stop signal, universal across scenarios without per-task tuning",
+    "Borrow from OpenClaw's four detectors (generic_repeat / poll_no_progress / ping_pong / global_circuit_breaker) — at minimum first add generic_repeat (model consecutively calls same tool) + global_circuit_breaker (per-session tool call cap), blocks 90% of dead loops",
+    "Borrow from Codex's tri-state execpolicy (Allow / Prompt / Forbidden); shell calls must pass through this gate — don't use straight boolean pass/reject; the middle tier Prompt brings the user into decisions; this is standard equipment for coding agents",
+    "Verifier failure must be recoverable: write transition label + persist for replay, never panic — hard verifier rejection (e.g. tests fail) should let the loop continue (feed error back to model), not kill the entire agent; write verifier failures to event stream for downstream analysis",
+  ]}
+  avoid={[
+    'Trusting "model says stop" alone — the lazy verifier is a backstop, never the primary; the model often claims completion before truly completing the task; lazy verifier only takes the decision after the first two tiers both pass',
+    'Stacking verifiers as boolean AND boolean AND boolean — produces "all four pass, task not done" cases (each verifier passes but combined they don\'t guarantee task is truly done); use "voting mechanisms" or "tier classification" more sensibly',
+    'Hardcoding verifier logic in the main loop — extract into hooks / middleware for downstream replacement; different scenarios need different verifier combinations (CI run vs local dev); hardcoding means changing loop body to switch',
+    'Reaching for RL scoring on day one — fill hard cap + hard verifier + soft verifier three tiers first before considering RL; RL scoring needs lots of training data and the scoring model itself may have bias; basic three tiers are required not optional',
+  ]}
+/>
+
+## §8 · Failure path flowchart
+
+<Diagram
+  src="/diagrams/05-failure-paths.svg"
+  alt="Two typical verifier-failure paths: hard verifier blocks (exit != 0) vs soft verifier blocks (token + diminishing)"
+  caption="Path A: tests fail → goal does not converge → loop forced to continue. Path B: tokens ≥ 90% budget + 3 consecutive rounds < 500 token delta → diminishing returns → forced stop."
+/>
+
+Splitting verifiers into three tiers buys monitoring the ability to tell "loop is making progress" from "loop is spinning" from "loop should be done." Collapse them into one boolean and the agent system stops being legible.
+
+## §9 · Further reading / source map
+
+<SourceTrail
+  title="Source map & further reading"
+  entries={[
+    { system: 'Codex', path: 'REF/codex/codex-rs/core/src/goals.rs', lines: '98-130', desc: 'GoalRuntimeEvent state machine + token_budget convergence' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/execpolicy/src/decision.rs', desc: 'Allow / Prompt / Forbidden tri-state' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/execpolicy/src/policy.rs', desc: 'execpolicy rule engine entry' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/query/tokenBudget.ts', lines: '1-82', desc: 'checkTokenBudget: 0.9 threshold + 500 token + 3-round diminishing' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/agents/tool-loop-detection.ts', lines: '9-42', desc: 'Four LoopDetectorKinds + three thresholds' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/agents/tool-loop-detection.ts', lines: '100-200', desc: 'hashToolCall / hashToolOutcome stable serialization' },
+    { system: 'Hermes', path: 'REF/hermes-agent/agent/insights.py', lines: '1-100', desc: 'InsightsEngine post-run session analyzer (not a runtime verifier)' },
+    { system: 'Hermes', path: 'REF/hermes-agent/environments/yc_bench/yc_bench_env.py', lines: '475', desc: 'evaluate() / score() lives in RL training, not normal loop' },
+  ]}
+  externalLabel="Source ↗"
+/>
+
+## §10 · Mini exercises
+
+1. **🟢 Audit**: Count the verifier tiers in your current agent. Sort them into hard / soft / lazy. Which tier is empty? What does it cost to fill it?
+2. **🟠 Port one**: Move Claude Code's `checkTokenBudget` into your own agent. Re-tune `0.9 / 500 / 3` for your workload. Write down why each value moved.
+3. **🟠 Port one**: Build OpenClaw's `generic_repeat` detector. Hash `toolName + JSON.stringify(sorted params)`. In the last 30 calls, the same hash hitting ≥ 10 warns, ≥ 20 breaks the circuit.
+4. **🔴 Design**: Design a hard verifier for a non-coding agent (weekly report, research). The task has no tests and no exit code. How do you fabricate a machine-checkable "done" signal?
+
+## §11 · Interview drill: 10 questions with worked answers
+
+<details>
+<summary>**Q1 · Concept**: Define "hard verifier", "soft verifier", and "lazy verifier".</summary>
+
+Sort by **where the judgement comes from**:
+
+**Hard verifier** reads external products: exit code, patch validity, lint pass, type check pass, schema validation, external API 200. Verdict is boolean; the model can't influence it. Codex's four-verifier stack is all hard.
+
+**Soft verifier** reads internal budgets and heuristics: token delta, retry count, tool-call pattern hash, cost threshold, call frequency. Verdicts are usually "diminishing returns" or "circuit breaker" — preventive shutdowns. Claude Code's `tokenBudget.ts` is the engineering reference for soft verifier.
+
+**Lazy verifier** trusts the model: no `tool_use` in the assistant message, `output_type: completed`, `stop_reason: end_turn`. Hands the decision back to the model.
+
+Tiers aren't mutually exclusive. A healthy loop has all three, cascaded: ask hard verifier first (is there an external done signal?), then soft verifier (any benefit to continuing?), then lazy verifier (does the model say it's done?).
+
+**Why not rely on lazy verifier alone?** The model's "confidence" and "task completion" are decoupled. 80% of production failures are the model saying "all done" while lint didn't pass / tests didn't run / files were missed.
+
+**Source**: [`codex/codex-rs/core/src/goals.rs`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/core/src/goals.rs) is hard-verifier territory; `claude-code/src/query/tokenBudget.ts` is the soft-verifier algorithm; lazy verifier is trivially inline in every system.
+**Follow-up**: "Are verifier and sandbox the same?" No. Sandbox (chapter 13) prevents the agent from doing harm; verifier judges whether the agent finished. Orthogonal axes.
+</details>
+
+<details>
+<summary>**Q2 · Architecture**: Why is Codex's `GoalRuntimeEvent` state machine 1500+ lines?</summary>
+
+Four concerns merged into one state machine:
+
+1. **Token budget convergence**. Each turn computes `current_tokens / budget`; threshold hit emits `GOAL_BUDGET_LIMITED_METRIC`.
+2. **Goal completion**. A task may decompose into sub-goals (chapter 02 §3.2); each sub-goal's state is tracked.
+3. **External goal mutations**. Users may change goals between turns ("also add tests besides that bug"); state machine supports runtime goal updates.
+4. **Tool completion × goal association**. A tool completing doesn't always advance a goal; some tools (`apply_patch`, `run_tests`) push state forward and need explicit modelling.
+
+State machine benefits: **all judgement in one place**. Claude Code scatters verifier logic across `query.ts`'s 1729-line single file — debugging means jumping across many branches. Codex's single file with clear states (`TurnStarted` / `ToolCompleted` / `TurnFinished` ...) lets you draw the state diagram and verify.
+
+Cost: high reading bar. A new engineer needs a day for the 1500-line Rust state machine. Maintenance pays off — adding a new verifier signal (e.g. "test coverage < threshold counts as goal incomplete") becomes one new enum variant + handler, no grep across the codebase.
+
+Practical: if you have ≥ 4 verifier signals, refactor into a state machine. ≤ 3, leave it in the loop body.
+
+**Source**: [`codex/codex-rs/core/src/goals.rs`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/core/src/goals.rs), focus on `GoalRuntimeEvent` and `GoalRuntime::handle_event`.
+**Follow-up**: "Doesn't a big Rust state machine have perf issues?" No. Rust enum match is O(1) dispatch; state machine size isn't the bottleneck. The bottleneck is the LLM call itself.
+</details>
+
+<details>
+<summary>**Q3 · Engineering**: Claude Code's `0.9 / 500 / 3` constants define "diminishing returns". Why exactly these three numbers?</summary>
+
+Each constant maps to a trade-off:
+
+**`0.9` (COMPLETION_THRESHOLD)**: budget threshold to trigger convergence check. Below 0.9, no check (loop has plenty of budget, no panic). Above 0.9, ask "is continuing still worth it?" 0.9 is empirical — 0.8 too early (loops get cut frequently, completion drops), 0.95 too late (users feel the delay).
+
+**`500` (DIMINISHING_THRESHOLD)**: per-turn token delta threshold. New < 500 tokens usually means the model is polishing, not making meaningful progress. 500 was tuned at Anthropic — 300 false-positives (a short confirmation + brief answer trips it), 800 too lenient (model may repeat itself in 800 tokens).
+
+**`3` (continuationCount)**: how many consecutive < 500-token rounds count as diminishing. 1 too sensitive (random short turns trigger), 5 too late (5 wasted turns first). 3 is the sweet spot.
+
+Combine: budget ≥ 90% AND 3 consecutive rounds < 500. Three AND-conditions reduce false positives.
+
+Why hard-coded constants instead of config? These thresholds were tuned for Claude + 4-Sonnet/4.5-Opus; swapping to GPT or Gemini needs re-tuning. Fixed constants + comments make it clear: this is empirical, not arbitrary, and outsiders know to retune.
+
+Practical: when porting, run a week with these values and watch transition.reason distribution. Too many `diminishing` triggers (false kills) → raise 500 to 700. Too few (loop wastes budget) → drop 0.9 to 0.85.
+
+**Source**: `claude-code/src/query/tokenBudget.ts:1-82`.
+**Follow-up**: "Why not a dynamic algorithm (exponential weighted average)?" Maintenance cost beats constants. Anthropic measured 3 fixed constants covering 95% of scenarios; the remaining 5% falls to `--max-turns`.
+</details>
+
+<details>
+<summary>**Q4 · Engineering**: OpenClaw has 4 detectors in `tool-loop-detection`. Is one enough?</summary>
+
+No. Four detectors correspond to four loop modes, complementary coverage:
+
+**`generic_repeat`**: same tool name + same args repeated. Most common, but **catches only exact repeats**. If args drift slightly (case change in file path), generic_repeat misses.
+
+**`known_poll_no_progress`**: identifies `command_status` / `process: poll` long-poll calls. These tools are designed for repeated checking; generic_repeat false-kills them. So a dedicated detector hashes call + result; only unchanged result counts as "no progress".
+
+**`ping_pong`**: A → B → A → B oscillation. Model `Read`s a file, finds it wrong, `Edit`s, then `Read`s to check, then `Edit`s again... tools mutually cancelling. generic_repeat misses because tool names alternate.
+
+**`global_circuit_breaker`**: 30 tool calls triggers, mode-agnostic. Last-resort backstop — if the other 3 miss, this prevents infinite.
+
+Single-detector pitfalls:
+
+- generic_repeat only: misses ping_pong and long-poll false-positives.
+- global_circuit_breaker only: too late, 30 tool calls = user has waited long.
+- ping_pong only: catches nothing for single-tool loops.
+
+Practical: start with generic_repeat + global_circuit_breaker (2/4). Add known_poll_no_progress when watch/poll tools are common. Ping_pong is last (highest false-positive rate, hardest to tune).
+
+**Source**: [`openclaw/src/agents/tool-loop-detection.ts:9-42`](https://github.com/openclaw/openclaw/blob/f6d0712f508b1f926ad6fc42f7d07b1a60e62730/src/agents/tool-loop-detection.ts#L9-L42) (detector kind enum); full file 600+ lines covers implementation.
+**Follow-up**: "Can the model self-detect loops?" Possible via self-reflection (chapter 19), but recognition is much worse than a detector. Models are biased about their own behaviour.
+</details>
+
+<details>
+<summary>**Q5 · Concept**: What is "transition reason"? Why does Claude Code label every exit?</summary>
+
+`transition reason` is the label attached to every loop exit, telling the caller "why did we stop?" Claude Code's label set is roughly a dozen:
+
+- `end_turn`: model stopped naturally, no tool_use.
+- `max_tokens`: hit model output token cap.
+- `token_budget_exhausted`: 0.9 threshold + diminishing fired.
+- `max_turns`: hit maxTurns hard cap.
+- `stop_hook_block`: stopHooks system blocked the stop request.
+- `user_interrupt`: user pressed Ctrl+C.
+- `error`: unrecoverable error.
+- `permission_denied`: canUseTool denied with no fallback.
+
+Why label them? Three reasons:
+
+1. **Monitoring legibility**. Looking at a dashboard, distinguishing "completed normally" from "cut by budget" is one glance; you don't read the full trajectory.
+2. **Aggregate analysis**. If a week's `token_budget_exhausted` rate > 20%, budget is too tight or prompts are off.
+3. **Retry strategy**. `max_tokens` can auto-retry (raise budget); `error` cannot; `permission_denied` prompts the user instead. Labels let automation branch.
+
+**Counter-example**: a loop that returns only `success: bool` — monitoring can't separate "actually done" from "budget killed it, task isn't done." Their handling diverges completely.
+
+Practical: even the simplest agent loop should mark 3 labels: `completed` / `truncated` / `error`. `transition.reason: truncated` is the production standard.
+
+**Source**: `claude-code/src/query.ts`, grep `transition`.
+**Follow-up**: "Do OpenClaw / Codex / Hermes have transition reasons?" Yes but different shapes. Codex uses metrics like `GOAL_BUDGET_LIMITED_METRIC`; OpenClaw uses `LoopDetectorKind`; Hermes writes the reason into the grace call.
+</details>
+
+<details>
+<summary>**Q6 · Practical**: Design a hard verifier for a non-coding agent ("weekly report"). No tests, no exit code — how?</summary>
+
+Non-coding has no native "external judge"; you **fabricate** one. Four common approaches:
+
+**Approach 1: Schema validation**. Require structured output (JSON schema / TypeScript interface). "A weekly report has 5 sections: done / planned / blockers / metrics / links." Per-section min length. Schema fail = task incomplete.
+
+```ts
+interface WeeklyReport {
+  completed: string[];        // ≥ 3
+  planned: string[];          // ≥ 3
+  blockers: string[];         // may be empty
+  metrics: { name: string; value: number }[];  // ≥ 1
+  links: string[];            // ≥ 2 external
+}
+```
+
+Schema is a hard verifier — fail = reject, loop continues.
+
+**Approach 2: LLM-as-judge**. A separate small model reads the output and scores against a rubric. "Score < 7 = loop continues." Use an **independent model** (not the loop's model), avoid self-evaluation. Hermes's `evaluate()` works this way.
+
+**Approach 3: Human checkpoint**. Compliance reports, contract review — must have human review. Treat "wait for human approve" as the hard verifier; loop won't exit until approved. Codex's `approval_mode: on-request` is exactly this.
+
+**Approach 4: Reference sample comparison**. Maintain 5-10 gold-standard samples. After generation, embedding similarity (cosine > 0.7) acts as the gate. Suits "same task type, repeated" (customer replies, template responses).
+
+Practical picks:
+
+- Weekly report: approach 1 (simplest schema).
+- Research: approach 2 (LLM judge with rubric: coverage, citations, depth).
+- Compliance report: approach 3 (human checkpoint, mandatory).
+- Customer reply: approach 4 (embedding comparison).
+
+Hybrids are common: approach 1 + 2 — schema gates structure, LLM judge gates quality.
+
+**Source**: [`hermes-agent/environments/benchmarks/yc_bench/yc_bench_env.py:475`](https://github.com/NousResearch/hermes-agent/blob/2d59afd3da04812583ecbbf3be83539678a947c4/environments/benchmarks/yc_bench/yc_bench_env.py#L475) (evaluate()); any JSON schema library covers validation.
+**Follow-up**: "Doesn't LLM judge have bias?" Yes. Calibration: 100 human-labelled samples, compare LLM judge agreement rate; < 70% means re-prompt or swap the judge model.
+</details>
+
+<details>
+<summary>**Q7 · Architecture**: People call out Hermes for "almost no per-loop hard verifier", yet it works well on long-running tasks. Why?</summary>
+
+Hermes picks "loose per loop, converging long term" and compensates via **cross-session memory**. Three things:
+
+**Event replay**. Every session's trajectory writes to SQLite (`agent/insights.py` analyzes). `memory_manager.prefetch_all()` injects "how previous similar tasks went wrong / went right" at loop start. So per-loop hard verifier is weak, but **the model has context for known failure modes**.
+
+**Skill self-eval**. The skill system (chapter 17) internalizes "success criteria" into skill docs. Users write `weekly-report.md` defining "completion conditions"; the model self-checks against the skill. This pushes verifier responsibility from harness to skill author.
+
+**Grace call backstop**. When iteration budget exhausts, the model is forced to make a final "summarize current state" call. Output persists as memory for the next session. So even if the loop force-ends, the next session sees "where we stuck last time."
+
+**Why effective for long-running tasks?** Long-running keys aren't "perfect this time" but "overall trajectory toward completion". Hermes's trajectory + memory + skill triad forms a "cross-session learning" loop that fits better than per-loop verifier.
+
+**Why weak for short tasks?** One-shot CI, auto-merge PR — scenarios needing external trust. Hermes can't guarantee. This is exactly where Codex beats Hermes.
+
+Practical:
+
+- Short trusted tasks: borrow from Codex.
+- Long accumulating tasks: borrow from Hermes memory + skill.
+- Generic: both — hard verifier as backstop, memory as accelerator.
+
+**Source**: [`hermes-agent/agent/memory_manager.py`](https://github.com/NousResearch/hermes-agent/blob/2d59afd3da04812583ecbbf3be83539678a947c4/agent/memory_manager.py) (memory impl), [`hermes-agent/agent/insights.py:1-100`](https://github.com/NousResearch/hermes-agent/blob/2d59afd3da04812583ecbbf3be83539678a947c4/agent/insights.py#L1-L100) (post-run analysis).
+**Follow-up**: "How does Hermes prevent memory pollution?" Memory has TTL + relevance score, old memory fades. Chapter 16 covers this.
+</details>
+
+<details>
+<summary>**Q8 · Engineering**: I have max_iterations and wall_clock_timeout. Do I still need verifiers?</summary>
+
+Yes, because they solve different problems.
+
+`max_iterations` / `wall_clock_timeout` is the **hard cap**, ensuring the loop doesn't run forever. Role: "fuse" — guarantee worst-case won't get out of hand.
+
+Verifier is the **decision layer**, telling the system **this is the right time to stop** (before the hard cap). Role: "steering wheel" — tells the loop when to exit gracefully.
+
+Hard cap alone problems:
+
+- **Premature stop**: loop still doing useful work, max_iterations cut it off, task truncated at 50%.
+- **Late stop**: loop has been spinning 10 turns, max_iterations = 30 not yet hit, wasting 20 turns of tokens.
+- **Indistinguishable reason**: logs only show `iteration_exceeded`; can't separate "task too big" from "loop stuck".
+
+With verifier:
+
+- Soft verifier detects diminishing returns, loop stops at turn 5 (not waiting for turn 30).
+- Hard verifier confirms task complete, loop stops at turn 8 (not running full max_iterations).
+- transition.reason distinguishes `task_complete` / `diminishing` / `loop_stuck` / `iteration_max` / `timeout`.
+
+**Real ratio**: hard cap triggers < 5% of production cases. Verifier decides exit timing in 50%+ of loops. Verifier is the workhorse, hard cap is the backstop.
+
+Practical: get hard cap right first (max_turns / token_budget / wall_clock) and emit transition.reason. Verifier can start trivially with "diminishing returns" and monitoring becomes readable.
+
+**Source**: Claude Code's `tokenBudget.ts` is the canonical combination; Codex's `goals.rs` packs both into the state machine.
+**Follow-up**: "Wall clock timeout, what value?" 90% of agent tasks finish in 5 minutes, so 10-15 min. > 60 min means the task should run as background (chapter 18 cron / background) instead of sync wait.
+</details>
+
+<details>
+<summary>**Q9 · Concept**: What is verifier middleware? How does it differ from tool middleware (chapter 04)?</summary>
+
+Verifier middleware turns "decide whether the loop should stop" into a pluggable chain. OpenClaw's `tool-policy-pipeline` strictly **doubles** as tool middleware and verifier middleware — its hooks can both modify tool calls and inject verifier logic.
+
+Differences:
+
+**Tool middleware (chapter 04 §Q5)**: intercepts tool calls themselves. before_tool_call rewrites args; after_tool_call rewrites result. Concern: "is this call legal, can it be optimized?"
+
+**Verifier middleware**: runs at turn boundaries (not tool boundaries). Each end-of-turn, every registered verifier runs once and asks "stop now?" Concern: "should the overall loop continue?"
+
+Engineering-wise they often merge because:
+
+1. **Shared history**. Tool call history and loop state live in the same struct.
+2. **Similar lifecycle**. Both "register → trigger during loop → unregister".
+3. **OpenClaw just makes it one pipeline**: `after_tool_call` can mutate tool result and trigger "5 consecutive same calls detected → stop loop" verifier logic.
+
+But Codex separates them deliberately:
+
+- Tool calls go through `execpolicy` static rules.
+- Verifier goes through `GoalRuntimeEvent` state machine.
+- Different judgement data (execpolicy reads command + args; GoalRuntimeEvent reads token / iter / goal).
+
+Practical:
+
+- Start with one (OpenClaw style), simple.
+- When tool-call judgement clearly doesn't overlap with loop-exit judgement, split (Codex style). Test: is there any verifier that ignores tool calls entirely (e.g. "total tokens > threshold")? If yes, split.
+
+**Source**: [`openclaw/src/agents/tool-policy-pipeline.ts`](https://github.com/openclaw/openclaw/blob/f6d0712f508b1f926ad6fc42f7d07b1a60e62730/src/agents/tool-policy-pipeline.ts) (merged) vs [`codex/codex-rs/core/src/goals.rs`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/core/src/goals.rs) + [`codex/codex-rs/execpolicy/src/policy.rs`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/execpolicy/src/policy.rs) (split).
+**Follow-up**: "Are stop_hooks verifier middleware?" Yes, but a single-point hook (Claude Code style). Only reverse-deny stop, can't proactively trigger stop.
+</details>
+
+<details>
+<summary>**Q10 · Open-ended**: Designing a cross-scenario (coding + non-coding) verifier framework, how would you compose it?</summary>
+
+Goal: **support both "external judge" (coding) and "internal judge" (non-coding), with config exposed to users**.
+
+Three layers:
+
+**Layer 1 · Hard cap (always on)**:
+
+```ts
+{ max_iterations: 30, token_budget: 100_000, wall_clock_seconds: 600 }
+```
+
+Every agent has these three. Verifier backstop.
+
+**Layer 2 · Soft verifier (default on, tunable)**:
+
+```ts
+{
+  token_budget_check: { threshold: 0.9, diminishing_min: 500, diminishing_rounds: 3 },
+  loop_detection: ['generic_repeat', 'global_circuit_breaker'],
+  // advanced: 'ping_pong', 'poll_no_progress'
+}
+```
+
+Borrow from Claude Code's algorithm + OpenClaw's detectors as default.
+
+**Layer 3 · Hard verifier (user-registered)**:
+
+```ts
+// Coding agent
+{ verifiers: [tests_pass, lint_pass, typecheck_pass] }
+
+// Weekly report agent
+{ verifiers: [schema_validate(WeeklyReportSchema), llm_judge(rubric)] }
+
+// Customer support agent
+{ verifiers: [human_approve, response_length_min(100)] }
+```
+
+Each hard verifier is `(state) => { passed: bool; reason: string; can_retry: bool }`. The loop runs all verifiers at end-of-turn; **all must pass** before the lazy verifier completes the loop.
+
+**Transition reason labels**:
+
+```ts
+type Reason =
+  | 'task_complete'              // all hard verifiers pass
+  | 'hard_cap'                   // hit iter/token/clock
+  | 'diminishing'                // soft verifier judged
+  | 'loop_detected'              // detector fired
+  | 'verifier_failed_unrecoverable'  // hard verifier permanently failed
+  | 'user_interrupt'
+  | 'error';
+```
+
+Every loop returns a reason. Monitoring aggregates on reason.
+
+**API design**:
+
+```ts
+const loop = createAgentLoop({
+  hardCap: { max_iterations: 30, token_budget: 100_000 },
+  softVerifiers: { tokenBudget: defaultConfig, loopDetect: ['generic_repeat'] },
+  hardVerifiers: [testsPass(), schemaValidate(MySchema)],
+});
+
+const result = await loop.run(initialMessage);
+console.log(result.transition.reason);
+```
+
+**Why not just borrow from Codex?** Codex's hard verifiers are hard-coded into GoalRuntimeEvent; unusable for non-coding. My design abstracts hard verifier as a user-supplied function — coding plugs in tests, non-coding plugs in schema or judge.
+
+**Why not just borrow from OpenClaw?** OpenClaw middleware is flexible but defaults to off; each project installs from scratch. My design provides "sensible defaults" (token budget + 2 detectors) so small projects work zero-config.
+
+Engineering: ~4-6 weeks one person + 1 week docs. Lighter than any single system, covers 80% of real scenarios.
+
+**Source**: composite reference: [`codex/codex-rs/core/src/goals.rs`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/core/src/goals.rs), `claude-code/src/query/tokenBudget.ts`, [`openclaw/src/agents/tool-loop-detection.ts`](https://github.com/openclaw/openclaw/blob/f6d0712f508b1f926ad6fc42f7d07b1a60e62730/src/agents/tool-loop-detection.ts).
+**Follow-up**: "Can this framework be open-sourced?" Yes. Verifier abstraction is model-provider-independent, orthogonal to protocol-focused frameworks like LangChain. Could ship as `@agent/verifier-kit` on npm.
+</details>

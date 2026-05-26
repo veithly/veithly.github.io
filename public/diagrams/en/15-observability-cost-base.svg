@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" width="100%" font-family="'Kalam','Comic Neue',sans-serif">
+  <defs>
+    <filter id="r15">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="35" />
+      <feDisplacementMap in="SourceGraphic" scale="1.3" />
+    </filter>
+    <style>
+      .t { font-size: 14px; fill: #0f172a; }
+      .t-sub { font-size: 12px; fill: #334155; }
+      .head { font-size: 18px; fill: #0f172a; font-weight: 700; }
+    </style>
+  </defs>
+
+  <rect width="900" height="600" fill="#fbfaf7" />
+
+  <text x="450" y="34" class="head" text-anchor="middle">Observability, cost &amp; logs: from 3 crates to 5 prioritised sources</text>
+  <text x="450" y="54" class="t-sub" text-anchor="middle">OTEL+analytics+trace &#x00B7; modelCost+insights &#x00B7; 13 DiagnosticEvent kinds &#x00B7; CanonicalUsage + 5 sources</text>
+
+  <g filter="url(#r15)">
+    <rect x="20" y="68" width="430" height="250" rx="12" fill="#fbfaf7" stroke="#1d4ed8" stroke-width="2.5" />
+    <text x="40" y="92" class="t" fill="#1d4ed8" font-weight="700">Codex &#x00B7; 3 independent crates</text>
+    <text x="40" y="110" class="t-sub">Clear separation: the hot path only writes raw events</text>
+
+    <rect x="40" y="124" width="125" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="102" y="142" class="t" text-anchor="middle">codex-otel</text>
+    <text x="102" y="158" class="t-sub" text-anchor="middle">OTLP HTTP / gRPC</text>
+    <text x="102" y="172" class="t-sub" text-anchor="middle">Statsig default</text>
+    <text x="102" y="186" class="t-sub" text-anchor="middle">None / runtime</text>
+    <text x="102" y="200" class="t-sub" text-anchor="middle">metrics</text>
+
+    <rect x="170" y="124" width="125" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="232" y="142" class="t" text-anchor="middle">codex-analytics</text>
+    <text x="232" y="158" class="t-sub" text-anchor="middle">TrackEventRequest</text>
+    <text x="232" y="172" class="t-sub" text-anchor="middle">x 20+ variants</text>
+    <text x="232" y="186" class="t-sub" text-anchor="middle">SkillInvocation</text>
+    <text x="232" y="200" class="t-sub" text-anchor="middle">AcceptedLine...</text>
+
+    <rect x="300" y="124" width="125" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="362" y="142" class="t" text-anchor="middle">rollout-trace</text>
+    <text x="362" y="158" class="t-sub" text-anchor="middle">trace.jsonl</text>
+    <text x="362" y="172" class="t-sub" text-anchor="middle">+ manifest</text>
+    <text x="362" y="186" class="t-sub" text-anchor="middle">reducer</text>
+    <text x="362" y="200" class="t-sub" text-anchor="middle">offline replay</text>
+
+    <rect x="40" y="216" width="390" height="90" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="235" y="234" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">debug builds disable reporting</text>
+    <text x="235" y="252" class="t-sub" text-anchor="middle">cfg!(debug_assertions) =&gt; OtelExporter::None</text>
+    <text x="235" y="266" class="t-sub" text-anchor="middle">tests don&#x2019;t pollute production metrics</text>
+    <text x="235" y="280" class="t-sub" text-anchor="middle">+ AcceptedLineFingerprints</text>
+    <text x="235" y="294" class="t-sub" text-anchor="middle">measure acceptance rate of model-written lines</text>
+
+    <rect x="470" y="68" width="410" height="250" rx="12" fill="#fbfaf7" stroke="#6d28d9" stroke-width="2.5" />
+    <text x="490" y="92" class="t" fill="#6d28d9" font-weight="700">Claude Code &#x00B7; modelCost + /insights</text>
+    <text x="490" y="110" class="t-sub">Hard-coded prices + Opus self-analysis</text>
+
+    <rect x="490" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="580" y="142" class="t" text-anchor="middle">5 cost tiers</text>
+    <text x="580" y="158" class="t-sub" text-anchor="middle">TIER_3_15 (Sonnet)</text>
+    <text x="580" y="172" class="t-sub" text-anchor="middle">TIER_15_75 (Opus 4)</text>
+    <text x="580" y="186" class="t-sub" text-anchor="middle">TIER_5_25 (Opus 4.5)</text>
+    <text x="580" y="200" class="t-sub" text-anchor="middle">TIER_30_150 (fast)</text>
+
+    <rect x="690" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="780" y="142" class="t" text-anchor="middle">5 unit-price axes</text>
+    <text x="780" y="158" class="t-sub" text-anchor="middle">input / output</text>
+    <text x="780" y="172" class="t-sub" text-anchor="middle">cache_read</text>
+    <text x="780" y="186" class="t-sub" text-anchor="middle">cache_write</text>
+    <text x="780" y="200" class="t-sub" text-anchor="middle">web_search (per call)</text>
+
+    <rect x="490" y="216" width="380" height="90" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="680" y="234" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">fallback for unknown models</text>
+    <text x="680" y="252" class="t-sub" text-anchor="middle">trackUnknownModelCost('tengu_unknown_model_cost')</text>
+    <text x="680" y="266" class="t-sub" text-anchor="middle">fall back to default-model unit price</text>
+    <text x="680" y="280" class="t-sub" text-anchor="middle">+ /insights (queryWithModel Opus x 2)</text>
+    <text x="680" y="294" class="t-sub" text-anchor="middle">+ ~/.claude/projects/ sessionStorage</text>
+
+    <rect x="20" y="328" width="430" height="252" rx="12" fill="#fbfaf7" stroke="#15803d" stroke-width="2.5" />
+    <text x="40" y="352" class="t" fill="#15803d" font-weight="700">OpenClaw &#x00B7; 13 DiagnosticEvent kinds</text>
+    <text x="40" y="370" class="t-sub">global listener + recursion guard cap 100</text>
+
+    <rect x="40" y="384" width="180" height="100" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="130" y="402" class="t" text-anchor="middle">13 event types</text>
+    <text x="130" y="418" class="t-sub" text-anchor="middle">model.usage</text>
+    <text x="130" y="432" class="t-sub" text-anchor="middle">webhook.* (3)</text>
+    <text x="130" y="446" class="t-sub" text-anchor="middle">message.* (2)</text>
+    <text x="130" y="460" class="t-sub" text-anchor="middle">session.* (2)</text>
+    <text x="130" y="474" class="t-sub" text-anchor="middle">queue.lane.* (2)</text>
+
+    <rect x="240" y="384" width="190" height="100" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="335" y="402" class="t" text-anchor="middle">tool.loop detector</text>
+    <text x="335" y="418" class="t-sub" text-anchor="middle">generic_repeat</text>
+    <text x="335" y="432" class="t-sub" text-anchor="middle">known_poll_no_progress</text>
+    <text x="335" y="446" class="t-sub" text-anchor="middle">global_circuit_breaker</text>
+    <text x="335" y="460" class="t-sub" text-anchor="middle">ping_pong</text>
+    <text x="335" y="474" class="t-sub" text-anchor="middle">level: warn / critical</text>
+
+    <rect x="40" y="496" width="390" height="78" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="235" y="514" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">emitDiagnosticEvent</text>
+    <text x="235" y="532" class="t-sub" text-anchor="middle">auto-injects seq + ts</text>
+    <text x="235" y="546" class="t-sub" text-anchor="middle">try/catch isolates listener exceptions</text>
+    <text x="235" y="560" class="t-sub" text-anchor="middle">depth &gt; 100 =&gt; drop event</text>
+
+    <rect x="470" y="328" width="410" height="252" rx="12" fill="#fbfaf7" stroke="#ea580c" stroke-width="2.5" />
+    <text x="490" y="352" class="t" fill="#ea580c" font-weight="700">Hermes &#x00B7; 5-source priority price sheet</text>
+    <text x="490" y="370" class="t-sub">CanonicalUsage + PricingEntry + CostResult</text>
+
+    <rect x="490" y="384" width="180" height="100" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="580" y="402" class="t" text-anchor="middle">CanonicalUsage</text>
+    <text x="580" y="418" class="t-sub" text-anchor="middle">input_tokens</text>
+    <text x="580" y="432" class="t-sub" text-anchor="middle">output_tokens</text>
+    <text x="580" y="446" class="t-sub" text-anchor="middle">cache_read_tokens</text>
+    <text x="580" y="460" class="t-sub" text-anchor="middle">cache_write_tokens</text>
+    <text x="580" y="474" class="t-sub" text-anchor="middle">reasoning_tokens</text>
+
+    <rect x="690" y="384" width="180" height="100" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="780" y="402" class="t" text-anchor="middle">5 CostSources</text>
+    <text x="780" y="418" class="t-sub" text-anchor="middle">1. provider_cost_api</text>
+    <text x="780" y="432" class="t-sub" text-anchor="middle">2. generation_api</text>
+    <text x="780" y="446" class="t-sub" text-anchor="middle">3. models_api</text>
+    <text x="780" y="460" class="t-sub" text-anchor="middle">4. docs_snapshot</text>
+    <text x="780" y="474" class="t-sub" text-anchor="middle">5. user_override</text>
+
+    <rect x="490" y="496" width="380" height="78" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="680" y="514" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">CostStatus &#x00D7; 4 states</text>
+    <text x="680" y="532" class="t-sub" text-anchor="middle">actual / estimated / included / unknown</text>
+    <text x="680" y="546" class="t-sub" text-anchor="middle">+ pricing_version + source_url + fetched_at</text>
+    <text x="680" y="560" class="t-sub" text-anchor="middle">SQLite + /insights (local terminal report)</text>
+  </g>
+</svg>

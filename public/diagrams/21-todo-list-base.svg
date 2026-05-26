@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 520" role="img" aria-labelledby="title desc">
+  <title id="title">Todo list and progress surfaces across four agent harnesses</title>
+  <desc id="desc">Codex update_plan, Claude Code TodoWrite and Tasks, OpenClaw runtime events, Hermes todo tool compared as progress surfaces.</desc>
+  <defs>
+    <style>
+      .bg { fill: #fbfaf7; }
+      .panel { fill: #ffffff; stroke: #d8d1c3; stroke-width: 2; }
+      .title { font: 700 22px Inter, Arial, sans-serif; fill: #1f2933; }
+      .head { font: 700 18px Inter, Arial, sans-serif; fill: #1f2933; }
+      .label { font: 600 14px Inter, Arial, sans-serif; fill: #334155; }
+      .small { font: 500 13px Inter, Arial, sans-serif; fill: #52616b; }
+      .code { font: 600 13px "JetBrains Mono", Consolas, monospace; fill: #1f2933; }
+      .blue { fill: #dbeafe; stroke: #2563eb; }
+      .violet { fill: #ede9fe; stroke: #7c3aed; }
+      .green { fill: #dcfce7; stroke: #16a34a; }
+      .orange { fill: #ffedd5; stroke: #f97316; }
+      .arrow { stroke: #64748b; stroke-width: 2.5; fill: none; marker-end: url(#arrow); }
+      .dash { stroke-dasharray: 7 6; }
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#64748b" />
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1180" height="520" rx="0" />
+  <text class="title" x="48" y="48">Todo list = runtime progress surface</text>
+  <text class="small" x="48" y="74">Keep approval plans, execution todos, durable tasks, and runtime progress events as separate layers.</text>
+
+  <g transform="translate(48 112)">
+    <rect class="panel blue" x="0" y="0" width="252" height="300" rx="12" />
+    <text class="head" x="22" y="36">Codex</text>
+    <text class="code" x="22" y="67">update_plan</text>
+    <text class="small" x="22" y="98">TODO/checklist tool</text>
+    <text class="small" x="22" y="123">Rejected in Plan Mode</text>
+    <text class="small" x="22" y="148">Emits PlanUpdate event</text>
+    <g transform="translate(22 184)">
+      <rect x="0" y="0" width="206" height="84" rx="8" fill="#eff6ff" stroke="#93c5fd" />
+      <text class="code" x="14" y="25">[x] inspect files</text>
+      <text class="code" x="14" y="51">[>] edit docs</text>
+      <text class="code" x="14" y="77">[ ] run checks</text>
+    </g>
+  </g>
+
+  <g transform="translate(326 112)">
+    <rect class="panel violet" x="0" y="0" width="252" height="300" rx="12" />
+    <text class="head" x="22" y="36">Claude Code</text>
+    <text class="code" x="22" y="67">TodoWrite + Tasks V2</text>
+    <text class="small" x="22" y="98">content + status</text>
+    <text class="small" x="22" y="123">activeForm for UI</text>
+    <text class="small" x="22" y="148">file tasks add owner/block</text>
+    <g transform="translate(22 184)">
+      <rect x="0" y="0" width="206" height="84" rx="8" fill="#f5f3ff" stroke="#c4b5fd" />
+      <text class="code" x="14" y="25">status: in_progress</text>
+      <text class="code" x="14" y="51">activeForm:</text>
+      <text class="code" x="14" y="77">"Running tests"</text>
+    </g>
+  </g>
+
+  <g transform="translate(604 112)">
+    <rect class="panel green" x="0" y="0" width="252" height="300" rx="12" />
+    <text class="head" x="22" y="36">OpenClaw</text>
+    <text class="code" x="22" y="67">runtime events</text>
+    <text class="small" x="22" y="98">tool_call: in_progress</text>
+    <text class="small" x="22" y="123">tool_call_update: done</text>
+    <text class="small" x="22" y="148">child progress to parent</text>
+    <g transform="translate(22 184)">
+      <rect x="0" y="0" width="206" height="84" rx="8" fill="#f0fdf4" stroke="#86efac" />
+      <text class="code" x="14" y="25">tool start</text>
+      <path class="arrow" d="M82 21 H142" />
+      <text class="code" x="14" y="56">tool update</text>
+      <path class="arrow" d="M92 52 H156" />
+    </g>
+  </g>
+
+  <g transform="translate(882 112)">
+    <rect class="panel orange" x="0" y="0" width="252" height="300" rx="12" />
+    <text class="head" x="22" y="36">Hermes</text>
+    <text class="code" x="22" y="67">todo tool</text>
+    <text class="small" x="22" y="98">in-memory per session</text>
+    <text class="small" x="22" y="123">replace or merge by id</text>
+    <text class="small" x="22" y="148">inject unfinished only</text>
+    <g transform="translate(22 184)">
+      <rect x="0" y="0" width="206" height="84" rx="8" fill="#fff7ed" stroke="#fdba74" />
+      <text class="code" x="14" y="25">pending</text>
+      <text class="code" x="14" y="51">in_progress</text>
+      <text class="code" x="14" y="77">completed omitted</text>
+    </g>
+  </g>
+
+  <path class="arrow dash" d="M174 424 C310 476, 846 476, 1010 424" />
+  <text class="label" x="360" y="474">shared rule: progress must be structured state that UI, resume, reminders, and compaction can consume</text>
+</svg>

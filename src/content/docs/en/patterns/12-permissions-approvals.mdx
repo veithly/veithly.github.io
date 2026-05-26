@@ -1,0 +1,957 @@
+---
+title: 12 · Permissions and Approvals
+sidebar:
+  order: 12
+description: 5 AskForApproval modes x 5 granular flags vs 5 PermissionMode x 3 behaviors vs 3x3 ExecHost/Security/Ask matrix vs a tirith subprocess and exit-code verdict.
+---
+
+import Verdict from '@components/Verdict.astro';
+import CompareTable from '@components/CompareTable.astro';
+import Diagram from '@components/Diagram.astro';
+import TradeOff from '@components/TradeOff.astro';
+import ScoreCard from '@components/ScoreCard.astro';
+import BuildRecipe from '@components/BuildRecipe.astro';
+import SourceTrail from '@components/SourceTrail.astro';
+import SourceBlock from '@components/SourceBlock.astro';
+
+## §1 · TL;DR
+
+<Verdict tldr="Permissions and approvals are the battlefield where agent and user wrestle hardest — the agent has to do things on the user's behalf, but the user does not want the agent doing the wrong things on their behalf. The core problem has at least four sub-questions: when should the agent interrupt the user with a prompt (asking for every operation drives people insane; never asking causes catastrophes), what to ask (is it «do you want to run this command» or «do you want to grant this tool a one-shot pass»), how long does an approval last (one shot, entire session, forever), and how should the agent gracefully escalate when its requested permission exceeds current authorisation (re-ask, reject, propose a rule amendment). The four systems differ by an order of magnitude in engineering complexity. Codex goes all-in on strong typing: every policy, action, and user answer is a strongly-typed Rust enum (every variant is exhaustively checked at compile time, typos fail to build). Five top-level approval modes (`UnlessTrusted`, `OnRequest`, `OnFailure`, `Granular`, `Never`), 5 granular knobs (sandbox / rules / skill / request_permissions / mcp_elicitations approval), and — most importantly — the «reviewable action» itself is also modelled as 6 typed variants (shell command, `execve` raw syscall, apply patch, network access, MCP tool call, file-permission request), each carrying its own fields. User answers are 5 enums (`Approved` once, `ApprovedExecpolicyAmendment` — approve and amend execpolicy permanently, `ApprovedForSession`, `NetworkPolicyAmendment` — approve and amend the network policy, `Abort`). Cleverest of all, a single function dynamically infers which buttons the approval dialog should show based on the request's context — the same dialog displays different button combinations under different contexts. Claude Code takes the «IDE configuration system» style — 5 `PermissionMode` modes (`acceptEdits`, `bypassPermissions`, `default`, `dontAsk`, `plan`), 3 `PermissionBehavior` outcomes (`allow` / `deny` / `ask`), and most distinctively defines 8 rule origins (`userSettings` global, `projectSettings` per-project, `localSettings` uncommitted local, `flagSettings` startup flag, `policySettings` enterprise policy, `cliArg`, `command` inline, `session` ephemeral). Making «where this rule came from» a first-class citizen means that when something goes wrong you can immediately see «oh, this came from project settings, not my personal config». OpenClaw uses a 3D matrix: `ExecHost` (where the command runs: `sandbox` / `gateway` / `node`) × `ExecSecurity` (how strict the filter is: `deny` / `allowlist` / `full`) × `ExecAsk` (when to ask the user: `off` / `on-miss` / `always`) = 27 combinations (~4 realistic). The unique identity of an approval is a 5-tuple `SystemRunApprovalBinding` (command argv + cwd + agent ID + session key + env hash), so the same command takes different approval paths in different directories, agents, and sessions. Hermes takes the most restrained route: it does no content-level permission checking itself. Every «is this command/prompt/file path safe» judgement is delegated to an independent subprocess called `tirith` (Hermes-bundled security scanner running as a side-car), and the entire permission system's verdict has one source: the `tirith` exit code (`0` = allow, `1` = block, `2` = warn). A `fail_open` config decides what happens when `tirith` itself crashes or times out (default-allow or default-deny). Bottom line: for serious agents the enum-based designs of the first two systems are the floor; for production deployment OpenClaw's matrix gives operators real knobs; for making permissions a separately-auditable, separately-upgradable subsystem, borrow Hermes's subprocess-verdict idea." />
+
+## §2 · Reference architecture
+
+<Diagram
+  src="/diagrams/12-permissions-approvals-base.svg"
+  alt="Four permission models: typed decisions vs IDE-style rules vs three-dimensional matrix vs subprocess verdict"
+  caption="One question (when do we interrupt the user?), four answers ranging from 5 options to 27 combinations to none."
+/>
+
+How the four systems cover the five permission-critical concerns:
+
+<CompareTable
+  rows={[
+    { label: 'Coarse mode', values: ['`AskForApproval` 5 variants: UnlessTrusted / OnFailure / OnRequest / Granular / Never', '`PermissionMode` 5 values: acceptEdits / bypassPermissions / default / dontAsk / plan', '`ExecAsk` 3 values: off / on-miss / always', 'No explicit mode; fail_open fallback on tirith failure'] },
+    { label: 'Fine-grained controls', values: ['`GranularApprovalConfig` 5 flags: sandbox / rules / skill / request_permissions / mcp_elicitations', '`PermissionBehavior` (allow / deny / ask) + per-rule toolName + ruleContent', '`ExecSecurity` 3 levels x `ExecHost` 3 backends = 9 plus 3 ExecAsk values = 27 combos', 'tirith findings JSON gives detailed reasons; verdict stays an exit code'] },
+    { label: 'Reviewable action types', values: ['`GuardianAssessmentAction` 6 variants: Command / Execve / ApplyPatch / NetworkAccess / McpToolCall / RequestPermissions', 'Unified canUseTool callback; each tool declares isConcurrencySafe / shouldDefer', 'Six typical operations: safe-bin / shell / fs / network / mcp / plugin (each routes to a different ExecHost)', 'tirith classifies by content: homograph URL, pipe-to-interpreter, terminal injection, etc.'] },
+    { label: 'Stacked decision sources', values: ['Per turn, `Constrained<AskForApproval>` sets the ceiling; session config + per-command escalation', '8 `PermissionRuleSource` levels: userSettings / projectSettings / localSettings / flagSettings / policySettings / cliArg / command / session', 'SystemRunApprovalBinding (argv + cwd + agentId + sessionKey + envHash) identifies the request; session cache', 'tirith verdict + fail_open fallback only; no layered rules'] },
+    { label: 'User answer granularity', values: ['`ReviewDecision` 5 variants: Approved / ApprovedExecpolicyAmendment / ApprovedForSession / NetworkPolicyAmendment / Abort', '`PermissionBehavior` 3 values + per-rule persistence destination (5 destinations)', 'jsonl-socket requests live user answers; binding cache replays', 'No user-facing answer; tirith decides, agent forwards the rationale'] },
+  ]}
+  caption="How sophisticated each system treats permissions"
+  dimensionLabel="Dimension"
+/>
+
+## §3 · How each system does it
+
+### Codex · Decomposing "permissions" into five orthogonal strongly-typed enums
+
+Codex's engineering stance on permissions is uncompromising — it argues permissions are not a one-dimensional thing (not a continuous "strict-to-lax" slider), but several independent, freely-composable dimensions. Its solution is to define each dimension as a strongly-typed enum, forcing every "permission-related decision" in the code to explicitly state which dimension it is deciding on, and forcing the compiler to handle every variant.
+
+The outermost layer of the whole system is 5 approval modes — this layer answers "how readily should the agent ask the user by default":
+
+<SourceBlock path="REF/codex/codex-rs/protocol/src/protocol.rs" lines="889-920" system="codex" summary="AskForApproval with 5 variants; Granular ships a fine-grained knob block">
+
+```rust
+pub enum AskForApproval {
+    /// Under this policy, only "known safe" commands—as determined by
+    /// `is_safe_command()`—that **only read files** are auto-approved.
+    /// Everything else will ask the user to approve.
+    #[serde(rename = "untrusted")]
+    UnlessTrusted,
+
+    /// DEPRECATED: *All* commands are auto-approved, but they are expected to
+    /// run inside a sandbox where network access is disabled and writes are
+    /// confined to a specific set of paths.
+    OnFailure,
+
+    /// The model decides when to ask the user for approval.
+    #[default]
+    OnRequest,
+
+    /// Fine-grained controls for individual approval flows.
+    #[strum(serialize = "granular")]
+    Granular(GranularApprovalConfig),
+
+    /// Never ask the user to approve commands.
+    Never,
+}
+```
+
+</SourceBlock>
+
+The semantics of these 5 modes are very concrete: **UnlessTrusted** (also called "untrusted") only auto-allows commands statically judged to be "definitely safe" read-only commands (think `ls`, `cat`), prompting on everything else; **OnFailure** is now marked deprecated (in theory "auto-allow everything and rely on the sandbox", in practice the sandbox is not a panacea, so this mode is no longer recommended); **OnRequest** is the default and lets the model decide when to ask; **Granular** breaks the decision down further into 5 independent knobs (covered below); **Never** never asks — fitting CI and other clearly automated scenarios.
+
+The Granular tier is where Codex's engineering attitude really shows — it lets users separately configure "which kinds of operations require approval". There are 5 independent knobs: whether out-of-sandbox operations require approval, whether commands hit by the rules system require approval, whether skill invocations require approval, whether file-permission requests require approval, whether MCP server elicitations require approval. Each is an independent boolean, so users can compose very specific combinations like "ask for shell commands, do not ask for rule-triggered commands, auto-deny MCP elicitations". The pragmatic reasoning behind this fine-grained decoupling: different operation types have wildly different risk levels, false-positive rates, and user tolerance — no single "strictness" slider can express that.
+
+The "reviewable action" itself is also a strongly-typed enum — this is the most distinctive feature of Codex's permission system. It boxes every possible reviewable action into 6 variants, each carrying the fields it needs:
+
+<SourceBlock path="REF/codex/codex-rs/protocol/src/approvals.rs" lines="134-170" system="codex" summary="GuardianAssessmentAction 6 variants, each carrying its own context payload">
+
+```rust
+pub enum GuardianAssessmentAction {
+    Command {
+        source: GuardianCommandSource,
+        command: String,
+        cwd: AbsolutePathBuf,
+    },
+    Execve {
+        source: GuardianCommandSource,
+        program: String,
+        argv: Vec<String>,
+        cwd: AbsolutePathBuf,
+    },
+    ApplyPatch {
+        cwd: AbsolutePathBuf,
+        files: Vec<AbsolutePathBuf>,
+    },
+    NetworkAccess {
+        target: String,
+        host: String,
+        protocol: NetworkApprovalProtocol,
+        port: u16,
+    },
+    McpToolCall {
+        server: String,
+        tool_name: String,
+        connector_id: Option<String>,
+        connector_name: Option<String>,
+        tool_title: Option<String>,
+    },
+    RequestPermissions {
+        reason: Option<String>,
+        permissions: RequestPermissionProfile,
+    },
+}
+```
+
+</SourceBlock>
+
+Six action types means six structurally-different approval requests:
+
+- **Command** is for shell strings (`git push origin main`) — the dialog shows the raw command and the working directory.
+- **Execve** is for direct executable invocations (no shell interpretation) — more precise than Command (no shell metacharacter ambiguity), showing program, argv, and cwd.
+- **ApplyPatch** is for file edits — the dialog shows the list of files about to be touched so the user can see what's changing before the agent acts.
+- **NetworkAccess** is for outbound network calls — showing target host, protocol, port for the user to judge the outbound.
+- **McpToolCall** is for invoking a tool on a specific MCP server — showing the MCP server name, tool name, and optional connector identifier.
+- **RequestPermissions** is for when the agent proactively declares "I need a wider permission scope" — showing the reason and the permission profile being requested.
+
+Making approvals into strongly-typed variants buys this: each approval's UI, risk level, and memory policy can be tuned independently, instead of stuffing everything into a weak `{ type: string, details: object }` bag.
+
+What answers can the user give in the approval dialog? Another enum, with 5 values: approve once, approve and propose an execpolicy amendment (so future similar commands auto-approve), approve for the whole session, approve and propose a network-policy amendment, abort. The last two — "approve and propose a rule amendment" — are very clever design: they give the user a shortcut for "approve this and also don't bother me again on the same thing", turning the approval itself into a channel for the permission system to self-evolve.
+
+The cleverest piece is a function called `default_available_decisions` — it inspects the current request's context (does this approval involve network? does it carry an execpolicy amendment proposal? does it involve extra filesystem permissions?) and dynamically infers "which buttons should this dialog show":
+
+<SourceBlock path="REF/codex/codex-rs/protocol/src/approvals.rs" lines="288-322" system="codex" summary="Context-driven button selection: network plus proposal = many buttons; plain command = Approved plus Abort">
+
+```rust
+pub fn default_available_decisions(
+    network_approval_context: Option<&NetworkApprovalContext>,
+    proposed_execpolicy_amendment: Option<&ExecPolicyAmendment>,
+    proposed_network_policy_amendments: Option<&[NetworkPolicyAmendment]>,
+    additional_permissions: Option<&AdditionalPermissionProfile>,
+) -> Vec<ReviewDecision> {
+    if network_approval_context.is_some() {
+        let mut decisions = vec![ReviewDecision::Approved, ReviewDecision::ApprovedForSession];
+        if let Some(amendment) = proposed_network_policy_amendments.and_then(|amendments| {
+            amendments.iter().find(|a| a.action == NetworkPolicyRuleAction::Allow)
+        }) {
+            decisions.push(ReviewDecision::NetworkPolicyAmendment { /* ... */ });
+        }
+        decisions.push(ReviewDecision::Abort);
+        return decisions;
+    }
+
+    if additional_permissions.is_some() {
+        return vec![ReviewDecision::Approved, ReviewDecision::Abort];
+    }
+
+    let mut decisions = vec![ReviewDecision::Approved];
+    if let Some(prefix) = proposed_execpolicy_amendment {
+        decisions.push(ReviewDecision::ApprovedExecpolicyAmendment { /* ... */ });
+    }
+    decisions.push(ReviewDecision::Abort);
+    decisions
+}
+```
+
+</SourceBlock>
+
+This block of logic reads like a product spec — it uses code to define "in network scenarios show these buttons, in file-permission scenarios show those buttons, in plain command scenarios show another set". This "context drives button list" approach is the soul of Codex's permission system — the approval dialog's UI is not hard-coded to "always 3 buttons" but dynamically derived from which fields the request carries: carrying network_approval_context shows "approve + approve for session + (optional) modify network policy + deny"; carrying additional_permissions shows only "approve + deny"; a plain command shows "approve + (optional) modify execpolicy + deny".
+
+### Claude Code · Organising permissions by the logic of an IDE configuration system — three layers of "origin" determine priority, rules can override across layers
+
+Claude Code's trade-off is deeply IDE-style — it models the permission system as structurally identical to VSCode's "user settings / workspace settings / folder settings" concept. The reasoning: permission rules in a project, under a team's policy, on a machine, with command-line arguments, inside a session may come from completely different places, and the system must clearly express "which layer this rule comes from", or users have no way to debug "why was this operation allowed/denied".
+
+<SourceBlock path="REF/claude-code-2.1.88-expanded/src/types/permissions.ts" lines="14-80" system="claude" summary="5 PermissionModes + 3 Behaviors + 8 Sources + per-tool ruleContent">
+
+```ts
+// ============================================================================
+// Permission Modes
+// ============================================================================
+
+export const EXTERNAL_PERMISSION_MODES = [
+  'acceptEdits',
+  'bypassPermissions',
+  'default',
+  'dontAsk',
+  'plan',
+] as const
+
+// Exhaustive mode union for typechecking.
+export type InternalPermissionMode = ExternalPermissionMode | 'auto' | 'bubble'
+
+// ============================================================================
+// Permission Behaviors
+// ============================================================================
+
+export type PermissionBehavior = 'allow' | 'deny' | 'ask'
+
+// ============================================================================
+// Permission Rules
+// ============================================================================
+
+/**
+ * Where a permission rule originated from.
+ */
+export type PermissionRuleSource =
+  | 'userSettings'
+  | 'projectSettings'
+  | 'localSettings'
+  | 'flagSettings'
+  | 'policySettings'
+  | 'cliArg'
+  | 'command'
+  | 'session'
+
+export type PermissionRuleValue = {
+  toolName: string
+  ruleContent?: string
+}
+
+export type PermissionRule = {
+  source: PermissionRuleSource
+  ruleBehavior: PermissionBehavior
+  ruleValue: PermissionRuleValue
+}
+```
+
+</SourceBlock>
+
+The 5 permission modes correspond to 5 actual workflows:
+
+- **default**: standard mode, decisions made by the rules system. The default for most interactive scenarios.
+- **acceptEdits**: auto-approve all file edits. Designed for IDE pair-programming — developers and agents iterate on a piece of code, and asking "should I write this file?" every time would be unbearable, so file writes get a blanket pass.
+- **bypassPermissions**: the "YOLO mode" that skips all approvals; documentation explicitly states it should only be used in CI or controlled environments.
+- **dontAsk**: let the model decide, no prompts. The difference from default is that default still triggers rule-based approvals; dontAsk skips everything.
+- **plan**: planning mode where all side-effect tools (file write, command execution, network access) are disabled — the agent can plan in its head but cannot act. Designed for the "let me see what the agent intends to do first" scenario.
+
+Internally there are also `auto` (feature-flagged smart classifier) and `bubble` (defer decision to the parent turn) modes, mainly for nested agent invocation scenarios.
+
+The most distinctive part is the 8 rule origins — they map directly to a real IDE configuration system's structure:
+
+- **userSettings** (`~/.claude/settings.json`): the user's global preference.
+- **projectSettings** (`.claude/settings.json`): shared by the project, committed to git, visible to all team members.
+- **localSettings** (`.claude/settings.local.json`): project-local, gitignored, only on this machine.
+- **flagSettings**: rules passed in via CLI startup flags.
+- **policySettings**: enterprise IT department's enforced policy; highest priority; cannot be overridden by any user config.
+- **cliArg**: one-shot CLI arguments (`--allow-bash`), valid for this launch only.
+- **command**: temporarily injected by a slash command.
+- **session**: temporarily granted by the user mid-conversation (by clicking "approve this once").
+
+Why so many layers? Because each layer has a real user-workflow scenario: user preferences cannot be overridden by project config (otherwise you'd reconfigure on every machine you SSH into), project-shared config cannot be overridden by user preferences (otherwise `git pull` doesn't bring rule changes), enterprise policy cannot be overridden by any lower layer (a compliance requirement). Every rule carrying its own `source` field means users debugging a permission decision can immediately see "oh this Bash-deny rule comes from policy, not from my settings".
+
+`PermissionRule` also separates `toolName` and `ruleContent` — meaning rule granularity can be as precise as the sub-command level, like "allow `Bash(git diff)` but deny `Bash(rm)`", much more useful than the coarse "all-or-nothing per tool" binary granularity.
+
+### OpenClaw · A three-dimensional matrix of execution host × security level × ask policy gives operators a real knob board
+
+OpenClaw's trade-off differs again from the two above — it does not target end-user personal preferences but the platform-admin / ops actual deployment needs. In enterprise agent deployment, ops have to answer: "Which execution environment does this agent run in? Sandbox or host? Is the default safety stance fully-denied, allowlist, or fully-permitted? When does the user have to be interrupted?" These three questions have completely different answers in different deployment shapes, and a single "strictness" slider cannot express it.
+
+OpenClaw's solution is to model these three independent dimensions as independent enum types:
+
+<SourceBlock path="REF/openclaw/src/infra/exec-approvals.ts" lines="10-36" system="openclaw" summary="Three independent dimensions, 3 x 3 x 3 = 27 execution environment combinations">
+
+```ts
+export type ExecHost = "sandbox" | "gateway" | "node";
+export type ExecSecurity = "deny" | "allowlist" | "full";
+export type ExecAsk = "off" | "on-miss" | "always";
+
+export function normalizeExecHost(value?: string | null): ExecHost | null {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "sandbox" || normalized === "gateway" || normalized === "node") {
+    return normalized;
+  }
+  return null;
+}
+
+export function normalizeExecSecurity(value?: string | null): ExecSecurity | null {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "deny" || normalized === "allowlist" || normalized === "full") {
+    return normalized;
+  }
+  return null;
+}
+
+export function normalizeExecAsk(value?: string | null): ExecAsk | null {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "off" || normalized === "on-miss" || normalized === "always") {
+    return normalized;
+  }
+  return null;
+}
+```
+
+</SourceBlock>
+
+The semantics of each dimension are concrete:
+
+**ExecHost** answers "in which process context does this command run" — `sandbox` means in an isolated container/sandbox (safest but with startup overhead), `gateway` means inside the gateway process (medium, reusing process resources), `node` means directly in the host Node.js process (fastest but no isolation at all).
+
+**ExecSecurity** answers "what is this execution environment's default safety stance" — `deny` means everything is forbidden by default (must be explicitly allowlisted to run), `allowlist` means only allowlist-permitted commands run, `full` means everything is permitted by default (unless explicitly denylisted).
+
+**ExecAsk** answers "when do we interrupt the user" — `off` means never ask, `on-miss` means ask only when "wants to run but the allowlist would forbid", `always` means ask every time.
+
+Independent combinations across three dimensions theoretically give 27 possibilities (3×3×3); about 4-5 are meaningful. For example, `host=sandbox / security=allowlist / ask=on-miss` is a very typical production config — "run in a sandbox, auto-allow allowlisted commands, prompt the user when something falls outside the allowlist". Another, `host=node / security=deny / ask=off`, is a very strict lockdown mode — "run directly on the host, default-deny everything without bothering the user, effectively letting the agent execute nothing" — fitting "let the agent think but not act" scenarios.
+
+The biggest engineering value of separating these three dimensions is: **ops can change one dimension without disturbing the other two**. For example, downgrading production from `sandbox` to `node` (sandbox broken, temporarily degrading) does not require re-deciding "should the default safety stance change" — the other two dimensions stay put.
+
+Once granted, OpenClaw never makes the user re-approve the same command. It uses a 5-tuple as the unique key for caching approvals:
+
+```ts
+export type SystemRunApprovalBinding = {
+  argv: string[];
+  cwd: string | null;
+  agentId: string | null;
+  sessionKey: string | null;
+  envHash: string | null;
+};
+```
+
+These 5 fields together decide "is this execution the same approval as before". The `envHash` field deserves a special note — it folds an environment-variable hash into the approval key, defending against a very subtle attack: a user approves `python script.py` under one PATH (where `python` resolves to the system Python); an attacker quietly modifies PATH so `python` now resolves to a malicious script; the next time the agent runs the same command, if environment is not considered, the cache hits and the malicious script runs unapproved. With envHash in the binding, any environment change invalidates the cache and forces a re-approval, plugging the attack.
+
+This "5-tuple binding" also means the same command takes different approval paths in different directories, different agents, different sessions, and different environments — it is not a simple global allowlist but fine-grained to the specific context.
+
+### Hermes · Do not decide permissions itself; delegate everything to an independent subprocess called tirith, communicating only via exit code
+
+Hermes's stance on permissions is highly engineering-minded — it argues that "deciding whether a command / file path / prompt is safe" is a completely independent capability that should be built as a separately-auditable, separately-upgradable, cross-agent-shareable subsystem, rather than baked into Hermes itself. Concretely, all content-level permission checks are delegated to an independent subprocess called tirith, and the entire permission system's verdict comes from a single source: the tirith subprocess's exit code.
+
+<SourceBlock path="REF/hermes-agent/tools/tirith_security.py" lines="1-25" system="hermes" summary="tirith is an independent Go binary; exit code is the sole verdict source of truth">
+
+```python
+"""Tirith pre-exec security scanning wrapper.
+
+Runs the tirith binary as a subprocess to scan commands for content-level
+threats (homograph URLs, pipe-to-interpreter, terminal injection, etc.).
+
+Exit code is the verdict source of truth:
+  0 = allow, 1 = block, 2 = warn
+
+JSON stdout enriches findings/summary but never overrides the verdict.
+Operational failures (spawn error, timeout, unknown exit code) respect
+the fail_open config setting. Programming errors propagate.
+
+Auto-install: if tirith is not found on PATH or at the configured path,
+it is automatically downloaded from GitHub releases to $HERMES_HOME/bin/tirith.
+The download always verifies SHA-256 checksums.  When cosign is available on
+PATH, provenance verification (GitHub Actions workflow signature) is also
+performed.  If cosign is not installed, the download proceeds with SHA-256
+verification only — still secure via HTTPS + checksum, just without supply
+chain provenance proof.  Installation runs in a background thread so startup
+never blocks.
+"""
+```
+
+</SourceBlock>
+
+That docstring looks brief, but four important engineering decisions are hidden in it:
+
+**The first decision is making exit code the sole verdict source**. Subprocess communication typically forces a choice: do you parse JSON from stdout for a "verdict" field, or do you read the process exit code? JSON can carry richer information (findings list, confidence, recommended action), but it also means handling parse failure, JSON truncation, and missing fields. Exit codes have only a few fixed values (0/1/2) — almost impossible to get wrong. Hermes's choice: **use exit code for verdict, use JSON to enrich findings**. Even if tirith's JSON is completely broken or unparseable, the verdict is unambiguous; the JSON is only for downstream-facing extras like "which rules fired, where in the input, with what confidence". On a security-critical path, "simple beats complex" matters.
+
+**The second decision is fail_open fallback**. Subprocess communication inevitably hits operational failures — the subprocess fails to start, times out, returns an exit code outside the expected range (anything other than 0/1/2), or panics suddenly. What should the system do? Allow (fail_open) or deny (fail_closed)? Neither is universally right: fail_open is dev-friendly (you can still use the agent without tirith installed), fail_closed is production-friendly (when in doubt, block). Hermes hands the decision to the user via config — dev sets `fail_open=true` for fault tolerance; production sets `fail_open=false` for safety.
+
+**The third decision is auto-download + SHA-256 + optional cosign verification**. tirith is an independent Go binary, and Hermes does not force-depend on it — it detects that tirith is missing and downloads it from GitHub releases to `$HERMES_HOME/bin/tirith` automatically. But "auto-downloading a binary" is itself an attack surface (DNS hijack, man-in-the-middle, compromised GitHub account). Hermes protects this flow with three layers of defence: HTTPS for transport security, SHA-256 checksum to guarantee the downloaded binary matches the expected hash, and if cosign is installed on the host, also verify the GitHub Actions workflow signature (cosign is a Sigstore tool that proves the binary was built from a specific workflow in a specific repo). This is supply-chain security delivered in a real product.
+
+**The fourth decision is background install does not block startup**. The tirith download runs in a background thread; the agent main flow does not hang for tens of seconds waiting for a 100MB binary to arrive.
+
+Compared with the previous three systems, Hermes provides no fine-grained approval UI and has no concept of "user can temporarily allow" — it fully outsources "what counts as dangerous" to tirith, an independent tool. The benefit of this division is very clean: the agent owns business and UX; tirith owns security decisions; the two communicate over the simplest possible protocol (an exit code). Tirith can ship new security rules without Hermes changing any code, and Hermes can change conversation logic without touching security rules.
+
+## §4 · Common ground
+
+Despite differing by an order of magnitude in engineering complexity, the four systems agree on three basics — think of these as "required curriculum" for an agent permission system.
+
+**The first is that there must be a "mode" coarse switch**. Regardless of how detailed the permission rules get, users need a one-click "mode" concept to quickly toggle the agent's default behaviour — "I'm in a hurry, give me YOLO mode" or "I'm in production, give me the strictest mode". Codex uses 5 AskForApproval variants, Claude Code uses 5 PermissionMode values, OpenClaw uses 3 ExecAsk values, Hermes uses the binary fail_open switch — different granularities but doing the same thing: letting users switch defaults without configuring every rule.
+
+**The second is that there must be a cache / session-level "do not ask again on approved things" mechanism**. If every prompt is re-asked from scratch, the UX becomes unusable. All four caches: Codex has a dedicated `ApprovedForSession` variant in its answer enum; Claude Code has a `session` source in its 8 rule origins; OpenClaw uses the 5-tuple binding as a cache key; Hermes caches inside tirith. The shared insight: approvals are costly (they interrupt the user and consume attention), and duplicate approvals in the same context should be avoided.
+
+**The third is that "reviewable actions" must be classified**. Different operation types have different risk levels, different UI requirements, and different caching needs — stuffing them into a single "approval" abstraction loses precision. Codex uses 6 strongly-typed GuardianAssessmentAction variants; Claude Code routes through `toolName` to different approval UIs; OpenClaw distinguishes 3 execution hosts via ExecHost; Hermes lets tirith classify operations in its findings. The shared insight: approval should not be one-size-fits-all.
+
+## §5 · Where they diverge
+
+<Diagram
+  src="/diagrams/12-tradeoff.svg"
+  alt="Four permission models on enum-depth vs operator-configurability"
+  caption="Hermes subprocess verdict leans left; OpenClaw's 27-combo matrix gives operators the most knobs; Claude Code's 8-source × 5-mode sits upper-right; Codex's full enums sit furthest right."
+/>
+
+Four scenarios, four recommendations:
+
+- **Building a SaaS control plane or IDE integration**: clone Claude Code's 8 PermissionRuleSource levels + 5 PermissionMode, mirroring config layering.
+- **Building a serious desktop agent**: clone Codex's AskForApproval + GranularApprovalConfig + default_available_decisions().
+- **Giving operators real knobs**: clone OpenClaw's 3x3x3 matrix so ops can dial each dimension independently.
+- **Centralizing security policy + outsourcing audit**: clone Hermes's tirith pattern: subprocess + exit code + supply-chain verification.
+
+## §6 · My takeaway
+
+<ScoreCard
+  rows={[
+    { system: 'Codex', value: '★★★★★', reason: 'AskForApproval 5 + GranularApprovalConfig 5 + GuardianAssessmentAction 6 + ReviewDecision 5 + smart button inference; deeply typed with clean evolution (OnFailure deprecated but kept for compatibility)', risk: '5-bool Granular has a learning curve; migrating off deprecated OnFailure needs care; adding a 7th GuardianAssessmentAction requires protocol changes' },
+    { system: 'Claude Code', value: '★★★★★', reason: '8 PermissionRuleSource levels map directly to IDE config layering; 5 PermissionMode covers real workflows (acceptEdits / bypassPermissions / plan); toolName + ruleContent yields sub-command granularity', risk: '8 sources need clear priority docs; coexistence of plan and bypassPermissions has subtle logic; feature-flagged auto / bubble adds cognitive load' },
+    { system: 'OpenClaw', value: '★★★★', reason: '3x3x3=27 combos give operators real knobs; 5-tuple binding defends against env-swap attacks; ExecHost separates sandbox / gateway / node into three execution backends', risk: 'Most of the 27 combos go unused, docs must call out the 4-5 practical ones; strict envHash means PATH changes invalidate cache, confusing during debug' },
+    { system: 'Hermes', value: '★★★', reason: 'tirith subprocess + exit-code verdict outsources decisions to an independent tool; fail_open matches production reality; auto-download + SHA-256 + cosign is supply-chain security delivered', risk: 'No user-facing override, false positives only fix via tirith rule updates; fail_open=true effectively disables security; tirith binary lifecycle / compatibility is your ongoing problem' },
+  ]}
+  caption="Scoring criteria: type-system depth + operator configurability + failure handling + UX"
+  headers={['System', 'Score', 'Strengths', 'Risks']}
+/>
+
+## §7 · Build recipe
+
+Below is the recipe distilled from the four systems for writing your own permissions / approvals layer. Lay solid foundations first, then add production-grade features, finally avoid five common dead ends.
+
+<BuildRecipe
+  title="Build recipe"
+  minimal={[
+    'Define ApprovalMode 3-tier enum (borrow from OpenClaw\' ExecAsk) — always-ask (always prompt) / on-miss (only prompt when allowlist misses) / never (don\'t prompt, decide by underlying rules); 3 tiers cover 90% of scenarios, simple and clear',
+    'Type the reviewable action (borrow from Codex) — at minimum Command (shell command) / FileWrite (file write) / NetworkAccess (network request) / McpCall (MCP call) 4 types; different types use different prompt copy + cache strategy',
+    'Type the user answer (borrow from Codex) — Approved (just this once) / ApprovedForSession (allow same requests within this session) / Abort (reject and abort) 3 types; ApprovedForSession is a practical lifesaver (no need to ask every time)',
+    'Cache approvals by (argv, cwd, agentId) triple (a simplified OpenClaw SystemRunApprovalBinding) — preventing "approved git push in ~/projects/A then agent runs to ~/projects/B and can push too" privilege escalation',
+  ]}
+  advanced={[
+    'AskForApproval 5 variants (borrow from Codex) — UnlessTrusted (unless command is trusted ask) / OnRequest (model proactively request_permissions) / Granular (configure 5 flags individually) / Never + 1 deprecated for compatibility; 5 tiers cover enterprise-level fine-grained scenarios',
+    'GranularApprovalConfig (borrow from Codex) — independent booleans for sandbox / rules / mcp / skill / request_permissions; this "broken into sub-switches" lets different teams precisely select their own risk profile',
+    'Layered PermissionRuleSource (borrow from Claude Code) — 8 sources: user / project / local / flag / policy / cliArg / command / session; multiple sources let enterprise admin force policy (highest priority) and developers override at project layer',
+    'envHash in the binding (borrow from OpenClaw) — defends env-swap attacks (attacker changes PATH so git points to malicious script, sneaks through existing git approval); envHash mismatch invalidates approval',
+    'Smart button inference (borrow from Codex\' default_available_decisions) — picks buttons from request context (e.g. git push --force doesn\'t show "ApprovedForSession" button, forcing every-time prompt)',
+    'plan mode (borrow from Claude Code) — disable all side-effect tools (Edit / Bash / Write all off), model can only plan not act; PRD / requirements discussion / code review should all enable plan mode',
+    'Outsource content scanning to subprocess (borrow from Hermes\' tirith) — independent subprocess for content safety, exit code is verdict source of truth (don\'t care if subprocess crashes / output JSON errors), JSON only enriches findings without affecting verdict',
+    'fail_open config fallback (borrow from Hermes) — dev fail_open=true (checker crashed let request continue, don\'t interrupt dev experience), production fail_open=false (checker crashed reject request, safety first)',
+  ]}
+  avoid={[
+    'Don\'t encode "mode" as a single string ("--yolo" / "--strict") — evolution forces new values, migrations hurt; users can\'t distinguish strings; use enum + descriptors (each enum value with doc string)',
+    'Don\'t entangle permission rules with tool list — separate toolName from ruleContent for cross-tool composability (one rule applies to multiple tools); entangling means copying rules for each new tool',
+    'Don\'t let model decide when to ask — model biases toward "ask less, finish faster" (less user friction = better finish rate), but safety drops; server-side policy enforcement is reliable',
+    'Don\'t cache approvals by single ID — argv + cwd + env hash all matter, otherwise one approval grants the world (approval in project A can run in project B); this is a common privilege-escalation entry',
+    'Don\'t skip cosign / SHA-256 supply-chain checks — auto-downloading safety check binaries is also an attack surface (attacker replaces binary on CDN); after download must verify signature + check SHA',
+  ]}
+/>
+
+## §8 · Four permission flows side by side
+
+<Diagram
+  src="/diagrams/12-permission-flows.svg"
+  alt="Four permission decision flows lined up side by side"
+  caption="Codex enum-based decisions; Claude Code IDE-style 8-source rules; OpenClaw 3D 27-combo matrix + 5-tuple binding; Hermes tirith subprocess + exit-code verdict + supply chain verification."
+/>
+
+Lined up, "who has authority" is one glance: Codex / Claude Code let users tune, OpenClaw gives operators knobs, Hermes hands the gavel to an independent tool.
+
+## §9 · Further reading / source entry points
+
+<SourceTrail
+  title="Further reading / source entry points"
+  entries={[
+    { system: 'Codex', path: 'REF/codex/codex-rs/protocol/src/protocol.rs', lines: '870-940', desc: 'AskForApproval 5 modes + GranularApprovalConfig' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/protocol/src/approvals.rs', lines: '85-322', desc: 'GuardianAssessmentAction + ReviewDecision + default_available_decisions' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/protocol/src/models.rs', lines: '296-340', desc: 'PermissionProfile { Managed / Unmanaged }' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/protocol/src/request_permissions.rs', desc: 'request_permissions tool protocol' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/types/permissions.ts', lines: '1-100', desc: 'PermissionMode / PermissionBehavior / PermissionRule full definitions' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/utils/permissions/permissions.ts', desc: 'Runtime permission decisions' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/utils/permissions/permissionsLoader.ts', desc: 'Layered loading across 8 sources' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/infra/exec-approvals.ts', lines: '1-80', desc: 'ExecHost / ExecSecurity / ExecAsk types + binding' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/infra/system-run-approval-binding.ts', desc: '5-tuple binding serialization and matching' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/infra/exec-host.ts', desc: 'ExecHost dispatch implementation' },
+    { system: 'Hermes', path: 'REF/hermes-agent/tools/tirith_security.py', lines: '1-150', desc: 'tirith subprocess wrapper + auto-download + cosign' },
+    { system: 'Hermes', path: 'REF/hermes-agent/tools/terminal_tool.py', desc: '_check_all_guards calling tirith + approval callback' },
+  ]}
+/>
+
+## §10 · Exercises
+
+1. **Easy**: implement `ApprovalMode` with three levels (always-ask / on-miss / never). Allowlist hits pass through; misses defer to mode.
+2. **Medium**: cache approvals via (argv, cwd, env_hash) triple. Verify: changing env_hash (editing PATH) misses the cache and re-prompts.
+3. **Medium**: implement `available_decisions(request)`. When the request carries `proposed_execpolicy_amendment`, add an "Approve + add to policy" button. Verify: plain command shows Approve/Abort; network request shows four buttons.
+4. **Hard**: implement multi-source rule loading. Stack user / project / local / cliArg / session in that order; later layers override earlier. Verify: `--allow-bash` on cliArg overrides `Bash: deny` in projectSettings.
+
+## §11 · Interview drill: 10 questions with worked answers
+
+<details>
+<summary>**Q1 · Concept**: Why does Codex use an enum for the approval mode instead of a string?</summary>
+
+Enums enforce four guarantees a string cannot:
+
+**1. Compile-time exhaustiveness.** Rust `match AskForApproval { ... }` rejects missing arms. Adding `Granular(GranularApprovalConfig)` forces every dispatch site to be updated. A string `if-else` chain misses a branch and only blows up at runtime. When Codex added `Granular`, roughly 30 match sites lit up simultaneously and had to be handled before compilation succeeded.
+
+**2. Explicit evolution paths.** `OnFailure` is marked deprecated but still in the enum. Enums make "deprecated yet compatible" a first-class case rather than the implicit "wrap in `if version < X` somewhere" that strings encourage. New code rejects OnFailure for new sessions (CLI parser denies it) but resumed sessions still parse it cleanly.
+
+**3. Serialization that aligns front and back.** `#[serde(rename = "untrusted")]` lock-steps Rust types with the JSON protocol. The TUI, Plugin SDK, and IDE webview all see exactly the same string set; docs and editor auto-completion derive automatically. String-based designs frequently end up with "audit" and "audit_mode" both accepted by accident.
+
+**Source**: [`codex/codex-rs/protocol/src/protocol.rs:889-920`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/protocol/src/protocol.rs#L889-L920).
+
+**Follow-up**: "What if you really need 50 modes?" Use layered enums: `AskForApproval::Custom(CustomMode)` with `CustomMode` being a user-defined struct. Codex's `Granular` is already a hint of this approach.
+</details>
+
+<details>
+<summary>**Q2 · Concept**: How are Claude Code's 8 PermissionRuleSource layers prioritized, and why can't they be collapsed?</summary>
+
+The 8 sources are not redundancy. They correspond to 5 layered config files plus 3 transient origins:
+
+**5 permanent layers** (ascending priority, later overrides earlier):
+
+1. `userSettings` (`~/.claude/settings.json`): global user preference
+2. `projectSettings` (`.claude/settings.json`): committed project shared config
+3. `localSettings` (`.claude/settings.local.json`): project-local gitignored
+4. `flagSettings`: CLI startup flags
+5. `policySettings`: enterprise IT policy (highest)
+
+**3 transient origins**:
+
+6. `cliArg`: one-shot `--allow-bash`-style arg
+7. `command`: slash command injection
+8. `session`: user-granted in-session
+
+**Why can't they be collapsed?**
+
+Merging user/project/local into one "config" breaks team workflow. Project-shared config must not be overridden by personal preference (otherwise after `git pull` your rules silently change), and personal preference must not be overridden by project config (otherwise SSH-ing to a different machine forces you to reconfigure everything). All three layers have clear real-world scenarios.
+
+**policySettings deserves its own layer** for one enterprise scenario: IT deploys a "no Bash(rm -rf)" policy, and developers cannot override it through any of user/project/local/cliArg. That's a compliance requirement.
+
+**Source**: `claude-code/src/types/permissions.ts:220-242`.
+
+**Follow-up**: "Last-wins or most-restrictive for conflict resolution?" Claude Code uses last-wins. Reasoning: an explicit `--allow-bash` on cliArg should override projectSettings' deny. With most-restrictive, cliArg is useless.
+</details>
+
+<details>
+<summary>**Q3 · Architecture**: Why does OpenClaw's 5-tuple binding include `envHash`?</summary>
+
+To defend against env-swap stealing of approval. Concrete attack:
+
+1. User approves `python script.py` while `PATH=/usr/bin` (cache that approval)
+2. Attacker flips `PATH=/tmp/evil:/usr/bin` so `python` resolves to a malicious binary
+3. Agent's next `python script.py` matches binding (argv, cwd, agentId, sessionKey) and hits cache, skipping approval, running the malicious binary
+
+`envHash` folds PATH and other relevant env vars into the binding. Env change → cache miss → re-prompt. Same argv and cwd, fresh approval required.
+
+**Why not ban all env changes?**
+
+Agents constantly switch env (activate venv, source .env, export temp vars). Re-prompting every time is a UX disaster. envHash makes only the env vars that actually affect lookup (PATH, LD_LIBRARY_PATH, etc.) trigger reapproval; cosmetic env vars (PS1, TERM) are ignored.
+
+**Implementation detail**: OpenClaw hashes only a security-relevant env subset, not all env. The exact list lives in `infra/exec-approvals.ts`.
+
+**Source**: [`openclaw/src/infra/exec-approvals.ts`](https://github.com/openclaw/openclaw/blob/f6d0712f508b1f926ad6fc42f7d07b1a60e62730/src/infra/exec-approvals.ts) + `infra/system-run-approval-binding.ts`.
+
+**Follow-up**: "How do Hermes/Codex defend against this?" Codex uses `inherited_exec_policy` (chapter 10) + Granular `sandbox_approval` to enforce sandbox-level isolation; Hermes delegates to tirith which re-analyzes every command (no cache to poison). Different solutions, same attack surface covered.
+</details>
+
+<details>
+<summary>**Q4 · Concept**: Hermes outsources permission decisions to the tirith subprocess. Benefits and costs?</summary>
+
+**Benefits:**
+
+1. **Separation of concerns.** The agent cares about business and UX; tirith cares about security decisions. They evolve independently: tirith pushes new rules without Hermes changing code, Hermes refactors dialog flow without touching security.
+2. **Cross-language reuse.** tirith is a Go binary callable by Hermes (Python) / Codex (Rust) / Claude Code (Node). One ruleset across every agent.
+3. **Sandbox isolation.** tirith runs in a separate process; crashes, hangs, or memory leaks do not impact the main agent. Supply-chain attacks have a smaller blast radius.
+4. **Fast zero-day response.** New attack patterns ship as a new tirith binary (cosign-verified + auto-download). Every dependent agent gets the protection automatically.
+
+**Costs:**
+
+1. **Spawn per call.** 5-50ms to launch a Go binary (OS, ELF load, init). Paid on every tool call. Codex's embedded policy is a function call < 1μs.
+2. **fail_open is a dilemma.** Production fail_open=false makes a flaky tirith DoS your own agent; dev fail_open=true equals no security. No middle ground.
+3. **No user override.** False positives only fix via tirith rule updates—users cannot say "I confirm this is OK." UX is worse than Codex/Claude Code.
+4. **Supply-chain overhead.** Auto-download + SHA-256 + cosign + version compatibility + fallback paths all need engineering.
+
+**Fits**: server-side agents, latency-tolerant, centralized security policy. Doesn't fit: desktop agents where every tool call eating a subprocess kills UX.
+
+**Source**: [`hermes-agent/tools/tirith_security.py:1-150`](https://github.com/NousResearch/hermes-agent/blob/2d59afd3da04812583ecbbf3be83539678a947c4/tools/tirith_security.py#L1-L150).
+
+**Follow-up**: "Long-running tirith daemon instead of spawn-per-call?" Possible, but you take on IPC, state sync, and daemon crash recovery. Spawn-per-call is Hermes's tradeoff for simplicity over performance.
+</details>
+
+<details>
+<summary>**Q5 · Concept**: Why does `default_available_decisions()` infer buttons from context?</summary>
+
+Different requests need different buttons:
+
+- **Plain shell command**: user picks Approve once or Abort. Two buttons suffice.
+- **With execpolicy amendment**: user may want "Approve plus add to policy" beyond the one-shot Approve. Extra `ApprovedExecpolicyAmendment` button.
+- **Network access**: user may want "this once," "whole session," or "permanently allow this domain." Three escalating allow tiers plus Abort = 4 buttons.
+- **Extra file permissions**: yes or no, no amendment button needed.
+
+If the button list is hardcoded, either the UI shows all five buttons all the time (users confused: "what is this amendment button doing here?") or `if-else` chains scatter across the UI codebase (each new case touches the UI).
+
+`default_available_decisions(ctx)` centralizes "which buttons to show" in the protocol layer. The UI renders whatever list it receives, no logic of its own. Frontend / TUI / VS Code extension / IDE webview all show the same buttons and never drift.
+
+**Analogy**: form systems with "field schema → form fields." Structured schema decides UI, UI carries no if-else.
+
+**Source**: [`codex/codex-rs/protocol/src/approvals.rs:288-322`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/protocol/src/approvals.rs#L288-L322).
+
+**Follow-up**: "Difference between ApprovedForSession and ApprovedExecpolicyAmendment?" ApprovedForSession lasts the session only (lost on restart); ApprovedExecpolicyAmendment writes to the user execpolicy file and persists across sessions. Short-term trust vs long-term trust.
+</details>
+
+<details>
+<summary>**Q6 · Real-world**: Building approval into your agent, from zero to production?</summary>
+
+Four phases: **enum basics → cached binding → multi-source rules → subprocess audit**.
+
+**Day 1-3 · Enum basics**
+
+```python
+class ApprovalMode(Enum):
+    ALWAYS_ASK = "always-ask"
+    ON_MISS = "on-miss"  # ask only on miss
+    NEVER = "never"      # YOLO / CI
+
+class ApprovalAction(Enum):
+    COMMAND = "command"
+    FILE_WRITE = "file_write"
+    NETWORK = "network"
+    MCP_CALL = "mcp_call"
+
+class ApprovalDecision(Enum):
+    APPROVED = "approved"
+    APPROVED_SESSION = "session"
+    ABORT = "abort"
+```
+
+Borrow Codex's typed approach. Every enum has clear semantics.
+
+**Day 4-7 · Cached binding (defend env-swap)**
+
+```python
+@dataclass
+class ApprovalBinding:
+    argv: tuple
+    cwd: str
+    agent_id: str
+    env_hash: str
+    
+    def __hash__(self): return hash((self.argv, self.cwd, self.agent_id, self.env_hash))
+
+cache: dict[ApprovalBinding, ApprovalDecision] = {}
+
+def check_approval(action: ApprovalAction, args):
+    binding = compute_binding(args)
+    if binding in cache: return cache[binding]
+    decision = ask_user(action, args)
+    if decision == APPROVED_SESSION: cache[binding] = decision
+    return decision
+```
+
+Borrow OpenClaw's 5-tuple binding.
+
+**Week 2 · Multi-source rules**
+
+```python
+class RuleSource(Enum):
+    USER_SETTINGS = 1
+    PROJECT_SETTINGS = 2
+    LOCAL_SETTINGS = 3
+    CLI_ARG = 4
+    SESSION = 5
+
+def load_rules() -> list[PermissionRule]:
+    rules = []
+    rules.extend(load_user_settings())
+    rules.extend(load_project_settings())
+    rules.extend(load_local_settings())
+    rules.extend(load_cli_args())
+    rules.extend(load_session_rules())
+    return rules
+```
+
+Borrow Claude Code's 8-source design.
+
+**Week 3-4 · Subprocess audit (optional · enterprise deployments)**
+
+```python
+def deep_check(command: str) -> Verdict:
+    result = subprocess.run(
+        ["tirith", "--scan", command],
+        timeout=5,
+        capture_output=True,
+    )
+    if result.returncode == 0: return Verdict.ALLOW
+    if result.returncode == 1: return Verdict.BLOCK
+    if result.returncode == 2: return Verdict.WARN
+    return fail_open_config or Verdict.BLOCK
+```
+
+Borrow Hermes's tirith pattern.
+
+**Key takeaways:**
+
+1. **Enum from day one, not string**: evolution misery starts here
+2. **Cached binding by week two**: avoid "same argv prompts twice" UX disaster
+3. **Multi-source rules only when team scenarios show up**: solo use needs user_settings + cliArg
+4. **Subprocess audit is for enterprise**: skip for self/desktop agents
+
+**Follow-up**: "How do you test this?" Three layers: (1) unit tests on enums and decision functions; (2) integration tests for binding cache hit/miss; (3) E2E tests confirming user approval → cache → subsequent same binding doesn't re-prompt.
+</details>
+
+<details>
+<summary>**Q7 · Architecture**: Why does Claude Code keep `plan` as a separate mode?</summary>
+
+plan lets the agent "think but not act." Concrete behavior: every side-effect tool (Bash / Write / Edit / NotebookEdit / WebFetch / TaskCreate) is disabled, leaving only read tools (Read / Grep / Glob) plus writing a todo / plan document.
+
+**Why not just `dontAsk` plus a model that behaves?**
+
+Models are unreliable. "Plan only, don't act" gets followed by most models, but a non-trivial fraction will pivot to "I see a bug, let me fix it." plan mode pulls every side-effect tool from the toolbox at the framework level; the model can't act even if it wants to. Hard constraint beats prompting.
+
+**Why not `bypassPermissions` plus user denials each time?**
+
+bypassPermissions means "don't prompt," not "don't execute." User denial is post-hoc and can't undo what happened (a `rm` already ran). plan is pre-emptive.
+
+**plan and acceptEdits are opposite poles:**
+
+- acceptEdits: auto-approve all edits, minimal interruption
+- plan: disable all side effects, maximum protection
+
+Both "don't prompt" but with opposite behaviors. Enum lets users one-click switch instead of hand-composing 8 sources.
+
+**Fits:**
+
+- User gives a complex prompt and wants to review the agent's plan before letting it execute
+- Team code review: agent proposes changes without touching code directly
+- Unfamiliar codebase: plan first, then step through together
+
+**Source**: `claude-code/src/types/permissions.ts:198-204`.
+
+**Follow-up**: "Can users exit plan mode mid-flow?" Yes. Claude Code lets users `/exit-plan` after planning to return to default. The plan document becomes context for subsequent turns.
+</details>
+
+<details>
+<summary>**Q8 · Real-world**: Users complain "approval prompts interrupt my flow." How to improve?</summary>
+
+Four layers: **cache → broaden scope → auto-classify → trust modeling**.
+
+**Layer 1 · Cache coverage**
+
+Most common failure: users re-approve the same command repeatedly. Check:
+
+- Binding stability (no invalidation on unrelated env changes)
+- ApprovedForSession explicitly selectable
+- argv normalization (`ls -l` vs `ls -l ./` should collapse)
+
+**Layer 2 · Approval scope**
+
+Let one approval cover more:
+
+```
+Prompt: "Run `npm install`?"
+Buttons: [Approve once] [Approve all npm commands] [Approve all in this cwd] [Abort]
+```
+
+Borrow Codex's multi-button approach. Let users choose trust scope.
+
+**Layer 3 · Auto-classify (safe commands pass through)**
+
+`is_safe_command()` (Codex has one): pure-read commands (cat / ls / git diff / grep) auto-pass. Restrict from source:
+
+- Writes (rm / mv / cp) → ask
+- Network (curl / wget) → ask
+- Interpreter exec (python / node / bash -c) → ask
+- Pure read (ls / cat / grep) → pass
+
+**Layer 4 · Trust modeling**
+
+After stable agent behavior, gradually relax:
+
+- First 100 turns: every non-read command prompts
+- 100-1000 turns: command types with < 5% denial rate auto-pass
+- 1000+ turns: expert user, default acceptEdits
+
+Like Sublime's "recently used commands" concept, tuned to actual usage.
+
+**Anti-patterns:**
+
+1. **Drop to bypassPermissions**: solves nothing, kills security
+2. **LLM as gatekeeper**: inconsistent decisions, can't build stable trust
+3. **Time-limited approvals**: user looks away → timeout denies → UX disaster
+
+**Hermes take**: tirith makes auto-decisions, no prompt. Pro: no prompts. Con: false positives only fixable via rule updates. Different UX tradeoff.
+
+**Source pointers**: Codex `is_safe_command()` + `default_available_decisions()` + `ApprovedForSession`. Claude Code `permissionsLoader.ts` 8-source stacking + session cache.
+</details>
+
+<details>
+<summary>**Q9 · Engineering**: cosign / SHA-256 / auto-download as a real-world supply chain story?</summary>
+
+Hermes auto-downloading the tirith binary is a typical supply chain entry point. Three layers of defense:
+
+**Layer 1 · HTTPS + SHA-256 (mandatory)**
+
+- Download over HTTPS (defends transport tampering)
+- SHA-256 verify after download (defends server-side compromise that pushes a malicious binary)
+- SHA-256 hash lives separately from the binary (hash in release notes / metadata, binary in release artifacts)
+
+**Layer 2 · cosign provenance (optional but strongly recommended)**
+
+cosign verifies the GitHub Actions workflow signature:
+
+- Who triggered the build (PR number / commit SHA)
+- The workflow file itself (`.github/workflows/release.yml`)
+- The commit hash at build time
+
+Meaning even if attacker:
+
+- Gains upload privilege to GitHub release artifacts → cosign verify fails
+- Modifies the release workflow → workflow hash diverges from history
+- Steals a maintainer's local GPG key → cosign still detects "this binary was not produced by GitHub Actions"
+
+**Layer 3 · Background download / non-blocking startup**
+
+If download sits on the main path, a 30-second first-launch wait is awful. Hermes spawns a background thread to download without blocking input. Without tirith installed, the first tool call falls back to fail_open behavior (or blocks waiting for the download, per config).
+
+**Anti-patterns:**
+
+- **Skip SHA-256 because HTTPS is enough** → wrong. CDN compromise or Cloudflare bugs both break HTTPS-only.
+- **SHA-256 hash co-located with binary** → attacker swaps both. Hash must come from an independent trusted source (release notes / metadata API).
+- **Force cosign fail-on-missing** → not every user installs cosign; fall back to SHA-256-only. Hermes goes "best-effort cosign + mandatory SHA-256."
+
+**Industry parallels:**
+
+- npm: `package-lock.json` for version lock + HTTPS registry. SHA verification present but not enforced.
+- Docker: image digest (content-addressable). Download is verification.
+- Hugging Face model hub: commit SHA + LFS SHA. Similar to Hermes.
+
+**Source**: [`hermes-agent/tools/tirith_security.py:25-150`](https://github.com/NousResearch/hermes-agent/blob/2d59afd3da04812583ecbbf3be83539678a947c4/tools/tirith_security.py#L25-L150) (download + verification logic).
+</details>
+
+<details>
+<summary>**Q10 · Open-ended**: Synthesize the strengths into a universal permission framework.</summary>
+
+7 layers, opt-in:
+
+**Layer 1 · Mode enum (mandatory)**
+
+```ts
+enum ApprovalMode {
+  AlwaysAsk = 'always-ask',
+  OnMiss = 'on-miss',
+  GranularConfig = 'granular',
+  Plan = 'plan',
+  Never = 'never',
+}
+```
+
+Borrow Codex 5 + Claude Code plan.
+
+**Layer 2 · Action enum (mandatory)**
+
+```ts
+type ApprovalAction =
+  | { type: 'command'; argv: string[]; cwd: string }
+  | { type: 'file_write'; path: string }
+  | { type: 'network'; host: string; port: number }
+  | { type: 'mcp_call'; server: string; tool: string }
+  | { type: 'patch'; files: string[] }
+  | { type: 'request_permissions'; perms: string[] };
+```
+
+Borrow Codex `GuardianAssessmentAction`.
+
+**Layer 3 · Decision enum (mandatory)**
+
+```ts
+type ApprovalDecision =
+  | 'approved'
+  | 'approved_session'
+  | 'approved_amendment'
+  | 'abort';
+
+function availableDecisions(action: ApprovalAction): ApprovalDecision[] {
+  // Borrow Codex default_available_decisions
+}
+```
+
+**Layer 4 · Cached binding (recommended)**
+
+```ts
+interface ApprovalBinding {
+  argv: string[];
+  cwd: string;
+  agent_id: string;
+  session_key: string;
+  env_hash: string;
+}
+
+class ApprovalCache {
+  get(binding: ApprovalBinding): ApprovalDecision | null;
+  set(binding: ApprovalBinding, decision: ApprovalDecision): void;
+}
+```
+
+Borrow OpenClaw 5-tuple.
+
+**Layer 5 · Multi-source rules (recommended · team scenarios)**
+
+```ts
+type RuleSource = 'user' | 'project' | 'local' | 'flag' | 'policy' | 'cliArg' | 'command' | 'session';
+
+interface PermissionRule {
+  source: RuleSource;
+  behavior: 'allow' | 'deny' | 'ask';
+  toolName: string;
+  ruleContent?: string;
+}
+
+function loadRules(): PermissionRule[];
+```
+
+Borrow Claude Code.
+
+**Layer 6 · Subprocess audit (optional · enterprise)**
+
+```ts
+interface DeepCheck {
+  scan(command: string): Promise<DeepCheckVerdict>;
+}
+
+type DeepCheckVerdict = 'allow' | 'block' | 'warn' | 'fail_open';
+```
+
+Borrow Hermes tirith.
+
+**Layer 7 · Smart buttons (recommended)**
+
+```ts
+function renderApprovalUi(
+  action: ApprovalAction,
+  decisions: ApprovalDecision[],
+): ApprovalDialog;
+```
+
+Borrow Codex context-driven buttons.
+
+**Contributions per system:**
+
+- Codex: mode enum + action enum + decision enum + smart buttons
+- Claude Code: 8-source stacking + plan mode + per-tool ruleContent
+- OpenClaw: 5-tuple binding + envHash env-swap defense
+- Hermes: subprocess audit + supply-chain verification
+
+**Engineering effort:**
+
+- Layer 1-3: 2 weeks
+- Layer 4-5: 3 weeks
+- Layer 6-7: 2 weeks
+
+7 weeks to v0.1.
+
+**Key decisions:**
+
+1. **Enum from day one, never strings**
+2. **Every enum needs a `default_available_xxx` smart inference function**
+3. **Cached binding must include env_hash**
+4. **Subprocess audit's fail_open must be explicit, not default**
+
+**Follow-up**: "Cross-language sharing?" Core enum + binding schema in JSON Schema; codegen types for TypeScript / Rust / Python / Go. Decision logic stays per-language (can't share if-else across languages), but protocol and data format align.
+
+**Source mosaic**: Codex `protocol/src/protocol.rs` + `protocol/src/approvals.rs` → Claude Code `types/permissions.ts` + `utils/permissions/` → OpenClaw `infra/exec-approvals.ts` + `infra/system-run-approval-binding.ts` → Hermes `tools/tirith_security.py`. Combine all four = permission framework v0.1.
+</details>

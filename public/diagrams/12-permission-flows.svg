@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 600" role="img"
+     aria-label="四种权限决策流程并列">
+  <defs>
+    <filter id="wb12F"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="119" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar12F" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .col  { font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .note { font: italic 10.5px sans-serif; fill: #92400e; }
+    </style>
+  </defs>
+
+  <text x="440" y="24" class="h" text-anchor="middle">四种权限决策流程并列</text>
+  <text x="440" y="42" class="t-s" text-anchor="middle">枚举决策（Codex）· IDE 规则（Claude Code）· 3 维矩阵（OpenClaw）· 子进程 verdict（Hermes）</text>
+
+  <g filter="url(#wb12F)">
+    <!-- Codex column -->
+    <text x="120" y="70" class="col" text-anchor="middle">Codex · 5×5×6×5 枚举</text>
+    <rect x="40" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="103" class="lbl" text-anchor="middle">模型请求 tool_call</text>
+
+    <line x1="120" y1="116" x2="120" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="40" y="138" width="160" height="48" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="158" class="lbl" text-anchor="middle">AskForApproval 决策</text>
+    <text x="120" y="174" class="t-s" text-anchor="middle">UnlessTrusted/OnRequest/...</text>
+
+    <line x1="120" y1="186" x2="120" y2="205" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="40" y="208" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="228" class="lbl" text-anchor="middle">GuardianAction 分类</text>
+    <text x="120" y="244" class="t-s" text-anchor="middle">Command / Execve / Patch</text>
+    <text x="120" y="258" class="t-s" text-anchor="middle">Network / MCP / RequestPerm</text>
+
+    <line x1="120" y1="268" x2="120" y2="287" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="40" y="290" width="160" height="60" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="310" class="lbl" text-anchor="middle">default_available_decisions</text>
+    <text x="120" y="326" class="t-s" text-anchor="middle">按 context 推按钮列表</text>
+    <text x="120" y="340" class="t-s" text-anchor="middle">弹窗 UI 不写死</text>
+
+    <line x1="120" y1="350" x2="120" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="40" y="372" width="160" height="48" rx="8" fill="#e2e8f0" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="392" class="lbl" text-anchor="middle">ReviewDecision 答案</text>
+    <text x="120" y="408" class="t-s" text-anchor="middle">5 种：Approved/Session/...</text>
+
+    <text x="120" y="445" class="note" text-anchor="middle">每个 turn 一个 Constrained 上限</text>
+    <text x="120" y="460" class="note" text-anchor="middle">session 配置 + per-command 升级</text>
+
+    <!-- Claude Code column -->
+    <text x="330" y="70" class="col" text-anchor="middle">Claude Code · 5×3×8 规则</text>
+    <rect x="250" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="103" class="lbl" text-anchor="middle">tool 想要执行</text>
+
+    <line x1="330" y1="116" x2="330" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="250" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="158" class="lbl" text-anchor="middle">PermissionMode 路由</text>
+    <text x="330" y="174" class="t-s" text-anchor="middle">default/acceptEdits/plan/...</text>
+    <text x="330" y="188" class="t-s" text-anchor="middle">bypassPermissions = YOLO</text>
+
+    <line x1="330" y1="198" x2="330" y2="217" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="250" y="220" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="240" class="lbl" text-anchor="middle">规则叠加 8 source</text>
+    <text x="330" y="256" class="t-s" text-anchor="middle">user/project/local/flag</text>
+    <text x="330" y="270" class="t-s" text-anchor="middle">policy/cliArg/command/session</text>
+
+    <line x1="330" y1="280" x2="330" y2="299" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="250" y="302" width="160" height="48" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="322" class="lbl" text-anchor="middle">canUseTool 回调</text>
+    <text x="330" y="338" class="t-s" text-anchor="middle">behavior: allow/deny/ask</text>
+
+    <line x1="330" y1="350" x2="330" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="250" y="372" width="160" height="48" rx="8" fill="#e2e8f0" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="392" class="lbl" text-anchor="middle">弹 UI 或自动决策</text>
+    <text x="330" y="408" class="t-s" text-anchor="middle">用户答案存到指定 destination</text>
+
+    <text x="330" y="445" class="note" text-anchor="middle">toolName + ruleContent 细粒度</text>
+    <text x="330" y="460" class="note" text-anchor="middle">可写 Bash(git diff) 允许、Bash(rm) 禁</text>
+
+    <!-- OpenClaw column -->
+    <text x="540" y="70" class="col" text-anchor="middle">OpenClaw · 3×3×3 = 27</text>
+    <rect x="460" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="103" class="lbl" text-anchor="middle">命令请求执行</text>
+
+    <line x1="540" y1="116" x2="540" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="460" y="138" width="160" height="72" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="158" class="lbl" text-anchor="middle">ExecHost 路由</text>
+    <text x="540" y="174" class="t-s" text-anchor="middle">sandbox · gateway · node</text>
+    <text x="540" y="188" class="t-s" text-anchor="middle">每种走不同执行环境</text>
+    <text x="540" y="202" class="t-s" text-anchor="middle">3 种 host × 3 安全策略</text>
+
+    <line x1="540" y1="210" x2="540" y2="229" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="460" y="232" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="252" class="lbl" text-anchor="middle">ExecSecurity 判定</text>
+    <text x="540" y="268" class="t-s" text-anchor="middle">deny / allowlist / full</text>
+    <text x="540" y="282" class="t-s" text-anchor="middle">+ ExecAsk: off/on-miss/always</text>
+
+    <line x1="540" y1="292" x2="540" y2="311" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="460" y="314" width="160" height="60" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="334" class="lbl" text-anchor="middle">5-tuple binding</text>
+    <text x="540" y="350" class="t-s" text-anchor="middle">argv+cwd+agentId</text>
+    <text x="540" y="364" class="t-s" text-anchor="middle">+sessionKey+envHash</text>
+
+    <line x1="540" y1="374" x2="540" y2="393" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="460" y="396" width="160" height="36" rx="8" fill="#e2e8f0" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="419" class="lbl" text-anchor="middle">cache hit / 弹 UI</text>
+
+    <text x="540" y="455" class="note" text-anchor="middle">envHash 防 env-swap 攻击</text>
+
+    <!-- Hermes column -->
+    <text x="760" y="70" class="col" text-anchor="middle">Hermes · tirith 子进程</text>
+    <rect x="680" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="103" class="lbl" text-anchor="middle">terminal_tool 调用</text>
+
+    <line x1="760" y1="116" x2="760" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="680" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="158" class="lbl" text-anchor="middle">spawn tirith Go binary</text>
+    <text x="760" y="174" class="t-s" text-anchor="middle">5s timeout</text>
+    <text x="760" y="188" class="t-s" text-anchor="middle">不在 PATH 后台下载</text>
+
+    <line x1="760" y1="198" x2="760" y2="217" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="680" y="220" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="240" class="lbl" text-anchor="middle">exit code verdict</text>
+    <text x="760" y="256" class="t-s" text-anchor="middle">0 allow · 1 block · 2 warn</text>
+    <text x="760" y="270" class="t-s" text-anchor="middle">JSON stdout 丰富 findings</text>
+
+    <line x1="760" y1="280" x2="760" y2="299" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="680" y="302" width="160" height="48" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="322" class="lbl" text-anchor="middle">fail_open 兜底</text>
+    <text x="760" y="338" class="t-s" text-anchor="middle">spawn 失败 / 超时</text>
+
+    <line x1="760" y1="350" x2="760" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="680" y="372" width="160" height="60" rx="8" fill="#e2e8f0" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="392" class="lbl" text-anchor="middle">供应链校验</text>
+    <text x="760" y="408" class="t-s" text-anchor="middle">SHA-256 + cosign</text>
+    <text x="760" y="422" class="t-s" text-anchor="middle">GitHub Actions signature</text>
+
+    <text x="760" y="455" class="note" text-anchor="middle">没有用户介入选项</text>
+  </g>
+
+  <text x="440" y="490" class="t-s" text-anchor="middle">用户 / 运维 / 安全工具 — 谁说了算？四种回答给四种 agent 形态</text>
+
+  <g>
+    <rect x="40" y="505" width="800" height="80" rx="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1" />
+    <text x="60" y="525" class="lbl">共同点：</text>
+    <text x="60" y="543" class="t-s">· 有"模式"概念，让用户一键切换默认行为（粗粒度）</text>
+    <text x="60" y="559" class="t-s">· 有缓存 / per-session 机制，用户答应过一次的不再问</text>
+    <text x="60" y="575" class="t-s">· 可审操作分类（不同操作走不同 UI / 不同决策路径）</text>
+  </g>
+</svg>

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 620" role="img"
+     aria-label="Hermes 10 层 prompt assembly with cache boundary">
+  <defs>
+    <filter id="wb02"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="221" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar02" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .col  { font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .note { font: italic 10.5px sans-serif; fill: #92400e; }
+      .num  { font: 700 12.5px sans-serif; fill: #fff; }
+    </style>
+  </defs>
+  <text x="380" y="26" class="h" text-anchor="middle">Hermes · 10 层 prompt 装配（含 cache 边界）</text>
+  <text x="380" y="44" class="t-s" text-anchor="middle">layer 1-7 落在 cache 边界之前；timestamp / platform 每次都新，落在边界之后</text>
+
+  <g filter="url(#wb02)">
+    <rect x="80" y="70" width="600" height="34" rx="7" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.5" />
+    <circle cx="108" cy="87" r="13" fill="#0f172a" />
+    <text x="108" y="91" class="num" text-anchor="middle">1</text>
+    <text x="135" y="85" class="lbl">agent identity</text>
+    <text x="135" y="98" class="t-s">SOUL.md / DEFAULT_AGENT_IDENTITY</text>
+    <rect x="80" y="114" width="600" height="34" rx="7" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.5" />
+    <circle cx="108" cy="131" r="13" fill="#0f172a" />
+    <text x="108" y="135" class="num" text-anchor="middle">2</text>
+    <text x="135" y="129" class="lbl">tool-aware behavior</text>
+    <text x="135" y="142" class="t-s">save durable facts via memory tool</text>
+    <rect x="80" y="158" width="600" height="34" rx="7" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.5" />
+    <circle cx="108" cy="175" r="13" fill="#0f172a" />
+    <text x="108" y="179" class="num" text-anchor="middle">3</text>
+    <text x="135" y="173" class="lbl">honcho static block</text>
+    <text x="135" y="186" class="t-s">optional personality data</text>
+    <rect x="80" y="202" width="600" height="34" rx="7" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.5" />
+    <circle cx="108" cy="219" r="13" fill="#0f172a" />
+    <text x="108" y="223" class="num" text-anchor="middle">4</text>
+    <text x="135" y="217" class="lbl">optional system msg</text>
+    <text x="135" y="230" class="t-s">config / API override</text>
+    <rect x="80" y="246" width="600" height="34" rx="7" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.5" />
+    <circle cx="108" cy="263" r="13" fill="#0f172a" />
+    <text x="108" y="267" class="num" text-anchor="middle">5</text>
+    <text x="135" y="261" class="lbl">frozen MEMORY snap</text>
+    <text x="135" y="274" class="t-s">## Persistent Memory ...</text>
+    <rect x="80" y="290" width="600" height="34" rx="7" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.5" />
+    <circle cx="108" cy="307" r="13" fill="#0f172a" />
+    <text x="108" y="311" class="num" text-anchor="middle">6</text>
+    <text x="135" y="305" class="lbl">frozen USER profile</text>
+    <text x="135" y="318" class="t-s">## User Profile / Name: Alice</text>
+    <rect x="80" y="334" width="600" height="34" rx="7" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.5" />
+    <circle cx="108" cy="351" r="13" fill="#0f172a" />
+    <text x="108" y="355" class="num" text-anchor="middle">7</text>
+    <text x="135" y="349" class="lbl">skills index</text>
+    <text x="135" y="362" class="t-s">## Skills (mandatory)</text>
+    <rect x="80" y="378" width="600" height="34" rx="7" fill="#fed7aa" stroke="#0f172a" stroke-width="1.5" />
+    <circle cx="108" cy="395" r="13" fill="#0f172a" />
+    <text x="108" y="399" class="num" text-anchor="middle">8</text>
+    <text x="135" y="393" class="lbl">context files</text>
+    <text x="135" y="406" class="t-s">AGENTS.md / .cursorrules / *.mdc</text>
+    <rect x="80" y="422" width="600" height="34" rx="7" fill="#fed7aa" stroke="#0f172a" stroke-width="1.5" />
+    <circle cx="108" cy="439" r="13" fill="#0f172a" />
+    <text x="108" y="443" class="num" text-anchor="middle">9</text>
+    <text x="135" y="437" class="lbl">timestamp + session</text>
+    <text x="135" y="450" class="t-s">Current time: 2026-03-30T14:30...</text>
+    <rect x="80" y="466" width="600" height="34" rx="7" fill="#fed7aa" stroke="#0f172a" stroke-width="1.5" />
+    <circle cx="108" cy="483" r="13" fill="#0f172a" />
+    <text x="108" y="487" class="num" text-anchor="middle">10</text>
+    <text x="135" y="481" class="lbl">platform hint</text>
+    <text x="135" y="494" class="t-s">You are a CLI AI Agent...</text>
+    <line x1="60" y1="374" x2="700" y2="374" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6 4" />
+    <text x="690" y="369" class="lbl" text-anchor="end" fill="#b91c1c">↑ cached （命中 prefix cache）</text>
+    <text x="690" y="388" class="lbl" text-anchor="end" fill="#b91c1c">↓ ephemeral （每次重算）</text>
+  </g>
+  <text x="380" y="595" class="t-s" text-anchor="middle">改 prompt 不止改文本，还要看「改的是缓存上面还是下面」</text>
+</svg>

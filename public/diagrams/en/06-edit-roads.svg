@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 480" role="img"
+     aria-label="V4A inline DSL vs str_replace tool calls: trade-offs between the two routes">
+  <defs>
+    <filter id="wb06p"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="33" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar06p" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .lane { font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .gate { font: italic 11px sans-serif; fill: #b91c1c; }
+    </style>
+  </defs>
+
+  <text x="410" y="26" class="h" text-anchor="middle">Trade-offs between the two routes</text>
+  <text x="410" y="44" class="t-s" text-anchor="middle">Neither route lets the model edit blindly &#x2014; one uses a parser as gatekeeper, the other uses unique match + mtime</text>
+
+  <text x="30" y="90" class="lane">Codex / Hermes &#x00B7; V4A inline DSL</text>
+
+  <g filter="url(#wb06p)">
+    <rect x="30" y="100" width="180" height="80" rx="10" fill="#fef3c7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="120" y="125" class="lbl" text-anchor="middle">Model emits in one shot</text>
+    <text x="120" y="143" class="t-s" text-anchor="middle">*** Begin Patch</text>
+    <text x="120" y="156" class="t-s" text-anchor="middle">Update / Add / Delete</text>
+    <text x="120" y="169" class="t-s" text-anchor="middle">*** End Patch</text>
+
+    <line x1="210" y1="140" x2="250" y2="140" stroke="#0f172a" stroke-width="2" marker-end="url(#ar06p)" />
+
+    <rect x="250" y="100" width="180" height="80" rx="10" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.8" />
+    <text x="340" y="125" class="lbl" text-anchor="middle">Parser validates once</text>
+    <text x="340" y="143" class="t-s" text-anchor="middle">Lark grammar &#x00B7; 5 markers</text>
+    <text x="340" y="156" class="gate" text-anchor="middle">any failure &#x2192; reject whole patch</text>
+    <text x="340" y="170" class="t-s" text-anchor="middle">seek_sequence locates anchor</text>
+
+    <line x1="430" y1="140" x2="470" y2="140" stroke="#0f172a" stroke-width="2" marker-end="url(#ar06p)" />
+
+    <rect x="470" y="100" width="180" height="80" rx="10" fill="#dcfce7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="560" y="125" class="lbl" text-anchor="middle">One atomic disk write</text>
+    <text x="560" y="143" class="t-s" text-anchor="middle">Update 3 files</text>
+    <text x="560" y="156" class="t-s" text-anchor="middle">Add 1 file</text>
+    <text x="560" y="170" class="t-s" text-anchor="middle">all atomic</text>
+
+    <line x1="650" y1="140" x2="685" y2="140" stroke="#0f172a" stroke-width="2" marker-end="url(#ar06p)" />
+    <rect x="685" y="115" width="115" height="50" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.8" />
+    <text x="742" y="135" class="lbl" text-anchor="middle">rollout archive</text>
+    <text x="742" y="152" class="t-s" text-anchor="middle">replayable</text>
+  </g>
+
+  <line x1="30" y1="220" x2="800" y2="220" stroke="#64748b" stroke-width="1" stroke-dasharray="4 3" />
+
+  <text x="30" y="250" class="lane">Claude Code &#x00B7; str_replace atomic per call</text>
+
+  <g filter="url(#wb06p)">
+    <rect x="30" y="260" width="180" height="80" rx="10" fill="#fef3c7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="120" y="285" class="lbl" text-anchor="middle">tool_use #1</text>
+    <text x="120" y="303" class="t-s" text-anchor="middle">old_string A</text>
+    <text x="120" y="316" class="t-s" text-anchor="middle">new_string B</text>
+    <text x="120" y="330" class="t-s" text-anchor="middle">replace_all? bool</text>
+
+    <line x1="210" y1="300" x2="250" y2="300" stroke="#0f172a" stroke-width="2" marker-end="url(#ar06p)" />
+
+    <rect x="250" y="260" width="180" height="80" rx="10" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.8" />
+    <text x="340" y="285" class="lbl" text-anchor="middle">Tool validates</text>
+    <text x="340" y="303" class="t-s" text-anchor="middle">unique match</text>
+    <text x="340" y="316" class="t-s" text-anchor="middle">mtime unchanged</text>
+    <text x="340" y="330" class="gate" text-anchor="middle">FILE_UNEXPECTEDLY_MODIFIED</text>
+
+    <line x1="430" y1="300" x2="470" y2="300" stroke="#0f172a" stroke-width="2" marker-end="url(#ar06p)" />
+
+    <rect x="470" y="260" width="180" height="80" rx="10" fill="#dcfce7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="560" y="285" class="lbl" text-anchor="middle">Disk write + side effects</text>
+    <text x="560" y="303" class="t-s" text-anchor="middle">LSP diagnostics invalidated</text>
+    <text x="560" y="316" class="t-s" text-anchor="middle">fileHistory tracked</text>
+    <text x="560" y="330" class="t-s" text-anchor="middle">VS Code SDK notified</text>
+
+    <line x1="650" y1="300" x2="685" y2="300" stroke="#0f172a" stroke-width="2" marker-end="url(#ar06p)" />
+    <rect x="685" y="275" width="115" height="50" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.8" />
+    <text x="742" y="295" class="lbl" text-anchor="middle">tool_use #2</text>
+    <text x="742" y="312" class="t-s" text-anchor="middle">repeat N times</text>
+  </g>
+
+  <text x="30" y="400" class="t-s">Key difference: V4A lets the model emit all edits at once and the DSL parser is the gatekeeper; str_replace lets the model change one spot per call, with unique match + mtime as the gatekeeper.</text>
+  <text x="30" y="420" class="t-s">V4A fits large patches + atomic multi-file; str_replace fits reviewer experience + LSP sync. OpenClaw uses generic fs tools, Hermes reuses V4A but as a function arg.</text>
+  <text x="30" y="450" class="t-s">Don't let the model edit files via bash sed/awk &#x2014; without a diff feedback loop, mistakes become invisible.</text>
+</svg>

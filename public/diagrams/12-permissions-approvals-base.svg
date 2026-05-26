@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 580" width="100%" font-family="'Kalam','Comic Neue',sans-serif">
+  <defs>
+    <filter id="r12">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="22" />
+      <feDisplacementMap in="SourceGraphic" scale="1.3" />
+    </filter>
+    <style>
+      .t { font-size: 14px; fill: #0f172a; }
+      .t-sm { font-size: 12px; fill: #0f172a; }
+      .t-sub { font-size: 12px; fill: #334155; }
+      .head { font-size: 18px; fill: #0f172a; font-weight: 700; }
+    </style>
+  </defs>
+
+  <rect width="900" height="580" fill="#fbfaf7" />
+
+  <text x="450" y="34" class="head" text-anchor="middle">权限与审批：枚举化 · IDE 风格 · 27 矩阵 · 子进程 verdict</text>
+  <text x="450" y="54" class="t-sub" text-anchor="middle">5x5x6x5 · 5x3x8 · 3x3x3 · exit code 0/1/2</text>
+
+  <g filter="url(#r12)">
+    <rect x="20" y="68" width="430" height="240" rx="12" fill="#fbfaf7" stroke="#1d4ed8" stroke-width="2.5" />
+    <text x="40" y="92" class="t" fill="#1d4ed8" font-weight="700">Codex · 枚举矩阵</text>
+    <text x="40" y="110" class="t-sub">AskForApproval x Granular x Action x Decision</text>
+
+    <rect x="40" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="130" y="142" class="t" text-anchor="middle">AskForApproval (5)</text>
+    <text x="130" y="158" class="t-sub" text-anchor="middle">UnlessTrusted</text>
+    <text x="130" y="172" class="t-sub" text-anchor="middle">OnRequest (default)</text>
+    <text x="130" y="186" class="t-sub" text-anchor="middle">Granular(cfg)</text>
+    <text x="130" y="200" class="t-sub" text-anchor="middle">Never / OnFailure</text>
+
+    <rect x="240" y="124" width="190" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="335" y="142" class="t" text-anchor="middle">Action (6 类)</text>
+    <text x="335" y="158" class="t-sub" text-anchor="middle">Command / Execve</text>
+    <text x="335" y="172" class="t-sub" text-anchor="middle">ApplyPatch / Network</text>
+    <text x="335" y="186" class="t-sub" text-anchor="middle">McpToolCall</text>
+    <text x="335" y="200" class="t-sub" text-anchor="middle">RequestPermissions</text>
+
+    <rect x="40" y="216" width="390" height="80" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="235" y="234" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">default_available_decisions(ctx)</text>
+    <text x="235" y="252" class="t-sub" text-anchor="middle">按上下文推断弹窗按钮</text>
+    <text x="235" y="266" class="t-sub" text-anchor="middle">network 请求 → 4 按钮</text>
+    <text x="235" y="280" class="t-sub" text-anchor="middle">纯命令 → Approved + Abort</text>
+
+    <rect x="470" y="68" width="410" height="240" rx="12" fill="#fbfaf7" stroke="#6d28d9" stroke-width="2.5" />
+    <text x="490" y="92" class="t" fill="#6d28d9" font-weight="700">Claude Code · IDE 风格</text>
+    <text x="490" y="110" class="t-sub">5 Mode x 3 Behavior x 8 Source</text>
+
+    <rect x="490" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="580" y="142" class="t" text-anchor="middle">PermissionMode (5)</text>
+    <text x="580" y="158" class="t-sub" text-anchor="middle">default</text>
+    <text x="580" y="172" class="t-sub" text-anchor="middle">acceptEdits</text>
+    <text x="580" y="186" class="t-sub" text-anchor="middle">bypassPermissions</text>
+    <text x="580" y="200" class="t-sub" text-anchor="middle">dontAsk / plan</text>
+
+    <rect x="690" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="780" y="142" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">8 Source 叠加</text>
+    <text x="780" y="158" class="t-sub" text-anchor="middle">user / project / local</text>
+    <text x="780" y="172" class="t-sub" text-anchor="middle">flag / policy / cliArg</text>
+    <text x="780" y="186" class="t-sub" text-anchor="middle">command / session</text>
+    <text x="780" y="200" class="t-sub" text-anchor="middle">IDE 配置层级</text>
+
+    <rect x="490" y="216" width="380" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="680" y="234" class="t" text-anchor="middle">PermissionRule</text>
+    <text x="680" y="250" class="t-sub" text-anchor="middle">source + behavior + ruleValue</text>
+    <text x="680" y="264" class="t-sub" text-anchor="middle">{ toolName, ruleContent? }</text>
+    <text x="680" y="278" class="t-sub" text-anchor="middle">"Bash(git diff)" 准 / "Bash(rm)" 禁</text>
+
+    <rect x="20" y="320" width="430" height="240" rx="12" fill="#fbfaf7" stroke="#15803d" stroke-width="2.5" />
+    <text x="40" y="344" class="t" fill="#15803d" font-weight="700">OpenClaw · 27 矩阵</text>
+    <text x="40" y="362" class="t-sub">ExecHost x ExecSecurity x ExecAsk</text>
+
+    <rect x="40" y="376" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="130" y="394" class="t" text-anchor="middle">ExecHost (3)</text>
+    <text x="130" y="410" class="t-sub" text-anchor="middle">sandbox</text>
+    <text x="130" y="424" class="t-sub" text-anchor="middle">gateway</text>
+    <text x="130" y="438" class="t-sub" text-anchor="middle">node</text>
+
+    <rect x="240" y="376" width="90" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="285" y="394" class="t" text-anchor="middle">Security (3)</text>
+    <text x="285" y="410" class="t-sub" text-anchor="middle">deny</text>
+    <text x="285" y="424" class="t-sub" text-anchor="middle">allowlist</text>
+    <text x="285" y="438" class="t-sub" text-anchor="middle">full</text>
+
+    <rect x="340" y="376" width="90" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="385" y="394" class="t" text-anchor="middle">Ask (3)</text>
+    <text x="385" y="410" class="t-sub" text-anchor="middle">off</text>
+    <text x="385" y="424" class="t-sub" text-anchor="middle">on-miss</text>
+    <text x="385" y="438" class="t-sub" text-anchor="middle">always</text>
+
+    <rect x="40" y="468" width="390" height="80" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="235" y="486" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">5-tuple binding</text>
+    <text x="235" y="504" class="t-sub" text-anchor="middle">argv + cwd + agentId + sessionKey + envHash</text>
+    <text x="235" y="518" class="t-sub" text-anchor="middle">envHash 防 env-swap 攻击</text>
+    <text x="235" y="532" class="t-sub" text-anchor="middle">cache hit / miss</text>
+
+    <rect x="470" y="320" width="410" height="240" rx="12" fill="#fbfaf7" stroke="#ea580c" stroke-width="2.5" />
+    <text x="490" y="344" class="t" fill="#ea580c" font-weight="700">Hermes · exit-code verdict</text>
+    <text x="490" y="362" class="t-sub">tirith 子进程 + 0/1/2</text>
+
+    <rect x="490" y="376" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="580" y="394" class="t" text-anchor="middle">tirith binary</text>
+    <text x="580" y="410" class="t-sub" text-anchor="middle">5s timeout</text>
+    <text x="580" y="424" class="t-sub" text-anchor="middle">exit 0 = allow</text>
+    <text x="580" y="438" class="t-sub" text-anchor="middle">exit 1 = block</text>
+    <text x="580" y="452" class="t-sub" text-anchor="middle">exit 2 = warn</text>
+
+    <rect x="690" y="376" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="780" y="394" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">fail_open 兑底</text>
+    <text x="780" y="410" class="t-sub" text-anchor="middle">spawn error / timeout</text>
+    <text x="780" y="424" class="t-sub" text-anchor="middle">dev: fail_open=true</text>
+    <text x="780" y="438" class="t-sub" text-anchor="middle">prod: fail_open=false</text>
+    <text x="780" y="452" class="t-sub" text-anchor="middle">JSON 只丰富 findings</text>
+
+    <rect x="490" y="468" width="380" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="680" y="486" class="t" text-anchor="middle">供应链安全</text>
+    <text x="680" y="504" class="t-sub" text-anchor="middle">GitHub releases 自动下载</text>
+    <text x="680" y="518" class="t-sub" text-anchor="middle">SHA-256 必验</text>
+    <text x="680" y="532" class="t-sub" text-anchor="middle">cosign provenance 可选</text>
+  </g>
+</svg>

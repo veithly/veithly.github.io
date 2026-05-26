@@ -1,0 +1,315 @@
+---
+/**
+ * <ScoreCard /> 支持两种 schema:
+ *  A. rows=[{system, value, reason, risk}]                     («价值/理由/风险» 三栏)
+ *  B. systems=[{name, scores: {[dimension]: 1..5}}], caption?  («多维度评分矩阵 1..5»)
+ */
+interface RowA {
+  system: string;
+  value: string;
+  reason: string;
+  risk: string;
+}
+interface RowScore {
+  name: string;
+  score: number;
+  badge: string;
+  notes: string;
+}
+interface SystemScore {
+  name: string;
+  scores: Record<string, number>;
+}
+interface Props {
+  rows?: Array<RowA | RowScore>;
+  systems?: SystemScore[];
+  caption?: string;
+  headers?: [string, string, string, string];
+}
+const {
+  rows,
+  systems,
+  caption,
+  headers,
+} = Astro.props;
+
+const isEnglish = Astro.url.pathname.startsWith('/en/');
+const valueHeaders = headers ?? (isEnglish ? ['System', 'Value', 'Reason', 'Risk'] : ['系统', '价值', '理由', '风险']);
+const scoreHeaders = headers ?? (isEnglish ? ['System', 'Score', 'Label', 'Notes'] : ['系统', '评分', '标签', '说明']);
+const isScoreRows = (items: Array<RowA | RowScore> | undefined): items is RowScore[] =>
+  Array.isArray(items) && items.length > 0 && 'score' in items[0];
+const isValueRows = (items: Array<RowA | RowScore> | undefined): items is RowA[] =>
+  Array.isArray(items) && items.length > 0 && 'value' in items[0];
+
+const mode: 'value-reason-risk' | 'score-notes' | 'multi-dim' =
+  systems && systems.length > 0 ? 'multi-dim' : isScoreRows(rows) ? 'score-notes' : 'value-reason-risk';
+
+// build dimension list for multi-dim mode (preserve first-seen order)
+const dimensionList: string[] = [];
+if (mode === 'multi-dim' && systems) {
+  for (const s of systems) {
+    for (const k of Object.keys(s.scores)) {
+      if (!dimensionList.includes(k)) dimensionList.push(k);
+    }
+  }
+}
+
+const dotFor = (n: number) => '●'.repeat(Math.max(0, Math.min(5, n))) + '○'.repeat(5 - Math.max(0, Math.min(5, n)));
+const scoreWidth = (n: number) => `${Math.max(0, Math.min(10, n)) * 10}%`;
+---
+
+{mode === 'value-reason-risk' && isValueRows(rows) && (
+  <figure class="aap-scorecard aap-scorecard--value-reason-risk">
+    <table>
+      <colgroup>
+        <col class="aap-scorecard__col-system" />
+        <col class="aap-scorecard__col-value" />
+        <col class="aap-scorecard__col-reason" />
+        <col class="aap-scorecard__col-risk" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>{valueHeaders[0]}</th>
+          <th>{valueHeaders[1]}</th>
+          <th>{valueHeaders[2]}</th>
+          <th>{valueHeaders[3]}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => (
+          <tr>
+            <th scope="row">{r.system}</th>
+            <td><span class="aap-scorecard__value">{r.value}</span></td>
+            <td>{r.reason}</td>
+            <td class="aap-scorecard__risk">{r.risk}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    {caption && <figcaption>{caption}</figcaption>}
+  </figure>
+)}
+
+{mode === 'score-notes' && isScoreRows(rows) && (
+  <figure class="aap-scorecard aap-scorecard--score-notes">
+    <table>
+      <colgroup>
+        <col class="aap-scorecard__col-system" />
+        <col class="aap-scorecard__col-score" />
+        <col class="aap-scorecard__col-badge" />
+        <col class="aap-scorecard__col-notes" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>{scoreHeaders[0]}</th>
+          <th>{scoreHeaders[1]}</th>
+          <th>{scoreHeaders[2]}</th>
+          <th>{scoreHeaders[3]}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => (
+          <tr>
+            <th scope="row">{r.name}</th>
+            <td>
+              <span class="aap-scorecard__score" aria-label={`${r.score} / 10`}>
+                <span class="aap-scorecard__score-track" aria-hidden="true">
+                  <span class="aap-scorecard__score-fill" style={`width: ${scoreWidth(r.score)}`}></span>
+                </span>
+                <span class="aap-scorecard__score-label">{r.score}/10</span>
+              </span>
+            </td>
+            <td><span class="aap-scorecard__badge">{r.badge}</span></td>
+            <td>{r.notes}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    {caption && <figcaption>{caption}</figcaption>}
+  </figure>
+)}
+
+{mode === 'multi-dim' && systems && (
+  <figure class="aap-scorecard aap-scorecard--multi-dim">
+    <table>
+      <thead>
+        <tr>
+          <th>{valueHeaders[0]}</th>
+          {dimensionList.map((d) => <th>{d}</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {systems.map((s) => (
+          <tr>
+            <th scope="row">{s.name}</th>
+            {dimensionList.map((d) => {
+              const v = s.scores[d];
+              return (
+                <td>
+                  <span class="aap-scorecard__dots" title={`${d}: ${v ?? '-'} / 5`}>
+                    {typeof v === 'number' ? dotFor(v) : '-'}
+                  </span>
+                  <span class="aap-scorecard__num">{typeof v === 'number' ? ` ${v}` : ''}</span>
+                </td>
+              );
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    {caption && <figcaption>{caption}</figcaption>}
+  </figure>
+)}
+
+<style>
+  .aap-scorecard {
+    margin: var(--aap-sp-6) 0;
+    border: 1px solid var(--aap-paper-line);
+    border-top: 3px solid var(--aap-color-judgment);
+    border-radius: var(--aap-radius-md);
+    background: var(--aap-paper);
+    box-shadow: var(--aap-shadow-soft);
+    /* allow the inner table to scroll horizontally if the viewport is narrow */
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+  .aap-scorecard::-webkit-scrollbar { height: 6px; }
+  .aap-scorecard::-webkit-scrollbar-thumb {
+    background: var(--aap-paper-line);
+    border-radius: 3px;
+  }
+  .aap-scorecard::-webkit-scrollbar-thumb:hover {
+    background: var(--aap-ink-muted);
+  }
+  .aap-scorecard table {
+    display: table;
+    width: 100%;
+    max-width: none;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: var(--aap-fs-sm);
+  }
+  .aap-scorecard--value-reason-risk table {
+    min-width: 52rem;
+    table-layout: fixed;
+  }
+  .aap-scorecard--score-notes table {
+    min-width: 54rem;
+    table-layout: fixed;
+  }
+  .aap-scorecard--multi-dim table {
+    min-width: 36rem; /* ensures the multi-dim score table stays readable on phones */
+    table-layout: auto;
+  }
+  .aap-scorecard__col-system { width: 12rem; }
+  .aap-scorecard__col-value { width: 9rem; }
+  .aap-scorecard__col-reason { width: 44%; }
+  .aap-scorecard__col-risk { width: 28%; }
+  .aap-scorecard__col-score { width: 10rem; }
+  .aap-scorecard__col-badge { width: 13rem; }
+  .aap-scorecard__col-notes { width: auto; }
+  .aap-scorecard thead {
+    display: table-header-group;
+  }
+  .aap-scorecard tbody {
+    display: table-row-group;
+  }
+  .aap-scorecard tr {
+    display: table-row;
+  }
+  .aap-scorecard th,
+  .aap-scorecard td {
+    padding: var(--aap-sp-3) var(--aap-sp-4);
+    text-align: left;
+    border-bottom: 1px solid var(--aap-paper-line);
+    vertical-align: top;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.65;
+  }
+  .aap-scorecard tbody tr:last-child th,
+  .aap-scorecard tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .aap-scorecard thead th {
+    background: var(--aap-paper-soft);
+    font-family: var(--aap-font-body);
+    font-weight: 600;
+    font-size: var(--aap-fs-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--aap-color-judgment);
+  }
+  .aap-scorecard tbody th {
+    font-family: var(--aap-font-display);
+    font-weight: 600;
+    color: var(--aap-ink);
+    letter-spacing: -0.005em;
+  }
+  .aap-scorecard :where(code, a) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .aap-scorecard__value {
+    font-weight: 700;
+    color: var(--aap-color-judgment);
+    font-family: var(--aap-font-display);
+  }
+  .aap-scorecard__risk {
+    color: var(--aap-color-risk);
+    font-size: var(--aap-fs-xs);
+    line-height: 1.65;
+  }
+  .aap-scorecard__score {
+    display: grid;
+    gap: var(--aap-sp-2);
+    min-width: 0;
+  }
+  .aap-scorecard__score-track {
+    display: block;
+    height: 0.45rem;
+    border-radius: 999px;
+    background: var(--aap-paper-strong);
+    overflow: hidden;
+  }
+  .aap-scorecard__score-fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--aap-color-judgment);
+  }
+  .aap-scorecard__score-label {
+    font-family: var(--aap-font-mono);
+    font-size: var(--aap-fs-xs);
+    color: var(--aap-ink-soft);
+  }
+  .aap-scorecard__badge {
+    display: inline-block;
+    max-width: 100%;
+    color: var(--aap-color-judgment);
+    font-weight: 700;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .aap-scorecard__dots {
+    font-family: var(--aap-font-mono);
+    letter-spacing: 1px;
+    color: var(--aap-color-judgment);
+  }
+  .aap-scorecard__num {
+    font-size: var(--aap-fs-xs);
+    color: var(--aap-ink-muted);
+    font-family: var(--aap-font-mono);
+  }
+  .aap-scorecard figcaption {
+    padding: var(--aap-sp-3) var(--aap-sp-4);
+    font-size: var(--aap-fs-xs);
+    color: var(--aap-ink-muted);
+    font-style: italic;
+    border-top: 1px solid var(--aap-paper-line);
+  }
+</style>

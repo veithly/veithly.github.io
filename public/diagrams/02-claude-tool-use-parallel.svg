@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 460" role="img"
+     aria-label="Claude Code tool_use block 并行 dispatch">
+  <defs>
+    <filter id="wb02"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="221" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar02" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .col  { font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .note { font: italic 10.5px sans-serif; fill: #92400e; }
+      .num  { font: 700 12.5px sans-serif; fill: #fff; }
+    </style>
+  </defs>
+  <text x="390" y="26" class="h" text-anchor="middle">Claude Code · tool_use block 并行 dispatch</text>
+  <text x="390" y="44" class="t-s" text-anchor="middle">stop_reason='tool_use' 不可信，代码自己数 block</text>
+
+  <g filter="url(#wb02)">
+    <rect x="260" y="70" width="260" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="390" y="93" class="lbl" text-anchor="middle">assistant message</text>
+
+    <line x1="390" y1="106" x2="390" y2="125" stroke="#0f172a" stroke-width="2" marker-end="url(#ar02)" />
+
+    <rect x="60" y="128" width="240" height="40" rx="6" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.5" />
+    <text x="180" y="153" class="t" text-anchor="middle">text block: "I'll edit foo.ts..."</text>
+
+    <rect x="320" y="128" width="200" height="40" rx="6" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.5" />
+    <text x="420" y="153" class="t" text-anchor="middle">tool_use [Edit foo.ts]</text>
+
+    <rect x="540" y="128" width="200" height="40" rx="6" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.5" />
+    <text x="640" y="153" class="t" text-anchor="middle">tool_use [Bash run tests]</text>
+
+    <rect x="320" y="178" width="200" height="40" rx="6" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.5" />
+    <text x="420" y="203" class="t" text-anchor="middle">tool_use [Read bar.ts]</text>
+
+    <line x1="420" y1="168" x2="420" y2="240" stroke="#0f172a" stroke-width="2" stroke-dasharray="3 3" />
+    <line x1="640" y1="168" x2="640" y2="240" stroke="#0f172a" stroke-width="2" stroke-dasharray="3 3" />
+    <line x1="420" y1="218" x2="420" y2="240" stroke="#0f172a" stroke-width="2" stroke-dasharray="3 3" />
+
+    <rect x="240" y="245" width="300" height="44" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="390" y="265" class="lbl" text-anchor="middle">dispatchToolUseBlocks 并行执行</text>
+    <text x="390" y="281" class="t-s" text-anchor="middle">canUseTool hook 单工具门控</text>
+
+    <line x1="390" y1="289" x2="390" y2="308" stroke="#0f172a" stroke-width="2" marker-end="url(#ar02)" />
+
+    <rect x="240" y="311" width="300" height="40" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="390" y="336" class="t" text-anchor="middle">每个 tool_use → 一个 tool_result</text>
+
+    <line x1="390" y1="351" x2="390" y2="370" stroke="#0f172a" stroke-width="2" marker-end="url(#ar02)" />
+
+    <rect x="240" y="373" width="300" height="44" rx="8" fill="#fde68a" stroke="#0f172a" stroke-width="1.6" />
+    <text x="390" y="393" class="lbl" text-anchor="middle">组合成下一轮 user message</text>
+    <text x="390" y="409" class="t-s" text-anchor="middle">queryLoop 数 tool_use=0 → 退出</text>
+  </g>
+</svg>

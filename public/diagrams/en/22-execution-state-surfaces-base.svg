@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 560" role="img" aria-labelledby="title desc">
+  <title id="title">Execution state surfaces in an agent harness</title>
+  <desc id="desc">Plan, todo, tool progress, task progress, MCP progress, terminal status, and away summary as separate execution state surfaces.</desc>
+  <defs>
+    <style>
+      .bg { fill: #fbfaf7; }
+      .panel { fill: #ffffff; stroke: #d8d1c3; stroke-width: 2; }
+      .plan { fill: #dbeafe; stroke: #1d4ed8; }
+      .todo { fill: #ede9fe; stroke: #6d28d9; }
+      .tool { fill: #dcfce7; stroke: #15803d; }
+      .task { fill: #ffedd5; stroke: #ea580c; }
+      .status { fill: #f1f5f9; stroke: #475569; }
+      .title { font: 700 24px Inter, Arial, sans-serif; fill: #0f172a; }
+      .head { font: 700 17px Inter, Arial, sans-serif; fill: #0f172a; }
+      .text { font: 500 13px Inter, Arial, sans-serif; fill: #475569; }
+      .code { font: 600 12px "JetBrains Mono", Consolas, monospace; fill: #1f2933; }
+      .arrow { stroke: #64748b; stroke-width: 2.5; fill: none; marker-end: url(#arrow); }
+      .dash { stroke-dasharray: 7 6; }
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#64748b" />
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1180" height="560" />
+  <text class="title" x="48" y="48">Execution state is not one surface</text>
+  <text class="text" x="48" y="76">A reliable harness keeps proposal, current work, runtime facts, background tasks, and resume hints separate.</text>
+
+  <g transform="translate(48 118)">
+    <rect class="panel plan" width="196" height="128" rx="12" />
+    <text class="head" x="18" y="34">Approval plan</text>
+    <text class="code" x="18" y="62">PlanDelta</text>
+    <text class="text" x="18" y="88">Before execution</text>
+    <text class="text" x="18" y="110">Needs user consent</text>
+  </g>
+
+  <g transform="translate(286 118)">
+    <rect class="panel todo" width="196" height="128" rx="12" />
+    <text class="head" x="18" y="34">Execution todo</text>
+    <text class="code" x="18" y="62">update_plan / TodoWrite</text>
+    <text class="text" x="18" y="88">Current focus</text>
+    <text class="text" x="18" y="110">One active item</text>
+  </g>
+
+  <g transform="translate(524 118)">
+    <rect class="panel tool" width="196" height="128" rx="12" />
+    <text class="head" x="18" y="34">Tool progress</text>
+    <text class="code" x="18" y="62">tool_progress</text>
+    <text class="text" x="18" y="88">Facts from tools</text>
+    <text class="text" x="18" y="110">Start / update / done</text>
+  </g>
+
+  <g transform="translate(762 118)">
+    <rect class="panel task" width="196" height="128" rx="12" />
+    <text class="head" x="18" y="34">Task progress</text>
+    <text class="code" x="18" y="62">task_started</text>
+    <text class="text" x="18" y="88">Background work</text>
+    <text class="text" x="18" y="110">Owner / child agent</text>
+  </g>
+
+  <g transform="translate(1000 118)">
+    <rect class="panel status" width="132" height="128" rx="12" />
+    <text class="head" x="18" y="34">Status</text>
+    <text class="code" x="18" y="62">OSC 9;4</text>
+    <text class="text" x="18" y="88">Terminal</text>
+    <text class="text" x="18" y="110">Title bar</text>
+  </g>
+
+  <path class="arrow" d="M244 182 H274" />
+  <path class="arrow" d="M482 182 H512" />
+  <path class="arrow" d="M720 182 H750" />
+  <path class="arrow" d="M958 182 H988" />
+
+  <g transform="translate(72 318)">
+    <rect class="panel" width="1036" height="154" rx="16" />
+    <text class="head" x="26" y="38">Projection policy</text>
+    <text class="text" x="26" y="68">Each surface chooses its own audience: model context, user chat, TUI, IDE, operator stream, log, or resume card.</text>
+    <g transform="translate(26 96)">
+      <rect class="plan" x="0" y="0" width="164" height="38" rx="8" />
+      <text class="code" x="16" y="24">proposal only</text>
+      <rect class="todo" x="186" y="0" width="164" height="38" rx="8" />
+      <text class="code" x="202" y="24">model context</text>
+      <rect class="tool" x="372" y="0" width="164" height="38" rx="8" />
+      <text class="code" x="388" y="24">operator stream</text>
+      <rect class="task" x="558" y="0" width="164" height="38" rx="8" />
+      <text class="code" x="574" y="24">background lane</text>
+      <rect class="status" x="744" y="0" width="224" height="38" rx="8" />
+      <text class="code" x="760" y="24">terminal / away summary</text>
+    </g>
+  </g>
+
+  <path class="arrow dash" d="M384 246 C384 286, 460 300, 590 318" />
+  <path class="arrow dash" d="M622 246 C622 286, 620 300, 590 318" />
+  <path class="arrow dash" d="M860 246 C860 286, 720 300, 590 318" />
+</svg>

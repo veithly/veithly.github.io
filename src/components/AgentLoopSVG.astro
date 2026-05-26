@@ -1,0 +1,138 @@
+---
+/**
+ * <AgentLoopSVG nodes={['Observe','Plan','Act','Verify']} duration={6} />
+ * 手绘风 Agent 循环动画：节点 + 动点沿闭环移动。
+ * 用 SVG filter feTurbulence 实现"抖动 / 手绘"质感，无 JS 水合。
+ */
+interface Props {
+  nodes?: string[];
+  duration?: number; // seconds
+  caption?: string;
+}
+const {
+  nodes = ['Observe', 'Plan', 'Act', 'Verify'],
+  duration = 6,
+  caption,
+} = Astro.props;
+
+const W = 760;
+const H = 220;
+const NODE_W = 130;
+const NODE_H = 56;
+const Y_CENTER = 100;
+const GAP = (W - nodes.length * NODE_W) / (nodes.length + 1);
+
+const positions = nodes.map((_, i) => ({
+  x: GAP + i * (NODE_W + GAP),
+  cx: GAP + i * (NODE_W + GAP) + NODE_W / 2,
+  cy: Y_CENTER + NODE_H / 2,
+}));
+
+// build path: linear through nodes, then curve back from last to first
+const start = positions[0];
+const last = positions[positions.length - 1];
+const linear = positions
+  .map((p, i) => (i === 0 ? `M ${p.cx} ${p.cy}` : `L ${p.cx} ${p.cy}`))
+  .join(' ');
+const loopBack = `C ${last.cx + 60} ${last.cy + 80}, ${start.cx - 60} ${start.cy + 80}, ${start.cx} ${start.cy}`;
+const motionPath = `${linear} ${loopBack}`;
+---
+
+<figure class="aap-loop">
+  <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Agent loop animation">
+    <defs>
+      <filter id="aap-wobble">
+        <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="3" />
+        <feDisplacementMap in="SourceGraphic" scale="2" />
+      </filter>
+      <marker id="aap-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L9,3 z" fill="currentColor" />
+      </marker>
+    </defs>
+
+    <g filter="url(#aap-wobble)" class="aap-loop__filtered">
+      {/* nodes */}
+      {positions.map((p, i) => (
+        <g>
+          <rect
+            x={p.x}
+            y={Y_CENTER}
+            width={NODE_W}
+            height={NODE_H}
+            rx={8}
+            fill="var(--aap-paper, #fdf6e3)"
+            stroke="currentColor"
+            stroke-width={2}
+          />
+          <text
+            x={p.cx}
+            y={Y_CENTER + NODE_H / 2 + 5}
+            text-anchor="middle"
+            font-size={16}
+            font-family="var(--aap-font-hand, system-ui)"
+            fill="currentColor"
+          >
+            {nodes[i]}
+          </text>
+        </g>
+      ))}
+
+      {/* arrows between nodes */}
+      {positions.slice(0, -1).map((p, i) => (
+        <line
+          x1={p.x + NODE_W}
+          y1={p.cy}
+          x2={positions[i + 1].x}
+          y2={positions[i + 1].cy}
+          stroke="currentColor"
+          stroke-width={2}
+          marker-end="url(#aap-arrow)"
+        />
+      ))}
+
+      {/* loop back curve */}
+      <path
+        d={`M ${last.cx} ${last.cy + NODE_H / 2} C ${last.cx} ${last.cy + 100}, ${start.cx} ${start.cy + 100}, ${start.cx} ${start.cy + NODE_H / 2}`}
+        fill="none"
+        stroke="currentColor"
+        stroke-width={2}
+        stroke-dasharray="6 4"
+        marker-end="url(#aap-arrow)"
+      />
+    </g>
+
+    {/* moving dot (not filtered, stays crisp) */}
+    <circle r={8} fill="var(--aap-color-tradeoff, #f97316)">
+      <animateMotion dur={`${duration}s`} repeatCount="indefinite" path={motionPath} />
+    </circle>
+  </svg>
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+  .aap-loop {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    background: var(--aap-paper);
+    border: 1.5px solid var(--aap-ink);
+    border-radius: 8px;
+    box-shadow: 3px 3px 0 0 var(--aap-ink);
+    color: var(--aap-ink);
+  }
+  .aap-loop svg {
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+    height: auto;
+  }
+  .aap-loop figcaption {
+    margin-top: 0.5rem;
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--sl-color-gray-3, #666);
+    font-family: var(--aap-font-hand, inherit);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .aap-loop animateMotion { display: none; }
+  }
+</style>

@@ -1,0 +1,449 @@
+/**
+ * Agent Harness 架构设计 — Editorial × Hand-drawn surfaces
+ *
+ * 设计原则：
+ *   - 标题 = Playfair Display (Editorial serif，营造高级感)
+ *   - 正文 = Inter (Swiss grid friendly，高可读性)
+ *   - hand-drawn 元素只保留在 SVG diagrams 内（图是签名，UI 是外壳）
+ *   - 卡片用 soft shadow + thin border（比纯手绘 box 更精致）
+ */
+
+/* ==============================================================
+ * 1. PAGE FRAME — paper + reading rhythm
+ * ============================================================== */
+body {
+  font-family: var(--aap-font-body);
+  font-feature-settings: 'cv11', 'ss01', 'ss03';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--aap-paper);
+  color: var(--aap-ink);
+}
+
+.sl-markdown-content {
+  font-size: var(--aap-fs-base);
+  line-height: 1.75;
+  letter-spacing: -0.005em;
+  color: var(--aap-ink);
+}
+
+.sl-markdown-content p,
+.sl-markdown-content li {
+  color: var(--aap-ink);
+}
+
+/* ==============================================================
+ * 2. EDITORIAL TYPOGRAPHY
+ * ============================================================== */
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+.sl-markdown-content h4,
+.sl-markdown-content > h1,
+.sl-markdown-content > h2,
+.sl-markdown-content > h3,
+.content-panel h1,
+.content-panel h2 {
+  font-family: var(--aap-font-display);
+  letter-spacing: -0.015em;
+  color: var(--aap-ink);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.sl-markdown-content h1 { font-size: var(--aap-fs-3xl); margin-top: 0; margin-bottom: var(--aap-sp-6); }
+.sl-markdown-content h2 { font-size: var(--aap-fs-2xl); margin-top: var(--aap-sp-12); margin-bottom: var(--aap-sp-4); position: relative; padding-bottom: var(--aap-sp-3); border-bottom: 1px solid var(--aap-paper-line); }
+.sl-markdown-content h2::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 64px;
+  height: 2px;
+  background: var(--aap-color-tradeoff);
+}
+.sl-markdown-content h3 { font-size: var(--aap-fs-xl); margin-top: var(--aap-sp-8); margin-bottom: var(--aap-sp-3); font-weight: 600; }
+.sl-markdown-content h4 { font-size: var(--aap-fs-lg); margin-top: var(--aap-sp-6); margin-bottom: var(--aap-sp-2); font-weight: 600; color: var(--aap-ink-soft); font-family: var(--aap-font-body); letter-spacing: 0; }
+
+/* drop cap / chapter opening feel on h1 not always — kept subtle */
+.hero h1,
+header h1 {
+  font-family: var(--aap-font-display);
+  letter-spacing: -0.02em;
+  font-weight: 800;
+}
+
+/* small caps for section numbers like §1, §2 */
+.sl-markdown-content h2 code:first-child {
+  font-family: var(--aap-font-mono);
+  font-size: 0.6em;
+  vertical-align: middle;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--aap-color-tradeoff);
+  letter-spacing: 0.1em;
+  font-weight: 500;
+}
+
+/* ==============================================================
+ * 3. CODE — refined editorial monospace
+ * ============================================================== */
+.sl-markdown-content pre,
+.expressive-code pre {
+  border: 1px solid var(--aap-paper-line) !important;
+  border-radius: var(--aap-radius-md) !important;
+  box-shadow: var(--aap-shadow-soft) !important;
+  font-size: 0.9em;
+  font-family: var(--aap-font-mono);
+}
+
+.sl-markdown-content :not(pre) > code {
+  background: var(--aap-paper-strong);
+  border: 0;
+  padding: 0.1em 0.45em;
+  border-radius: var(--aap-radius-sm);
+  font-size: 0.875em;
+  font-family: var(--aap-font-mono);
+  color: var(--aap-ink);
+  font-weight: 500;
+}
+
+/* ==============================================================
+ * 4. BLOCKQUOTE — editorial pull-quote
+ * ============================================================== */
+.sl-markdown-content blockquote {
+  background: var(--aap-paper-soft);
+  border-left: 3px solid var(--aap-color-tradeoff);
+  border-radius: 0 var(--aap-radius-md) var(--aap-radius-md) 0;
+  padding: var(--aap-sp-3) var(--aap-sp-6);
+  box-shadow: none;
+  margin: var(--aap-sp-6) 0;
+  font-style: italic;
+  color: var(--aap-ink-soft);
+}
+
+.sl-markdown-content blockquote p {
+  margin: var(--aap-sp-2) 0;
+}
+
+/* ==============================================================
+ * 5. TABLES — clean editorial grid
+ * Wider-than-column tables fall back to horizontal scroll on narrow
+ * viewports rather than overflowing the page. We use `display: block`
+ * + `max-content` so each cell keeps its preferred width and the table
+ * pans horizontally when the column can't hold it.
+ * ============================================================== */
+.sl-markdown-content > table {
+  border: 1px solid var(--aap-paper-line);
+  border-radius: var(--aap-radius-md);
+  box-shadow: var(--aap-shadow-soft);
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--aap-fs-sm);
+  width: 100%;
+  max-width: 100%;
+
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.sl-markdown-content > table::-webkit-scrollbar { height: 6px; }
+.sl-markdown-content > table::-webkit-scrollbar-thumb {
+  background: var(--aap-paper-line);
+  border-radius: 3px;
+}
+.sl-markdown-content > table::-webkit-scrollbar-thumb:hover {
+  background: var(--aap-ink-muted);
+}
+
+/* keep proper layout inside the (now scrollable) block table */
+.sl-markdown-content > table thead,
+.sl-markdown-content > table tbody,
+.sl-markdown-content > table tr {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+
+@media (max-width: 720px) {
+  /* on phones, drop fixed table-layout so the cells size to content
+     and the user can scroll horizontally to read long rows */
+  .sl-markdown-content > table thead,
+  .sl-markdown-content > table tbody,
+  .sl-markdown-content > table tr {
+    width: max-content;
+    min-width: 100%;
+    table-layout: auto;
+  }
+  .sl-markdown-content > table th,
+  .sl-markdown-content > table td {
+    white-space: normal;
+    min-width: 9rem;
+  }
+}
+
+.sl-markdown-content > table thead {
+  background: var(--aap-paper-soft);
+}
+
+.sl-markdown-content > table th {
+  font-family: var(--aap-font-body);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: var(--aap-fs-xs);
+  color: var(--aap-ink-soft);
+  padding: var(--aap-sp-3) var(--aap-sp-4);
+  border-bottom: 1px solid var(--aap-paper-line);
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.sl-markdown-content > table td {
+  padding: var(--aap-sp-3) var(--aap-sp-4);
+  border-bottom: 1px solid var(--aap-paper-line);
+  vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.sl-markdown-content > table :where(code, a) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.sl-markdown-content > table tr:last-child td {
+  border-bottom: 0;
+}
+
+.sl-markdown-content > table tbody tr:hover {
+  background: var(--aap-paper-soft);
+  transition: background 0.15s ease;
+}
+
+/* ==============================================================
+ * 6. HR — subtle editorial divider
+ * ============================================================== */
+.sl-markdown-content hr {
+  border: 0;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--aap-paper-line) 20%,
+    var(--aap-paper-line) 80%,
+    transparent
+  );
+  margin: var(--aap-sp-12) 0;
+}
+
+/* ==============================================================
+ * 7. LINKS — restrained inline elegance
+ * ============================================================== */
+.sl-markdown-content a {
+  color: var(--aap-color-source);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(37, 99, 235, 0.3);
+  transition: text-decoration-color 0.15s ease, color 0.15s ease;
+}
+
+.sl-markdown-content a:hover {
+  text-decoration-color: var(--aap-color-source);
+}
+
+/* ==============================================================
+ * 8. SIDEBAR — refined navigation
+ * ============================================================== */
+.sidebar-content {
+  font-size: var(--aap-fs-sm);
+}
+
+.sidebar-content a {
+  border-radius: var(--aap-radius-sm);
+  padding: var(--aap-sp-1) var(--aap-sp-3);
+  color: var(--aap-ink-soft);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.sidebar-content a:hover {
+  background: var(--aap-paper-strong);
+  color: var(--aap-ink);
+}
+
+.sidebar-content a[aria-current='page'] {
+  background: var(--aap-paper-strong);
+  color: var(--aap-ink);
+  font-weight: 600;
+  border-left: 2px solid var(--aap-color-tradeoff);
+}
+
+/* sidebar group headings */
+.sidebar-content details > summary,
+.sidebar-content .group-label,
+nav.sidebar h2,
+.sidebar h2 {
+  font-family: var(--aap-font-body);
+  font-size: var(--aap-fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--aap-ink-muted);
+  margin-top: var(--aap-sp-6);
+}
+
+/* ==============================================================
+ * 9. HEADER / TOP NAV
+ * ============================================================== */
+.header {
+  background: rgba(251, 250, 247, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--aap-paper-line);
+}
+
+:root[data-theme='dark'] .header {
+  background: rgba(12, 10, 9, 0.85);
+}
+
+.site-title {
+  font-family: var(--aap-font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* ==============================================================
+ * 10. HERO (landing page)
+ * ============================================================== */
+.hero {
+  padding: var(--aap-sp-16) var(--aap-sp-4);
+}
+
+.hero h1 {
+  font-family: var(--aap-font-display);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  line-height: 1.05;
+}
+
+.hero .tagline {
+  font-family: var(--aap-font-body);
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  color: var(--aap-ink-soft);
+  max-width: 60ch;
+  line-height: 1.6;
+}
+
+.hero .actions {
+  margin-top: var(--aap-sp-6);
+  gap: var(--aap-sp-3);
+}
+
+.hero .action {
+  font-family: var(--aap-font-body);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: var(--aap-sp-3) var(--aap-sp-6) !important;
+  border-radius: var(--aap-radius-md) !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hero .action.primary {
+  background: var(--aap-ink) !important;
+  color: var(--aap-paper) !important;
+  border: 0 !important;
+  box-shadow: var(--aap-shadow-card);
+}
+
+.hero .action.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+}
+
+.hero .action.minimal {
+  background: transparent !important;
+  color: var(--aap-ink) !important;
+  border: 1px solid var(--aap-paper-line) !important;
+}
+
+.hero .action.minimal:hover {
+  background: var(--aap-paper-soft) !important;
+  border-color: var(--aap-ink-muted) !important;
+}
+
+/* ==============================================================
+ * 11. CARDS / GRID (Starlight Card / CardGrid)
+ * ============================================================== */
+.card {
+  border: 1px solid var(--aap-paper-line) !important;
+  border-radius: var(--aap-radius-md) !important;
+  background: var(--aap-paper) !important;
+  box-shadow: var(--aap-shadow-soft) !important;
+  padding: var(--aap-sp-6) !important;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--aap-shadow-card) !important;
+  border-color: var(--aap-ink-muted) !important;
+}
+
+.card .icon {
+  color: var(--aap-color-tradeoff);
+}
+
+.card .title,
+.card h2,
+.card h3 {
+  font-family: var(--aap-font-display) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em;
+  color: var(--aap-ink) !important;
+}
+
+/* ==============================================================
+ * 12. FOCUS RING (keyboard a11y, html-tailwind ruleset)
+ * ============================================================== */
+*:focus-visible {
+  outline: 2px solid var(--aap-color-tradeoff);
+  outline-offset: 3px;
+  border-radius: var(--aap-radius-sm);
+}
+
+/* ==============================================================
+ * 13. REDUCED MOTION (Tailwind ruleset)
+ * ============================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .card:hover { transform: none; }
+  .hero .action.primary:hover { transform: none; }
+}
+
+/* ==============================================================
+ * 14. PRINT
+ * ============================================================== */
+@media print {
+  .sidebar,
+  .header,
+  .right-sidebar,
+  .pagination-links { display: none !important; }
+  .sl-markdown-content { max-width: 100%; }
+  .sl-markdown-content a { color: var(--aap-ink); text-decoration: underline; }
+}

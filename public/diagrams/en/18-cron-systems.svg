@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 620" role="img"
+     aria-label="Four cron subsystems side by side">
+  <defs>
+    <filter id="wb18F"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="187" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar18F" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .col  { font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .note { font: italic 10.5px sans-serif; fill: #92400e; }
+    </style>
+  </defs>
+
+  <text x="440" y="24" class="h" text-anchor="middle">Four cron subsystems side by side</text>
+  <text x="440" y="42" class="t-s" text-anchor="middle">cloud-tasks (Codex) &#x00B7; 1s tick + scheduler lock (Claude Code) &#x00B7; at/every/cron + isolated-agent (OpenClaw) &#x00B7; croniter + jobs.json (Hermes)</text>
+
+  <g filter="url(#wb18F)">
+    <text x="120" y="70" class="col" text-anchor="middle">Codex &#x00B7; cloud-tasks</text>
+    <rect x="40" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="103" class="lbl" text-anchor="middle">standalone binary</text>
+
+    <line x1="120" y1="116" x2="120" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="40" y="138" width="160" height="48" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="158" class="lbl" text-anchor="middle">remote TaskSummary</text>
+    <text x="120" y="174" class="t-s" text-anchor="middle">client polls the list</text>
+
+    <line x1="120" y1="186" x2="120" y2="205" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="40" y="208" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="228" class="lbl" text-anchor="middle">EnvironmentRow</text>
+    <text x="120" y="244" class="t-s" text-anchor="middle">pinned env + repo_hints</text>
+    <text x="120" y="258" class="t-s" text-anchor="middle">isolated env per task</text>
+
+    <line x1="120" y1="268" x2="120" y2="287" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="40" y="290" width="160" height="60" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="310" class="lbl" text-anchor="middle">BestOfModalState</text>
+    <text x="120" y="326" class="t-s" text-anchor="middle">N parallel branches</text>
+    <text x="120" y="340" class="t-s" text-anchor="middle">UI picks the best to apply</text>
+
+    <line x1="120" y1="350" x2="120" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="40" y="372" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="392" class="lbl" text-anchor="middle">ApplyResultLevel</text>
+    <text x="120" y="408" class="t-s" text-anchor="middle">Success/Partial/Error</text>
+
+    <text x="120" y="450" class="note" text-anchor="middle">no local cron</text>
+    <text x="120" y="465" class="note" text-anchor="middle">long-running tasks shipped to cloud</text>
+
+    <text x="330" y="70" class="col" text-anchor="middle">Claude Code &#x00B7; cron tool</text>
+    <rect x="250" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="103" class="lbl" text-anchor="middle">CronCreateTool</text>
+
+    <line x1="330" y1="116" x2="330" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="250" y="138" width="160" height="48" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="158" class="lbl" text-anchor="middle">5-field cron expr</text>
+    <text x="330" y="174" class="t-s" text-anchor="middle">local timezone</text>
+
+    <line x1="330" y1="186" x2="330" y2="205" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="250" y="208" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="228" class="lbl" text-anchor="middle">cronScheduler</text>
+    <text x="330" y="244" class="t-s" text-anchor="middle">1s tick + chokidar watch</text>
+    <text x="330" y="258" class="t-s" text-anchor="middle">scheduler lock cross-process</text>
+
+    <line x1="330" y1="268" x2="330" y2="287" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="250" y="290" width="160" height="60" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="310" class="lbl" text-anchor="middle">recurring vs one-shot</text>
+    <text x="330" y="326" class="t-s" text-anchor="middle">durable vs session-only</text>
+    <text x="330" y="340" class="t-s" text-anchor="middle">permanent flag</text>
+
+    <line x1="330" y1="350" x2="330" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="250" y="372" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="392" class="lbl" text-anchor="middle">onFire(prompt)</text>
+    <text x="330" y="408" class="t-s" text-anchor="middle">injects into current session queue</text>
+
+    <text x="330" y="450" class="note" text-anchor="middle">IDE-style cron</text>
+
+    <text x="540" y="70" class="col" text-anchor="middle">OpenClaw &#x00B7; cron subsystem</text>
+    <rect x="460" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="103" class="lbl" text-anchor="middle">cron service</text>
+
+    <line x1="540" y1="116" x2="540" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="460" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="158" class="lbl" text-anchor="middle">CronSchedule 3 modes</text>
+    <text x="540" y="174" class="t-s" text-anchor="middle">at / every / cron</text>
+    <text x="540" y="188" class="t-s" text-anchor="middle">+ tz + staggerMs</text>
+
+    <line x1="540" y1="198" x2="540" y2="217" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="460" y="220" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="240" class="lbl" text-anchor="middle">isolated-agent</text>
+    <text x="540" y="256" class="t-s" text-anchor="middle">dedicated session</text>
+    <text x="540" y="270" class="t-s" text-anchor="middle">skills-snapshot frozen</text>
+
+    <line x1="540" y1="280" x2="540" y2="299" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="460" y="302" width="160" height="60" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="322" class="lbl" text-anchor="middle">failure-alert</text>
+    <text x="540" y="338" class="t-s" text-anchor="middle">after + cooldownMs</text>
+    <text x="540" y="352" class="t-s" text-anchor="middle">separate destination</text>
+
+    <line x1="540" y1="362" x2="540" y2="381" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="460" y="384" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="404" class="lbl" text-anchor="middle">CronDelivery 4 modes</text>
+    <text x="540" y="420" class="t-s" text-anchor="middle">none/announce/webhook</text>
+
+    <text x="540" y="450" class="note" text-anchor="middle">13 regression tests</text>
+    <text x="540" y="465" class="note" text-anchor="middle">textbook quality</text>
+
+    <text x="760" y="70" class="col" text-anchor="middle">Hermes &#x00B7; croniter</text>
+    <rect x="680" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="103" class="lbl" text-anchor="middle">~/.hermes/cron/jobs.json</text>
+
+    <line x1="760" y1="116" x2="760" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="680" y="138" width="160" height="48" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="158" class="lbl" text-anchor="middle">croniter parsing</text>
+    <text x="760" y="174" class="t-s" text-anchor="middle">standard cron syntax</text>
+
+    <line x1="760" y1="186" x2="760" y2="205" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="680" y="208" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="228" class="lbl" text-anchor="middle">scheduler.py</text>
+    <text x="760" y="244" class="t-s" text-anchor="middle">asyncio loop</text>
+    <text x="760" y="258" class="t-s" text-anchor="middle">ONESHOT_GRACE=120s</text>
+
+    <line x1="760" y1="268" x2="760" y2="287" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="680" y="290" width="160" height="60" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="310" class="lbl" text-anchor="middle">_scan_cron_prompt</text>
+    <text x="760" y="326" class="t-s" text-anchor="middle">10 critical threat patterns</text>
+    <text x="760" y="340" class="t-s" text-anchor="middle">+ 10 invisible-unicode</text>
+
+    <line x1="760" y1="350" x2="760" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="680" y="372" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="392" class="lbl" text-anchor="middle">output md to disk</text>
+    <text x="760" y="408" class="t-s" text-anchor="middle">{job_id}/{ts}.md</text>
+
+    <text x="760" y="450" class="note" text-anchor="middle">most restrained</text>
+  </g>
+
+  <text x="440" y="490" class="t-s" text-anchor="middle">"Run the agent when you&#x2019;re not around": four stances for the same job.</text>
+
+  <g>
+    <rect x="40" y="505" width="800" height="95" rx="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1" />
+    <text x="60" y="525" class="lbl">Shared traits:</text>
+    <text x="60" y="543" class="t-s">&#x00B7; All persist schedule definitions (jobs.json / cron table / cloud-tasks table).</text>
+    <text x="60" y="559" class="t-s">&#x00B7; All need a trigger loop (1s tick / asyncio / backend push).</text>
+    <text x="60" y="575" class="t-s">&#x00B7; Failures need backoff (OpenClaw is most explicit: consecutiveErrors + scheduleErrorCount + failureAlert).</text>
+    <text x="60" y="591" class="t-s">&#x00B7; Long-running tasks must be isolated (cloud env / isolated-agent / subagent / fork).</text>
+  </g>
+</svg>

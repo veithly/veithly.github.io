@@ -1,0 +1,68 @@
+---
+title: Hermes
+description: "Hermes (Nous Research): long-running + dual-file memory + tirith out-of-process security + croniter background"
+sidebar:
+  order: 4
+---
+
+import Verdict from '@components/Verdict.astro';
+import CompareTable from '@components/CompareTable.astro';
+import SourceTrail from '@components/SourceTrail.astro';
+
+<Verdict tldr="Hermes pushes engineering restraint to the limit. Memory lives in two character-bounded markdown files (MEMORY.md at 2200 chars, USER.md at 1375). Security goes to a standalone `tirith` subprocess whose exit code is the verdict. Cron is `croniter` plus a single `jobs.json`. Hermes doesn't optimize for feature breadth; it optimizes for every path being runnable in a constrained environment, auditable, and fail_open by default. The best Python agent reference." tone="insight" />
+
+## §1 · What Hermes is
+
+A Python agent from Nous Research. The proposition: long-running, self-improving, resource-constrained local agent. pyproject plus flake.nix support macOS, Linux, and Termux (Android).
+
+## §2 · Architecture stack by directory
+
+<CompareTable
+  rows={[
+    { label: 'Entry', values: ['`hermes` main binary (CLI)', '`hermes_cli/` sub-command dispatch', '`mcp_serve.py` MCP server entry', '`hermes_state.py` global state'] },
+    { label: 'Core', values: ['`agent/` turn loop + insights + memory_manager', '`gateway/` model gateway', '`model_tools.py` tool table', '`acp_adapter/` ACP protocol'] },
+    { label: 'Memory', values: ['`tools/memory_tool.py` MEMORY.md (2200 char) + USER.md (1375 char)', '4 actions: add / replace / remove / read', 'Frozen snapshot injected into system prompt', '`_MEMORY_THREAT_PATTERNS` 11-rule scan'] },
+    { label: 'Security', values: ['`tools/tirith_security.py` subprocess scanner', 'Exit code is the verdict, not the LLM', '`agent/redact.py` 30+ vendor prefix redaction', 'cosign + SHA-256 double-check on the tirith binary'] },
+    { label: 'Cron', values: ['`cron/` croniter implementation', '`~/.hermes/cron/jobs.json` persistence', '`ONESHOT_GRACE_SECONDS = 120`', '`_CRON_THREAT_PATTERNS` 10-rule scan'] },
+    { label: 'Observability & cost', values: ['`agent/insights.py` inspired by Claude Code', '`agent/usage_pricing.py` 5-source priority', '`CanonicalUsage` + `PricingEntry`', 'Local markdown reports'] },
+  ]}
+  caption="Hermes trades character limits, subprocess isolation, and explicit scans for predictability."
+/>
+
+## §3 · Engineering highlights
+
+1. **Engineering restraint is the signature**. Two markdown files store all long-term memory. The 2200 plus 1375 character cap forces the model to prioritize.
+2. **Frozen snapshot preserves prefix cache**. Memory snapshots into the system prompt at session load. Mid-session writes only touch disk. The next session picks them up; the prefix cache survives.
+3. **`tirith` security out-of-process**. Content-level security scanning runs in a separate Python binary. The main process reads exit code 0, 1, or 2. `fail_open` is the default; the agent always runs.
+4. **30+ vendor prefix redaction**. `agent/redact.py` covers `sk-`, `ghp_`, `AKIA`, `xox`, `AIza`, `gAAAA`, and other mainstream key prefixes. Configuration is snapshot at import time to defeat mid-runtime tampering.
+5. **Cross-platform down to Android**. The most complete reference for running a Python agent under Termux. `constraints-termux.txt` pins dependencies installable on Android.
+
+## §4 · Where it falls short
+
+1. **Weak retrieval**. No FTS5, no vector index, no temporal decay. When MEMORY.md fills up, only the model itself can prioritize.
+2. **No Phase 2 consolidation**. All memory writes go through the in-turn `memory` tool.
+3. **`tirith` is an out-of-band install**. In restricted environments where cosign or tirith won't install, falling back to `fail_open` is effectively no scan.
+4. **No GUI or TUI**. Pure CLI plus MCP. IDE integration is on you.
+
+## §5 · Five things worth stealing
+
+1. **Character limit instead of token limit**. Predictable across models, tokenizer-independent. MEMORY.md's 2200-char design drops into any agent.
+2. **Frozen snapshot injection** (`tools/memory_tool.py`). Mid-session writes only land on disk; the next session reloads. The simplest way to keep memory fresh without burning prefix cache.
+3. **`tirith` subprocess plus exit-code verdict**. Delegate content-level security scanning to a separate process. The main process reads three exit codes.
+4. **`_MEMORY_THREAT_PATTERNS` 11 rules plus 10 invisible-unicode codepoints**. Scan before write. Covers prompt injection, role hijack, `exfil_curl`, `read_secrets`, and `ssh_backdoor`.
+5. **`agent/redact.py` 30+ prefixes plus import-time snapshot**. Redaction config snapshots at import time, so it cannot be mutated mid-runtime.
+
+## §6 · Source map
+
+<SourceTrail
+  entries={[
+    { system: 'Hermes', path: 'REF/hermes-agent/tools/memory_tool.py', desc: 'MEMORY.md / USER.md + 4 actions + frozen snapshot' },
+    { system: 'Hermes', path: 'REF/hermes-agent/tools/tirith_security.py', desc: 'Standalone subprocess + exit-code verdict + cosign' },
+    { system: 'Hermes', path: 'REF/hermes-agent/agent/redact.py', desc: '30+ vendor prefixes + import-time snapshot' },
+    { system: 'Hermes', path: 'REF/hermes-agent/agent/memory_manager.py', desc: 'sanitize_context + build_memory_context_block' },
+    { system: 'Hermes', path: 'REF/hermes-agent/agent/insights.py', desc: 'Local insights report' },
+    { system: 'Hermes', path: 'REF/hermes-agent/agent/usage_pricing.py', desc: 'CanonicalUsage + 5-source priority' },
+    { system: 'Hermes', path: 'REF/hermes-agent/cron/', desc: 'croniter + jobs.json + threat scan' },
+    { system: 'Hermes', external: 'https://hermes-agent.nousresearch.com/docs/', path: 'hermes-agent.nousresearch.com', desc: 'Official docs' },
+  ]}
+/>

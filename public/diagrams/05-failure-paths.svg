@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 420" role="img"
+     aria-label="Verifier 失败的两种典型路径：硬 verifier 卡住 vs 软 verifier 卡住">
+  <defs>
+    <filter id="wb05p"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="22" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar05p" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <marker id="ar05p-r" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#b91c1c" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .label{ font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .sig  { font: italic 11px sans-serif; fill: #b91c1c; }
+      .sig2 { font: italic 11px sans-serif; fill: #92400e; }
+    </style>
+  </defs>
+
+  <text x="410" y="26" class="h" text-anchor="middle">Verifier 失败的两种典型路径</text>
+  <text x="410" y="44" class="t-s" text-anchor="middle">硬 verifier 卡住 = 任务没完成；软 verifier 卡住 = token 耗尽但任务也没完成</text>
+
+  <!-- Path A label -->
+  <text x="30" y="90" class="label">Path A · 硬 verifier 卡住</text>
+  <text x="30" y="108" class="t-s">外部判官给 fail 信号</text>
+
+  <g filter="url(#wb05p)">
+    <!-- Path A boxes -->
+    <rect x="180" y="80" width="100" height="40" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="230" y="105" class="lbl" text-anchor="middle">Turn N</text>
+
+    <rect x="310" y="80" width="120" height="40" rx="8" fill="#fee2e2" stroke="#b91c1c" stroke-width="2" />
+    <text x="370" y="98" class="lbl" text-anchor="middle">tests fail</text>
+    <text x="370" y="113" class="sig" text-anchor="middle">exit != 0</text>
+
+    <rect x="460" y="80" width="140" height="40" rx="8" fill="#fee2e2" stroke="#b91c1c" stroke-width="2" />
+    <text x="530" y="98" class="lbl" text-anchor="middle">goal 不收敛</text>
+    <text x="530" y="113" class="sig" text-anchor="middle">GoalRuntimeEvent</text>
+
+    <rect x="630" y="80" width="140" height="40" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="700" y="98" class="lbl" text-anchor="middle">强制继续</text>
+    <text x="700" y="113" class="t-s" text-anchor="middle">→ Turn N+1</text>
+
+    <line x1="280" y1="100" x2="310" y2="100" stroke="#0f172a" stroke-width="2" marker-end="url(#ar05p)" />
+    <line x1="430" y1="100" x2="460" y2="100" stroke="#b91c1c" stroke-width="2" marker-end="url(#ar05p-r)" />
+    <line x1="600" y1="100" x2="630" y2="100" stroke="#0f172a" stroke-width="2" marker-end="url(#ar05p)" />
+
+    <!-- Divider -->
+    <line x1="30" y1="180" x2="790" y2="180" stroke="#64748b" stroke-width="1" stroke-dasharray="4 3" />
+  </g>
+
+  <!-- Path B label -->
+  <text x="30" y="220" class="label">Path B · 软 verifier 卡住</text>
+  <text x="30" y="238" class="t-s">预算耗尽 + 收敛减速</text>
+
+  <g filter="url(#wb05p)">
+    <!-- Path B boxes -->
+    <rect x="180" y="210" width="100" height="40" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="230" y="235" class="lbl" text-anchor="middle">Turn N</text>
+
+    <rect x="310" y="210" width="160" height="40" rx="8" fill="#fed7aa" stroke="#92400e" stroke-width="2" />
+    <text x="390" y="228" class="lbl" text-anchor="middle">token ≥ 90% 预算</text>
+    <text x="390" y="243" class="sig2" text-anchor="middle">COMPLETION_THRESHOLD</text>
+
+    <rect x="500" y="210" width="180" height="40" rx="8" fill="#fed7aa" stroke="#92400e" stroke-width="2" />
+    <text x="590" y="228" class="lbl" text-anchor="middle">连续 3 轮 &lt;500 token</text>
+    <text x="590" y="243" class="sig2" text-anchor="middle">DIMINISHING_THRESHOLD</text>
+
+    <line x1="280" y1="230" x2="310" y2="230" stroke="#0f172a" stroke-width="2" marker-end="url(#ar05p)" />
+    <line x1="470" y1="230" x2="500" y2="230" stroke="#92400e" stroke-width="2" marker-end="url(#ar05p)" />
+
+    <!-- Path B verdict -->
+    <rect x="280" y="290" width="320" height="50" rx="10" fill="#fef3c7" stroke="#0f172a" stroke-width="2.2" />
+    <text x="440" y="312" class="label" text-anchor="middle">判定 diminishing returns</text>
+    <text x="440" y="329" class="t-s" text-anchor="middle">强制停 + 暴露 transition.reason</text>
+
+    <path d="M590,250 Q590,275 440,290" stroke="#92400e" stroke-width="2" fill="none" marker-end="url(#ar05p)" />
+  </g>
+
+  <text x="30" y="380" class="t-s">关键洞察：三层 verifier 必须各司其职。把它们坍缩为一个 boolean，监控就分不清「在干活」「在打转」「该停了」。</text>
+  <text x="30" y="398" class="t-s">硬 verifier 看外部产物 · 软 verifier 看预算与启发式 · 放任型 verifier 兜底，从来不是主力。</text>
+</svg>

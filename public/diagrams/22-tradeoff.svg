@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 560" role="img" aria-labelledby="title desc">
+  <title id="title">执行状态面路由矩阵</title>
+  <desc id="desc">用路由矩阵决定不同执行状态事件应该存在哪里、展示给谁、是否回注入模型上下文。</desc>
+  <defs>
+    <style>
+      .bg { fill: #fbfaf7; }
+      .box { fill: #ffffff; stroke: #d8d1c3; stroke-width: 2; }
+      .headbox { fill: #f1f5f9; stroke: #94a3b8; stroke-width: 2; }
+      .good { fill: #dcfce7; stroke: #15803d; }
+      .warn { fill: #ffedd5; stroke: #ea580c; }
+      .blue { fill: #dbeafe; stroke: #1d4ed8; }
+      .violet { fill: #ede9fe; stroke: #6d28d9; }
+      .title { font: 700 24px Inter, Arial, sans-serif; fill: #0f172a; }
+      .head { font: 700 15px Inter, Arial, sans-serif; fill: #0f172a; }
+      .text { font: 500 13px Inter, Arial, sans-serif; fill: #475569; }
+      .code { font: 600 12px "JetBrains Mono", Consolas, monospace; fill: #1f2933; }
+      .arrow { stroke: #64748b; stroke-width: 2.5; fill: none; marker-end: url(#arrow); }
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#64748b" />
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1180" height="560" />
+  <text class="title" x="48" y="48">按来源、受众和生命周期路由每个状态更新</text>
+  <text class="text" x="48" y="76">错误做法是把所有进度事件广播到所有面；正确做法是先写清路由表。</text>
+
+  <g transform="translate(56 120)">
+    <rect class="headbox" width="248" height="60" rx="10" />
+    <text class="head" x="18" y="26">事件来源</text>
+    <text class="text" x="18" y="46">真相从哪里来</text>
+  </g>
+  <g transform="translate(334 120)">
+    <rect class="headbox" width="248" height="60" rx="10" />
+    <text class="head" x="18" y="26">投影面</text>
+    <text class="text" x="18" y="46">用户在哪里看到</text>
+  </g>
+  <g transform="translate(612 120)">
+    <rect class="headbox" width="248" height="60" rx="10" />
+    <text class="head" x="18" y="26">持久化</text>
+    <text class="text" x="18" y="46">状态活多久</text>
+  </g>
+  <g transform="translate(890 120)">
+    <rect class="headbox" width="220" height="60" rx="10" />
+    <text class="head" x="18" y="26">上下文策略</text>
+    <text class="text" x="18" y="46">什么回给模型</text>
+  </g>
+
+  <g transform="translate(56 210)">
+    <rect class="blue" width="248" height="72" rx="10" />
+    <text class="code" x="18" y="28">PlanDelta</text>
+    <text class="text" x="18" y="52">模型提出方案</text>
+  </g>
+  <g transform="translate(56 302)">
+    <rect class="violet" width="248" height="72" rx="10" />
+    <text class="code" x="18" y="28">TodoWrite / update_plan</text>
+    <text class="text" x="18" y="52">模型更新当前焦点</text>
+  </g>
+  <g transform="translate(56 394)">
+    <rect class="good" width="248" height="72" rx="10" />
+    <text class="code" x="18" y="28">tool_progress</text>
+    <text class="text" x="18" y="52">运行时报告事实</text>
+  </g>
+
+  <g transform="translate(334 210)">
+    <rect class="box" width="248" height="72" rx="10" />
+    <text class="head" x="18" y="28">审批 UI</text>
+    <text class="text" x="18" y="52">不要渲染成执行进度</text>
+  </g>
+  <g transform="translate(334 302)">
+    <rect class="box" width="248" height="72" rx="10" />
+    <text class="head" x="18" y="28">清单 / 标题</text>
+    <text class="text" x="18" y="52">一个 active 任务</text>
+  </g>
+  <g transform="translate(334 394)">
+    <rect class="box" width="248" height="72" rx="10" />
+    <text class="head" x="18" y="28">操作者流</text>
+    <text class="text" x="18" y="52">去重或折叠重复</text>
+  </g>
+
+  <g transform="translate(612 210)">
+    <rect class="box" width="248" height="72" rx="10" />
+    <text class="head" x="18" y="28">proposal item</text>
+    <text class="text" x="18" y="52">批准后过期</text>
+  </g>
+  <g transform="translate(612 302)">
+    <rect class="box" width="248" height="72" rx="10" />
+    <text class="head" x="18" y="28">session state</text>
+    <text class="text" x="18" y="52">只恢复未完成项</text>
+  </g>
+  <g transform="translate(612 394)">
+    <rect class="box" width="248" height="72" rx="10" />
+    <text class="head" x="18" y="28">event log</text>
+    <text class="text" x="18" y="52">用于审计和 UI</text>
+  </g>
+
+  <g transform="translate(890 210)">
+    <rect class="warn" width="220" height="72" rx="10" />
+    <text class="head" x="18" y="28">不要进 memory</text>
+    <text class="text" x="18" y="52">proposal 不是事实</text>
+  </g>
+  <g transform="translate(890 302)">
+    <rect class="good" width="220" height="72" rx="10" />
+    <text class="head" x="18" y="28">注入未完成工作</text>
+    <text class="text" x="18" y="52">跳过 completed</text>
+  </g>
+  <g transform="translate(890 394)">
+    <rect class="warn" width="220" height="72" rx="10" />
+    <text class="head" x="18" y="28">只做摘要</text>
+    <text class="text" x="18" y="52">避免 raw event 噪声</text>
+  </g>
+
+  <path class="arrow" d="M304 246 H322" />
+  <path class="arrow" d="M582 246 H600" />
+  <path class="arrow" d="M860 246 H878" />
+  <path class="arrow" d="M304 338 H322" />
+  <path class="arrow" d="M582 338 H600" />
+  <path class="arrow" d="M860 338 H878" />
+  <path class="arrow" d="M304 430 H322" />
+  <path class="arrow" d="M582 430 H600" />
+  <path class="arrow" d="M860 430 H878" />
+</svg>

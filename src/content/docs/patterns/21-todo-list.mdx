@@ -1,0 +1,373 @@
+---
+title: 21 · Todo List：任务清单与进度面
+sidebar:
+  order: 21
+description: agent 运行时如何用 todo list 管理复杂任务：拆分、标记进度、恢复上下文、提醒更新、避免把计划、记忆和执行清单混成一团。
+---
+
+import Verdict from '@components/Verdict.astro';
+import CompareTable from '@components/CompareTable.astro';
+import Diagram from '@components/Diagram.astro';
+import TradeOff from '@components/TradeOff.astro';
+import ScoreCard from '@components/ScoreCard.astro';
+import BuildRecipe from '@components/BuildRecipe.astro';
+import SourceTrail from '@components/SourceTrail.astro';
+import SourceBlock from '@components/SourceBlock.astro';
+
+## §1 · TL;DR
+
+<Verdict tldr="Todo list 不是 Plan Mode，也不是长期记忆，更不是最后回复里的进度描述。它是 agent 在执行复杂请求时的运行时进度面：把用户目标拆成少量可见任务，用 pending / in_progress / completed 这类小状态机跟踪，随着实际执行不断更新，并在压缩、恢复、跨 UI 同步时保留当前未完成工作。Codex 把这个点做得最干净：`update_plan` 明确是 TODO/checklist tool，甚至在 Plan Mode 里禁用，状态更新会变成 `PlanUpdate` 事件，TUI 再渲染成 Updated Plan 和标题进度。Claude Code 做得最完整：旧路径是 `TodoWrite`，要求复杂任务主动写 todo、每次开始前标 `in_progress`、完成后标 `completed`，并带 `activeForm` 给 UI；新路径是 file-backed Tasks V2，增加 owner、blocks、claim 和提醒。Hermes 做得最轻：一个 session 内存里的 `todo` tool，支持 replace 或 merge，压缩后只把 pending / in_progress 注回上下文。OpenClaw 没有模型托管的 todo list，而是把工具调用和子 agent 进度作为事件流投影给操作者。结论：自己做 agent 时要把 approval plan、execution todo、durable background task 三层分开；最小实现学 Codex，IDE/团队协作学 Claude Code，长上下文恢复学 Hermes，运营可视化学 OpenClaw。" />
+
+## §2 · 四家任务进度面
+
+<Diagram
+  src="/diagrams/21-todo-list-base.svg"
+  alt="四系统 todo list 与任务进度面对照：Codex update_plan、Claude Code TodoWrite 与 Tasks、OpenClaw progress events、Hermes todo tool"
+  caption="Todo list 的核心不是把计划写漂亮，而是把当前执行状态变成可更新、可恢复、可展示的状态机。"
+  wide
+/>
+
+<CompareTable
+  rows={[
+    { label: '核心抽象', values: ['`UpdatePlanArgs`：`explanation` 加 `plan[]`，每项只有 `step` 和 `status`', '`TodoWrite` 的 `TodoItem`；Tasks V2 进一步变成 `TaskSchema` 文件任务', 'ACP `tool_call` / `tool_call_update` 事件，外加 parent stream 进度转发', '`TodoStore`：session 内存任务表，`todo` tool 读写'] },
+    { label: '状态集', values: ['`pending` / `in_progress` / `completed`', '`pending` / `in_progress` / `completed`，Tasks V2 另有 owner、blocker、metadata', '`in_progress` / `completed` / `failed` 来自运行时事件，不是模型自填 checklist', '`pending` / `in_progress` / `completed` / `cancelled`'] },
+    { label: '写入方式', values: ['模型调用 `update_plan` 整体提交当前 checklist', '`TodoWrite` 整体写入；Tasks V2 用 `TaskCreate` / `TaskUpdate` 做增量文件任务', '运行时根据工具和子 agent 执行自然产生事件', '`merge=false` 整表替换；`merge=true` 按 id 更新'] },
+    { label: '恢复方式', values: ['事件进入 TUI / app-server 通知；不是长期计划文件', '旧 `TodoWrite` 可从 transcript 恢复；Tasks V2 存 `~/.claude/tasks/.../*.json`', 'session event、parent relay、compaction summary 保留 active task status', '从历史里的最近 `todo` tool 响应 hydrate；压缩后只注入未完成项'] },
+    { label: '与计划关系', values: ['`update_plan` 在 Plan Mode 里直接报错，避免 approval plan 与执行清单混用', '`plans.ts` 管计划文件，`TodoWrite` / Tasks 管执行进度', '计划和进度通过事件投影分开，todo 不由模型集中持有', '没有单独 approval plan；`todo` 是轻量执行焦点'] },
+    { label: '主要风险', values: ['状态太粗，适合单 agent 执行，不适合多人 claim/block', '能力最强但路径分裂：TodoWrite、Tasks V2、Plan Mode 要讲清边界', '没有模型托管 checklist，复杂目标可能散在对话和摘要里', '内存优先，若历史或压缩链路断掉会丢任务面'] },
+  ]}
+  caption="同样叫 todo，真实系统里至少有四种含义：模型自管 checklist、IDE 任务表、运行时事件流、压缩恢复焦点。"
+  dimensionLabel="维度"
+/>
+
+## §3 · 四家源码怎么落地
+
+### Codex · update_plan 是 checklist，不是 Plan Mode
+
+Codex 的命名容易误导：`update_plan` 听起来像「进入计划模式」，源码里却明确把它定位成 TODO/checklist tool。协议层的数据结构非常小：
+
+<SourceBlock path="REF/codex/codex-rs/protocol/src/plan_tool.rs" lines="9-28" system="codex" summary="`update_plan` 的状态机只有三态，item 只有 step 与 status。">
+
+```rust
+pub enum StepStatus {
+    Pending,
+    InProgress,
+    Completed,
+}
+
+pub struct PlanItemArg {
+    pub step: String,
+    pub status: StepStatus,
+}
+
+pub struct UpdatePlanArgs {
+    pub explanation: Option<String>,
+    pub plan: Vec<PlanItemArg>,
+}
+```
+
+</SourceBlock>
+
+真正关键的是 handler 里那条硬边界：如果当前 turn 处在 Plan Mode，`update_plan` 直接拒绝。也就是说 Codex 把「给用户看的 proposal / approval plan」和「执行中的 checklist」拆成两套 surface。
+
+<SourceBlock path="REF/codex/codex-rs/core/src/tools/handlers/plan.rs" lines="75-89" system="codex" summary="Plan Mode 中禁用 `update_plan`，成功时发送 `EventMsg::PlanUpdate`。">
+
+```rust
+if turn.collaboration_mode.mode == ModeKind::Plan {
+    return Err(FunctionCallError::RespondToModel(
+        "update_plan is a TODO/checklist tool and is not allowed in Plan mode".to_string(),
+    ));
+}
+
+session
+    .send_event(turn.as_ref(), EventMsg::PlanUpdate(args))
+    .await;
+```
+
+</SourceBlock>
+
+前端再把这个事件变成可见进度。TUI 的 `on_plan_update` 会统计 completed / total，刷新状态面，然后把 `new_plan_update` 写入 history cell。`history_cell.rs` 里 Completed 用打勾加划线，InProgress 和 Pending 用不同样式的方框。这说明 todo list 不只是 prompt 纪律，而是协议事件、UI 标题、历史记录三层一起工作的产品机制。
+
+Codex 还有一条容易漏掉的链路：Plan Mode 输出的 proposed plan 会被 stream parser 拆成 `PlanDelta`，最终作为 app-server v2 的 `item/plan/delta` 推给前端；而 `update_plan` 成功后走的是 `turn/plan/updated`。这说明 Codex 同时支持「模型流式提出计划」和「工具提交执行 checklist」两条协议通道，二者不要混成一个状态表。
+
+### Claude Code · TodoWrite 管 session，Tasks V2 管团队任务
+
+Claude Code 的 `TodoWrite` prompt 比 Codex 更强势：复杂多步任务、用户显式要求、发现新任务、收到新指令，都应更新 todo；开始某项前先标 `in_progress`，完成后马上标 `completed`；状态同时要求 `content` 和 `activeForm`，后者是 UI 上显示的现在进行时。
+
+<SourceBlock path="REF/claude-code-2.1.88-expanded/src/tools/TodoWriteTool/prompt.ts" lines="147-166" system="claude-code" summary="TodoWrite prompt 把状态、activeForm、单一 in_progress 和完成条件写成硬规则。">
+
+```ts
+- pending: Task not yet started
+- in_progress: Currently working on (limit to ONE task at a time)
+- completed: Task finished successfully
+
+Task structure:
+- content: Imperative form describing what needs to be done
+- activeForm: The present continuous form shown during execution
+
+- Exactly ONE task must be in_progress at any time
+- ONLY mark a task as completed when you have FULLY accomplished it
+```
+
+</SourceBlock>
+
+旧 `TodoWrite` 的存储位置是 AppState：按 `agentId` 或 `sessionId` 存一份 todo。全部完成时清空，避免下一轮继续携带一张已经结束的任务表。它还会在一次性关闭 3 个以上任务、但没有验证任务时返回 verification nudge，提醒模型别把「写完」误当「完成」。
+
+<SourceBlock path="REF/claude-code-2.1.88-expanded/src/tools/TodoWriteTool/TodoWriteTool.ts" lines="53-88" system="claude-code" summary="TodoWrite 在 Todo V2 关闭时启用，写 AppState，并在 allDone 时清空。">
+
+```ts
+isEnabled() {
+  return !isTodoV2Enabled()
+}
+
+const todoKey = context.agentId ?? getSessionId()
+const oldTodos = appState.todos[todoKey] ?? []
+const allDone = todos.every(_ => _.status === 'completed')
+
+context.setAppState({
+  todos: {
+    ...appState.todos,
+    [todoKey]: allDone ? [] : todos,
+  },
+})
+```
+
+</SourceBlock>
+
+Tasks V2 是另一层：`utils/tasks.ts` 里 `TaskSchema` 有 `id`、`subject`、`description`、`activeForm`、`owner`、`blocks`、`blockedBy` 和 metadata，存到 `~/.claude/tasks/<taskListId>/<id>.json`，claim 时还会检查完成态、blocker 和 busy owner。这个设计适合 IDE、多 agent、团队任务，不适合替代轻量 session todo。
+
+Tasks V2 还不是简单的「大号 TodoWrite」。`TaskUpdateTool` 只有 Todo V2 开启时才启用，输入 schema 能改 `status`、`owner`、`activeForm`、`blocks`、`blockedBy` 和 metadata；`attachments.ts` 还分别对 TodoWrite 和 TaskCreate / TaskUpdate 做「太久没更新」的 reminder 统计。这是两套提醒和恢复纪律：session todo 提醒当前焦点，TaskUpdate 提醒团队任务板别失真。
+
+### Hermes · 轻量 todo，压缩后只带未完成项
+
+Hermes 的 `todo` tool 是最小但很实用的一版。它是每个 AIAgent / session 一份内存 `TodoStore`，支持整表替换和按 id merge，状态多了一个 `cancelled`。它最值得抄的是压缩恢复策略：`format_for_injection()` 只注入 `pending` 和 `in_progress`，不注入 `completed` / `cancelled`，避免压缩后模型把已经做完的事又做一遍。
+
+<SourceBlock path="REF/hermes-agent/tools/todo_tool.py" lines="90-118" system="hermes" summary="Hermes 压缩后只注入未完成 todo，已完成或取消的项不会重新进入 active context。">
+
+```python
+def format_for_injection(self) -> Optional[str]:
+    visible = [
+        item for item in self._items
+        if item["status"] in ("pending", "in_progress")
+    ]
+    if not visible:
+        return None
+
+    lines = ["[Todo List - Continue from here]"]
+```
+
+</SourceBlock>
+
+`run_agent.py` 还会在新 agent 对象拿到历史时，从最近一次 `todo` tool 响应里 hydrate 回 `TodoStore`。这比「把 todo 当 memory 写死」更克制：todo 是当前任务面的状态，不是长期偏好；它应该跟 session 走，过期就消失。
+
+Hermes 的 ACP adapter 还补了一层 runtime progress：`make_tool_progress_cb()` 把 `tool.started` 变成 ACP `ToolCallStart`，用每个 tool name 一条 FIFO 队列追踪并发同名工具；`make_step_cb()` 再从 `prev_tools` 里取出对应 id，发完成更新。这不是模型 todo，而是工具事实流，适合 UI 展示「现在到底跑到哪一步」。
+
+### OpenClaw · 不托管 todo，而是投影进度事件
+
+OpenClaw 没有一个等价的模型自管 todo list。它的重点是把工具调用、子 agent 运行和压缩连续性投影成可见事件：ACP translator 在工具开始时发 `tool_call`、状态 `in_progress`；工具结束时发 `tool_call_update`，状态 `completed` 或 `failed`。auto-reply projector 再把这些事件转成 channel 里的工具摘要，并对 terminal status 做去重。子 agent relay 也会把 child session 的 progress updates 流到 parent session。
+
+这个选择很合理：OpenClaw 更像多渠道运行时和 operator surface，真实进度往往来自工具、channel、子 agent，而不一定来自模型维护的一张 checklist。代价是复杂用户目标的「还剩什么没做」需要依赖摘要、事件投影和 latest user request，而不是一份统一 todo 表。
+
+OpenClaw 也给了一个反面提醒：事件流不是越多越好，必须能识别「无进展」。`tool-loop-detection.ts` 会把相同参数且结果不变的 polling、ping-pong 调用和全局重复调用分别标成 warning / critical；父子 session relay 还有 no-output watcher，子 session 长时间没输出时会给 parent session 发 stall 提示。也就是说 runtime progress surface 至少要有 no-progress detector，否则 UI 只是在展示卡死过程。
+
+## §4 · 共同点
+
+第一，共同点不是「都有 todo list」，而是都把**进度从 prose 里拿出来**。Codex 用协议事件，Claude Code 用工具状态和任务文件，OpenClaw 用 ACP runtime event，Hermes 用 tool JSON。只在最终回复里写「我接下来会做 A/B/C」不算任务管理，因为 UI、恢复、提醒、压缩都读不到它。
+
+第二，状态机都非常小。`pending` / `in_progress` / `completed` 是最稳定的三态。Hermes 多一个 `cancelled`，OpenClaw 多一个 `failed`，Claude Tasks V2 多 owner 和 blocker，但核心还是「未开始、正在做、已结束」。
+
+第三，必须有唯一当前焦点。Codex tool spec 要求最多一个 `in_progress`；Claude prompt 要求 exactly one；Hermes schema 也写了 only ONE item in_progress。没有这个约束，todo list 会退化成愿望清单，模型不知道下一步该推进哪个。
+
+第四，完成态要谨慎处理。Claude Code 要求只在 fully accomplished 时标完成，还加 verification nudge；Hermes 干脆不把 completed 注回 active context；Codex TUI 把 completed 划掉。完成项是审计痕迹，不应该继续抢注意力。
+
+第五，todo list 要能跨压缩或恢复保留「未完成」。Claude Code 从 transcript 恢复 TodoWrite，Tasks V2 文件持久化；Hermes 从历史 tool response hydrate 并在压缩后重注入未完成项；OpenClaw 的 changelog 专门强调 compaction continuity 要保留 active task status、batch progress、latest user request 和 follow-up commitments。
+
+## §5 · 关键差异
+
+<TradeOff
+  title="Todo list 的四种实现取舍"
+  options={[
+    { name: '模型托管 checklist', pros: ['最适合单 agent coding CLI', '模型知道目标拆分和下一步焦点', '实现简单，UI 可直接渲染'], cons: ['容易被模型过早标完成', '不天然适合多人 claim/block', '需要提醒和恢复机制'] },
+    { name: '文件化 Task 系统', pros: ['适合团队任务、IDE、长任务', 'owner / blocker / metadata 可审计', '进程重启后仍可恢复'], cons: ['复杂度明显上升', '要处理锁、迁移、并发 claim', '不应拿来替代轻量当前焦点'] },
+    { name: '运行时事件流', pros: ['真实反映工具和子 agent 执行', '适合多渠道 operator UI', '失败和完成来自外部事实'], cons: ['模型没有统一剩余任务表', '需要 compaction summary 兜住语义目标', '事件多时要去重和聚合'] },
+    { name: '压缩注入焦点', pros: ['长上下文 agent 最实用', '只带未完成项，避免重复做完工', '实现成本低'], cons: ['依赖历史或压缩链路', '缺少持久审计', '任务 id 质量取决于模型'] },
+  ]}
+  caption="不要问系统要不要 todo list，先问它是单 agent CLI、IDE 团队任务、多渠道运行时，还是长上下文压缩恢复。"
+/>
+
+最容易误做的是把三层合并成一个「全局计划」：
+
+1. **Approval plan**：用户批准前的设计或执行计划，可能不会被执行。
+2. **Execution todo**：当前 turn / session 正在推进的 checklist，必须随着事实更新。
+3. **Durable task**：后台、团队、跨进程任务，需要 owner、锁、blocker、重试和持久化。
+
+Codex 和 Claude Code 都在源码里把这三层拆开了。自己做 agent 时如果只做一张巨大表，会同时背上审批、执行、恢复、审计、团队协作五种责任，最后每一种都不可靠。
+
+## §6 · 评分
+
+<ScoreCard
+  rows={[
+    { system: 'Codex', value: '最干净的最小模型', reason: '`update_plan` schema 小，Plan Mode 中禁用，事件进入 TUI 和 app-server；非常适合 coding CLI 当前任务进度。', risk: '状态粗、无 owner/blocker，不适合团队任务或长后台任务。' },
+    { system: 'Claude Code', value: '最完整的 IDE 任务面', reason: '`TodoWrite` 有使用纪律、activeForm、提醒、恢复；Tasks V2 又补上文件化、owner、blocks、claim。', risk: 'TodoWrite、Tasks V2、Plan Mode 三套概念必须解释清楚，否则用户和模型都会混用。' },
+    { system: 'OpenClaw', value: '最适合 operator 进度投影', reason: '工具调用、工具更新、子 agent relay 都变成可投影事件，适合多渠道 UI 和父子 session。', risk: '没有模型自管 checklist，复杂目标的剩余工作需要靠摘要和 active task continuity 兜底。' },
+    { system: 'Hermes', value: '最轻的长上下文恢复', reason: '一个内存 TodoStore 加压缩后只注入未完成项，就解决了很多重复做工和丢焦点问题。', risk: '内存优先，若历史恢复和压缩注入不稳定，todo 状态也会丢。' },
+  ]}
+  caption="如果只能抄一个：单人 CLI 抄 Codex；IDE 和团队任务抄 Claude Code；多渠道进度抄 OpenClaw；长上下文恢复抄 Hermes。"
+/>
+
+## §7 · 复刻方案
+
+<BuildRecipe
+  title="Todo List / Progress Surface 复刻方案"
+  minimal={[
+    '定义一个小 schema：`id?`、`content`、`status`、可选 `activeForm`；状态先只做 `pending` / `in_progress` / `completed`。',
+    '暴露一个 `update_todo` 或 `update_plan` 工具；工具结果同时写入事件流和当前 session state。',
+    '强制最多一个 `in_progress`；完成前必须有外部验证或明确的执行证据。',
+    'UI 渲染当前 checklist，并在标题或状态栏显示 completed / total。',
+    '上下文压缩后只重新注入 pending / in_progress，不注入 completed。'
+  ]}
+  advanced={[
+    '加 transcript restore：从最近一次 todo tool call 或事件恢复当前任务表。',
+    '加 reminder：复杂任务连续 N 个 assistant turn 没更新 todo，就插入内部提醒。',
+    '加 verification nudge：一次关闭多个任务但没有验证项时，提醒模型先跑检查。',
+    '加 file-backed tasks：当需要 owner、blocks、claim、跨进程协作时，再引入持久任务文件和锁。',
+    '加 runtime progress events：工具 start / update / terminal status 单独投影给 operator UI。',
+    '加 no-progress detector：相同结果的 polling、ping-pong 或子 session 无输出要告警，不要只显示进度。'
+  ]}
+  avoid={[
+    '不要把 Plan Mode 和 todo list 混成一张表；一个是批准前方案，一个是执行中状态。',
+    '不要把 todo 写进长期 memory；当前任务结束后它应该自然过期。',
+    '不要靠最终回复里的自然语言当进度源；压缩、恢复、UI 都读不到。',
+    '不要让多个任务同时 `in_progress`；这会让下一步焦点失效。',
+    '不要把 completed 项反复注入 active context；模型会重复做已经结束的工作。'
+  ]}
+/>
+
+## §8 · 架构图
+
+<Diagram
+  src="/diagrams/21-tradeoff.svg"
+  alt="todo list 三层架构：approval plan、execution todo、durable task，以及事件流和压缩恢复"
+  caption="最稳的设计是三层分工：计划给人批准，todo 给执行聚焦，durable task 给后台和团队协作。"
+  wide
+/>
+
+## §9 · 源码索引
+
+<SourceTrail
+  entries={[
+    { system: 'Codex', path: 'REF/codex/codex-rs/protocol/src/plan_tool.rs', lines: '9-28', desc: 'StepStatus / PlanItemArg / UpdatePlanArgs 三个核心结构' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/core/src/tools/handlers/plan.rs', lines: '75-89', desc: 'Plan Mode 里禁用 update_plan，并发送 PlanUpdate 事件' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/app-server-protocol/src/protocol/v2/item.rs', lines: '232-236', desc: 'Plan item 是权威文本，不要求等于 PlanDelta 拼接结果' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/core/src/session/turn.rs', lines: '1367-1402', desc: 'ProposedPlanItemState 发 PlanDelta 并完成 Plan item' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/app-server-protocol/src/protocol/event_mapping.rs', lines: '355-360', desc: 'EventMsg::PlanDelta 映射成 app-server PlanDelta notification' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/tui/src/chatwidget.rs', lines: '3426-3441', desc: 'TUI 接收 plan update，统计 completed / total 并刷新状态面' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/tui/src/history_cell.rs', lines: '2955-3076', desc: 'Updated Plan history cell 的渲染逻辑' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/tools/TodoWriteTool/prompt.ts', lines: '3-184', desc: 'TodoWrite 使用时机、状态规则、activeForm 和完成条件' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/tools/TodoWriteTool/TodoWriteTool.ts', lines: '31-108', desc: 'TodoWrite 写 AppState、allDone 清空、verification nudge' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/utils/tasks.ts', lines: '69-147', desc: 'Tasks V2 schema、Todo V2 开关与状态定义' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/tools/TaskUpdateTool/TaskUpdateTool.ts', lines: '35-88', desc: 'TaskUpdate schema、Todo V2 enablement 和并发安全声明' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/utils/attachments.ts', lines: '3213-3400', desc: 'TodoWrite 与 TaskCreate/TaskUpdate 的 stale reminder 统计' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/utils/tasks.ts', lines: '541-685', desc: 'claimTask 对 owner、blocker、resolved、agent_busy 的检查' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/utils/sessionRestore.ts', lines: '73-146', desc: '从 transcript 恢复 TodoWrite state' },
+    { system: 'Hermes', path: 'REF/hermes-agent/tools/todo_tool.py', lines: '21-118', desc: 'TodoStore、状态集、merge/replace、压缩注入未完成项' },
+    { system: 'Hermes', path: 'REF/hermes-agent/run_agent.py', lines: '3799-3828', desc: '从历史里的 todo tool response hydrate TodoStore' },
+    { system: 'Hermes', path: 'REF/hermes-agent/acp_adapter/events.py', lines: '51-101', desc: 'tool_progress_callback 发 ACP tool start event' },
+    { system: 'Hermes', path: 'REF/hermes-agent/acp_adapter/events.py', lines: '132-172', desc: 'step_callback 发 ACP tool completion update' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/acp/translator.ts', lines: '405-434', desc: '工具 start/update 事件映射成 in_progress / completed / failed' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/agents/acp-spawn-parent-stream.ts', lines: '197-242', desc: '子 session 进度流转发给 parent session' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/agents/acp-spawn-parent-stream.ts', lines: '244-260', desc: '子 session 无输出时给 parent 发 stall notice' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/agents/tool-loop-detection.ts', lines: '351-430', desc: 'polling、ping-pong、global circuit 的 no-progress 检测' },
+    { system: 'OpenClaw', path: 'REF/openclaw/CHANGELOG.md', lines: '293-293', desc: 'compaction continuity 保留 active task status 和 batch progress' },
+  ]}
+/>
+
+## §10 · 小练习
+
+1. 给自己的 agent 加一个 `update_task_progress` tool，schema 限定为 `content`、`status`、`activeForm`，并验证多个 `in_progress` 会被拒绝。
+2. 把 todo 更新写入事件流，再在 CLI 或 Web UI 上渲染 completed / total，而不是只让模型在文字里汇报。
+3. 做一次上下文压缩：确认 completed 项不会重新注入，pending / in_progress 项会带着当前顺序回来。
+4. 模拟用户先要求「给我计划，不要改代码」，再要求「开始执行」：确认 Plan Mode 输出和 execution todo 是两套数据。
+5. 加一个提醒规则：复杂任务连续 10 个 assistant turn 没更新 todo 时，插入内部 reminder，但不要把 reminder 泄露给用户。
+
+## §11 · 面试题：10 道带答案的高频考点
+
+<details>
+<summary>**Q1 · 概念**：为什么 todo list 不是 Plan Mode？</summary>
+
+Plan Mode 的核心是 approval：在用户允许之前，agent 输出的是候选方案，可能会被修改、拒绝或完全不执行。Todo list 的核心是 execution：任务已经开始，状态必须随着真实行动更新。把二者混成一张表，会让「还没批准的计划」看起来像「正在执行的事实」。
+
+Codex 在源码里给了最清晰的边界：`update_plan` handler 在 Plan Mode 中直接返回错误，错误文本明确说它是 TODO/checklist tool，不允许在 Plan Mode 里用。Claude Code 也类似，`plans.ts` 管计划文件，`TodoWrite` 和 Tasks 管执行任务。追问：用户说「先列 todo」怎么办？答：如果只是让 agent 展示计划，那是 proposal；只有开始执行后，才把它变成 execution todo。
+</details>
+
+<details>
+<summary>**Q2 · 设计**：为什么要限制最多一个 `in_progress`？</summary>
+
+Todo list 的第一职责是保留当前焦点。如果允许多个 `in_progress`，模型每次恢复上下文时都不知道下一步该推进哪一个，UI 也无法显示「当前正在做什么」。这会把 checklist 变成愿望清单。
+
+Codex tool spec 写的是 at most one，Claude prompt 写得更强：exactly ONE。Hermes schema 也强调 only ONE item in_progress。实际实现可以选择「最多一个」或「复杂任务执行中必须一个」，但不能允许无限多个。追问：并行工具调用怎么办？答：并行工具调用属于某一个当前任务内部的实现细节，不等于同时推进多个 top-level todo。
+</details>
+
+<details>
+<summary>**Q3 · UI**：Claude Code 的 `activeForm` 有什么价值？</summary>
+
+`content` 通常是祈使句，例如「Run tests」；`activeForm` 是现在进行时，例如「Running tests」。后者直接服务 UI：spinner、状态栏、任务面板显示的是「正在做什么」，而不是「要做什么」。
+
+这看起来像小字段，其实是在 schema 层把执行态和待办态分开。没有 `activeForm`，UI 只能把待办标题硬改成进行时，或者显示很生硬的文本。追问：所有 agent 都要加吗？答：纯 CLI 可以先不加；有 IDE、Web UI、移动通知时值得加。
+</details>
+
+<details>
+<summary>**Q4 · 恢复**：为什么 completed 项不应该反复注入上下文？</summary>
+
+Completed 项已经失去执行价值，只剩审计价值。把它反复注入 active context，会消耗 token，也会诱导模型重复解释或重复执行已经完成的工作。Hermes 的 `format_for_injection()` 只注入 pending / in_progress，就是这个原因。
+
+Claude Code 旧 `TodoWrite` 在 allDone 时把 session todo 清空。Codex TUI 把 completed 划掉，也是视觉上降低注意力。追问：那审计怎么办？答：审计应该在 transcript、event log、task file 或 history cell 里，不应该塞进当前 prompt 的高优先级区域。
+</details>
+
+<details>
+<summary>**Q5 · 恢复**：TodoWrite 为什么要从 transcript 恢复？</summary>
+
+非交互或 SDK 场景下，进程状态不一定稳定，AppState 可能没有旧 todo。Claude Code 的 `sessionRestore.ts` 扫 transcript 里最后一次 `TodoWrite` tool_use，把 todo list 恢复出来，保证 resume 后仍知道未完成工作。
+
+这说明 todo list 虽然不是长期 memory，但也不能只存在模型脑子里。最小实现至少要让它进入可重放事件或 transcript。追问：恢复哪个版本？答：恢复最近一次成功提交的 todo 状态，不要从多次零散自然语言里推断。
+</details>
+
+<details>
+<summary>**Q6 · 取舍**：什么时候需要 file-backed Tasks，而不是轻量 TodoWrite？</summary>
+
+当任务需要跨进程、跨 IDE 窗口、跨 agent 或多人协作时，轻量 session todo 不够。你需要 task id、文件持久化、owner、blocks / blockedBy、claim、busy check 和迁移逻辑。Claude Code Tasks V2 就是这个方向。
+
+反过来，单 agent coding CLI 不应该一开始就引入 file-backed task 系统。Codex 的三态 checklist 足够表达当前执行焦点，复杂度低很多。追问：后台 cron 算哪种？答：cron / background task 更接近 durable task，要有持久化和重试；当前 turn 的 checklist 只负责「我现在在做哪一步」。
+</details>
+
+<details>
+<summary>**Q7 · OpenClaw**：为什么 OpenClaw 更偏进度事件，而不是模型托管 todo？</summary>
+
+OpenClaw 的场景是多渠道运行时：Telegram、Discord、gateway、子 agent、ACP 都可能参与。真实进度常常来自工具开始、工具结束、子 session relay、delivery 状态，而不是模型手写的一张表。把这些 runtime facts 投影成事件，比让模型复述进度可靠。
+
+代价是「目标还剩什么」需要靠 compaction continuity、latest user request、batch progress 和 follow-up commitments 这类摘要机制保存。追问：能不能也加 todo？答：可以，但应该作为 execution todo 的补充，而不是替代 runtime event stream。
+</details>
+
+<details>
+<summary>**Q8 · API**：replace 和 merge 两种 todo 写入方式怎么选？</summary>
+
+Replace 简单：每次提交完整当前表，适合 Codex 式小 checklist，避免局部更新导致旧项残留。Merge 灵活：按 id 更新已有任务，适合 Hermes 这种允许模型只补充或改动部分项的工具，也适合长任务逐步发现新分支。
+
+风险也相反。Replace 容易误删未完成项，所以模型每次要带全量；Merge 容易留下陈旧项，所以必须有 id、去重和清理规则。追问：MVP 用哪个？答：单 agent MVP 用 replace；需要长时间任务或外部系统修改同一张表时再加 merge。
+</details>
+
+<details>
+<summary>**Q9 · 验证**：为什么完成 todo 前要有 verification nudge？</summary>
+
+Agent 最常见的错觉是「我改完了」等于「任务完成了」。Claude Code 在一次关闭多个 todo、但没有验证任务时返回 `verificationNudgeNeeded`，本质上是把测试、lint、HTTP smoke 或人工可见证据纳入完成条件。
+
+这条规则比看起来重要：todo list 如果能被模型随手标 completed，却不要求证据，它会变成自我安慰列表。追问：所有完成都要跑测试吗？答：不一定；但至少要有与任务风险匹配的验证证据，比如命令输出、页面截图、HTTP 响应或明确说明未验证。
+</details>
+
+<details>
+<summary>**Q10 · 总结**：一个 production agent 的 todo/progress surface 至少要有哪些层？</summary>
+
+最小五层：一是小 schema，三态加内容；二是单一当前焦点，限制 `in_progress`；三是事件化，让 UI 和 transcript 读得到；四是恢复和压缩，只保留未完成工作；五是完成验证，不让模型无证据地关闭任务。
+
+再往上做三层：reminder，长时间不更新时提醒；durable task，跨进程/团队协作用；runtime progress event，工具和子 agent 的真实执行状态单独投影。追问：最忌讳什么？答：把计划、todo、memory、cron、审计全塞进一张万能表。那不是任务管理，是边界丢失。
+</details>

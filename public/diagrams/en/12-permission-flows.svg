@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 600" role="img"
+     aria-label="Four permission-decision flows side by side">
+  <defs>
+    <filter id="wb12F"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="119" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar12F" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .col  { font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .note { font: italic 10.5px sans-serif; fill: #92400e; }
+    </style>
+  </defs>
+
+  <text x="440" y="24" class="h" text-anchor="middle">Four permission-decision flows side by side</text>
+  <text x="440" y="42" class="t-s" text-anchor="middle">Enum decisions (Codex) &#x00B7; IDE rules (Claude Code) &#x00B7; 3-D matrix (OpenClaw) &#x00B7; subprocess verdict (Hermes)</text>
+
+  <g filter="url(#wb12F)">
+    <text x="120" y="70" class="col" text-anchor="middle">Codex &#x00B7; 5&#x00D7;5&#x00D7;6&#x00D7;5 enum</text>
+    <rect x="40" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="103" class="lbl" text-anchor="middle">model requests tool_call</text>
+
+    <line x1="120" y1="116" x2="120" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="40" y="138" width="160" height="48" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="158" class="lbl" text-anchor="middle">AskForApproval decision</text>
+    <text x="120" y="174" class="t-s" text-anchor="middle">UnlessTrusted/OnRequest/...</text>
+
+    <line x1="120" y1="186" x2="120" y2="205" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="40" y="208" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="228" class="lbl" text-anchor="middle">GuardianAction classify</text>
+    <text x="120" y="244" class="t-s" text-anchor="middle">Command / Execve / Patch</text>
+    <text x="120" y="258" class="t-s" text-anchor="middle">Network / MCP / RequestPerm</text>
+
+    <line x1="120" y1="268" x2="120" y2="287" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="40" y="290" width="160" height="60" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="310" class="lbl" text-anchor="middle">default_available_decisions</text>
+    <text x="120" y="326" class="t-s" text-anchor="middle">infer button list from context</text>
+    <text x="120" y="340" class="t-s" text-anchor="middle">dialog UI is not hard-coded</text>
+
+    <line x1="120" y1="350" x2="120" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="40" y="372" width="160" height="48" rx="8" fill="#e2e8f0" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="392" class="lbl" text-anchor="middle">ReviewDecision answer</text>
+    <text x="120" y="408" class="t-s" text-anchor="middle">5 values: Approved/Session/...</text>
+
+    <text x="120" y="445" class="note" text-anchor="middle">Each turn has one Constrained cap</text>
+    <text x="120" y="460" class="note" text-anchor="middle">session config + per-command escalation</text>
+
+    <text x="330" y="70" class="col" text-anchor="middle">Claude Code &#x00B7; 5&#x00D7;3&#x00D7;8 rules</text>
+    <rect x="250" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="103" class="lbl" text-anchor="middle">tool wants to execute</text>
+
+    <line x1="330" y1="116" x2="330" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="250" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="158" class="lbl" text-anchor="middle">PermissionMode routing</text>
+    <text x="330" y="174" class="t-s" text-anchor="middle">default/acceptEdits/plan/...</text>
+    <text x="330" y="188" class="t-s" text-anchor="middle">bypassPermissions = YOLO</text>
+
+    <line x1="330" y1="198" x2="330" y2="217" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="250" y="220" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="240" class="lbl" text-anchor="middle">rule overlay (8 sources)</text>
+    <text x="330" y="256" class="t-s" text-anchor="middle">user/project/local/flag</text>
+    <text x="330" y="270" class="t-s" text-anchor="middle">policy/cliArg/command/session</text>
+
+    <line x1="330" y1="280" x2="330" y2="299" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="250" y="302" width="160" height="48" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="322" class="lbl" text-anchor="middle">canUseTool callback</text>
+    <text x="330" y="338" class="t-s" text-anchor="middle">behavior: allow/deny/ask</text>
+
+    <line x1="330" y1="350" x2="330" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="250" y="372" width="160" height="48" rx="8" fill="#e2e8f0" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="392" class="lbl" text-anchor="middle">show UI or auto-decide</text>
+    <text x="330" y="408" class="t-s" text-anchor="middle">answers stored at chosen destination</text>
+
+    <text x="330" y="445" class="note" text-anchor="middle">toolName + ruleContent for fine grain</text>
+    <text x="330" y="460" class="note" text-anchor="middle">allow Bash(git diff), deny Bash(rm)</text>
+
+    <text x="540" y="70" class="col" text-anchor="middle">OpenClaw &#x00B7; 3&#x00D7;3&#x00D7;3 = 27</text>
+    <rect x="460" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="103" class="lbl" text-anchor="middle">command requests execution</text>
+
+    <line x1="540" y1="116" x2="540" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="460" y="138" width="160" height="72" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="158" class="lbl" text-anchor="middle">ExecHost routing</text>
+    <text x="540" y="174" class="t-s" text-anchor="middle">sandbox &#x00B7; gateway &#x00B7; node</text>
+    <text x="540" y="188" class="t-s" text-anchor="middle">each goes to its own exec environment</text>
+    <text x="540" y="202" class="t-s" text-anchor="middle">3 hosts &#x00D7; 3 security policies</text>
+
+    <line x1="540" y1="210" x2="540" y2="229" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="460" y="232" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="252" class="lbl" text-anchor="middle">ExecSecurity verdict</text>
+    <text x="540" y="268" class="t-s" text-anchor="middle">deny / allowlist / full</text>
+    <text x="540" y="282" class="t-s" text-anchor="middle">+ ExecAsk: off/on-miss/always</text>
+
+    <line x1="540" y1="292" x2="540" y2="311" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="460" y="314" width="160" height="60" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="334" class="lbl" text-anchor="middle">5-tuple binding</text>
+    <text x="540" y="350" class="t-s" text-anchor="middle">argv+cwd+agentId</text>
+    <text x="540" y="364" class="t-s" text-anchor="middle">+sessionKey+envHash</text>
+
+    <line x1="540" y1="374" x2="540" y2="393" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="460" y="396" width="160" height="36" rx="8" fill="#e2e8f0" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="419" class="lbl" text-anchor="middle">cache hit / show UI</text>
+
+    <text x="540" y="455" class="note" text-anchor="middle">envHash blocks env-swap attacks</text>
+
+    <text x="760" y="70" class="col" text-anchor="middle">Hermes &#x00B7; tirith subprocess</text>
+    <rect x="680" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="103" class="lbl" text-anchor="middle">terminal_tool call</text>
+
+    <line x1="760" y1="116" x2="760" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="680" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="158" class="lbl" text-anchor="middle">spawn tirith Go binary</text>
+    <text x="760" y="174" class="t-s" text-anchor="middle">5s timeout</text>
+    <text x="760" y="188" class="t-s" text-anchor="middle">background download if missing</text>
+
+    <line x1="760" y1="198" x2="760" y2="217" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="680" y="220" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="240" class="lbl" text-anchor="middle">exit-code verdict</text>
+    <text x="760" y="256" class="t-s" text-anchor="middle">0 allow &#x00B7; 1 block &#x00B7; 2 warn</text>
+    <text x="760" y="270" class="t-s" text-anchor="middle">JSON stdout enriches findings</text>
+
+    <line x1="760" y1="280" x2="760" y2="299" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="680" y="302" width="160" height="48" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="322" class="lbl" text-anchor="middle">fail_open backstop</text>
+    <text x="760" y="338" class="t-s" text-anchor="middle">spawn failure / timeout</text>
+
+    <line x1="760" y1="350" x2="760" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar12F)" />
+
+    <rect x="680" y="372" width="160" height="60" rx="8" fill="#e2e8f0" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="392" class="lbl" text-anchor="middle">supply-chain checks</text>
+    <text x="760" y="408" class="t-s" text-anchor="middle">SHA-256 + cosign</text>
+    <text x="760" y="422" class="t-s" text-anchor="middle">GitHub Actions signature</text>
+
+    <text x="760" y="455" class="note" text-anchor="middle">no user-interaction options</text>
+  </g>
+
+  <text x="440" y="490" class="t-s" text-anchor="middle">User / ops / security tool &#x2014; who decides? Four answers for four agent shapes.</text>
+
+  <g>
+    <rect x="40" y="505" width="800" height="80" rx="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1" />
+    <text x="60" y="525" class="lbl">Shared traits:</text>
+    <text x="60" y="543" class="t-s">&#x00B7; A "mode" concept lets users switch default behaviour with one toggle (coarse-grained).</text>
+    <text x="60" y="559" class="t-s">&#x00B7; Cache / per-session memory: a one-time approval is not asked again.</text>
+    <text x="60" y="575" class="t-s">&#x00B7; Auditable action categories (different ops take different UI / decision paths).</text>
+  </g>
+</svg>

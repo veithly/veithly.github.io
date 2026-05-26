@@ -1,0 +1,68 @@
+---
+title: OpenClaw
+description: "OpenClaw: textbook-grade multi-channel, multi-sandbox, multi-cron personal agent control plane"
+sidebar:
+  order: 3
+---
+
+import Verdict from '@components/Verdict.astro';
+import CompareTable from '@components/CompareTable.astro';
+import SourceTrail from '@components/SourceTrail.astro';
+
+<Verdict tldr="OpenClaw makes one agent handle Discord, iMessage, ACP, and Web look textbook simple. The `security/` directory has 29 files running 30+ audit checks. The cron subsystem supports at, every, and cron schedules. Memory runs on SQLite plus FTS5 plus sqlite-vec with temporal decay. The most complex of the four, the highest ops bar, the highest reference value." tone="insight" />
+
+## §1 · What OpenClaw is
+
+A TypeScript / Node multi-channel personal agent control plane. The proposition: connect multiple messaging channels to one agent backend. A user can talk to the same agent from Discord, iMessage, Web, and an IDE while the agent handles routing, memory, and cron behind the scenes.
+
+## §2 · Architecture stack by directory
+
+<CompareTable
+  rows={[
+    { label: 'Channels', values: ['`channels/` channel abstraction', '`discord/` Discord bot', '`imessage/` iMessage bridge (macOS AppleScript)', '`acp/` Agent Conversation Protocol (IDE / editor)'] },
+    { label: 'Backend', values: ['`agents/` agent registry', '`gateway/` model gateway + rate limit', '`context-engine/` context assembly', '`coordinator/` multi-agent coordination'] },
+    { label: 'Memory', values: ['`memory/` MEMORY.md + memory/\*.md', 'SQLite + FTS5 (lexical) + sqlite-vec (vector)', '`temporal-decay.ts` 30-day half-life decay', 'qmd (query-driven memory directory) scope'] },
+    { label: 'Sandbox & exec', values: ['`sandbox/` cross-backend exec abstraction', 'local / docker / singularity / modal / daytona / ssh, 6 backends', '`browser/` headless Chrome sandbox', '`canvas-host/` isolated canvas process'] },
+    { label: 'Cron', values: ['`cron/` subsystem', '3 schedule modes (at / every / cron) + tz + staggerMs', 'isolated-agent independent session + skills-snapshot', 'failure-alert (cooldownMs + separate destination)'] },
+    { label: 'Observability & cost', values: ['13 `DiagnosticEvent` types', 'Global listener + recursion guard', '`cost-tracker` aggregates by channel/agent', '`security/audit.ts` 30+ checks'] },
+  ]}
+  caption="OpenClaw is the textbook open-source multi-channel agent."
+/>
+
+## §3 · Engineering highlights
+
+1. **Channel coverage**. 4 channels behind a channel abstraction. One agent talks across platforms.
+2. **Memory retrieval is the industry ceiling**. FTS5 plus sqlite-vec dual index, plus temporal decay, plus qmd scope. The most complete single-process retrieval stack you can run locally.
+3. **Cron subsystem is complete**. at, every, and cron schedules, plus isolated-agent execution, plus failure-alert loop, plus 13 issue-named regression tests pinning down production edges.
+4. **`security/` is 29 files**. `audit.ts` runs 30+ checks. `external-content.ts` uses 12 SUSPICIOUS_PATTERNS plus an 8-byte random boundary ID to defeat boundary forgery. `skill-scanner` statically scans skills. `dangerous-tools` ships a default HTTP deny list.
+5. **6 exec backends**. local, docker, singularity, modal, daytona, ssh. One implementation covers every common deployment surface.
+
+## §4 · Where it falls short
+
+1. **High complexity**. 30+ subdirectories. The ops bar is far higher than the other three.
+2. **No official hosting**. Self-host first. Cross-device sync is on you.
+3. **No Phase 2-style memory consolidation**. Pure retrieval. What you stored is what you have.
+4. **Fragile iMessage bridge**. Depends on macOS AppleScript. Compatibility across macOS versions is on you.
+
+## §5 · Five things worth stealing
+
+1. **`security/audit.ts` 30+ check template**. Treat agent security audit as an enumerable list. Each check carries severity and remediation hints.
+2. **`external-content.ts` boundary forgery defense**. 12 SUSPICIOUS_PATTERNS plus an 8-byte random boundary ID wrap external content. A prompt injection cannot escape via `]\n\n[/external_content]`.
+3. **13 issue-named regression tests in cron**. Each issue maps to a test. Production edges are pinned down.
+4. **`temporal-decay.ts` half-life formula**. `weight = base * exp(-ln(2) * age_days / halfLife)`. Linearly combined with FTS5 and vector scores.
+5. **6-backend exec abstraction**. One `run_terminal(cmd, env_type)` signature, six implementations. From local to daytona.
+
+## §6 · Source map
+
+<SourceTrail
+  entries={[
+    { system: 'OpenClaw', path: 'REF/openclaw/src/security/audit.ts', desc: 'SecurityAuditReport with 30+ checks' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/security/external-content.ts', desc: 'External content wrapping + boundary ID' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/security/dangerous-tools.ts', desc: 'HTTP deny list + ACP danger list' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/cron/', desc: 'at/every/cron 3 modes + failure-alert' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/memory/temporal-decay.ts', desc: 'Half-life decay implementation' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/sandbox/', desc: 'Cross-backend exec abstraction' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/channels/', desc: 'Channel abstraction layer' },
+    { system: 'OpenClaw', external: 'https://github.com/openclaw/openclaw', path: 'github.com/openclaw/openclaw', desc: 'Open-source repository' },
+  ]}
+/>

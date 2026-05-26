@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 480" role="img"
+     aria-label="Four file-edit systems plotted across per-turn scope and audit/rollback ease">
+  <defs>
+    <filter id="wb06"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="29" /><feDisplacementMap in="SourceGraphic" scale="2" /></filter>
+    <marker id="ar06" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .ax   { font: 600 12.5px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #64748b; }
+      .pin  { font: 700 12.5px sans-serif; fill: #fff; }
+      .note { font: italic 10.5px sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <text x="390" y="26" class="h" text-anchor="middle">File editing: per-turn scope &#x00D7; auditability / rollback</text>
+  <text x="390" y="44" class="t-s" text-anchor="middle">V4A edits many files at once; str_replace makes the smallest possible change. The two paths spread far across both axes.</text>
+
+  <g filter="url(#wb06)">
+    <rect x="100" y="80" width="280" height="160" fill="#fef3c7" opacity="0.4" />
+    <rect x="380" y="80" width="280" height="160" fill="#dcfce7" opacity="0.4" />
+    <rect x="100" y="240" width="280" height="160" fill="#fee2e2" opacity="0.4" />
+    <rect x="380" y="240" width="280" height="160" fill="#dbeafe" opacity="0.4" />
+
+    <text x="120" y="100" class="t-s">small + easy to review &#x00B7; str_replace zone</text>
+    <text x="640" y="100" class="t-s" text-anchor="end">large + easy to review &#x00B7; holy grail</text>
+    <text x="110" y="394" class="t-s">small + hard to review (worst)</text>
+    <text x="650" y="394" class="t-s" text-anchor="end">large + hard to review</text>
+
+    <line x1="100" y1="400" x2="660" y2="400" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar06)" />
+    <line x1="100" y1="400" x2="100" y2="70" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar06)" />
+    <line x1="380" y1="80" x2="380" y2="400" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="100" y1="240" x2="660" y2="240" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+
+    <text x="660" y="420" class="ax" text-anchor="end">per-turn change scope (lines / files) &#x2192;</text>
+    <text x="110" y="68" class="ax">&#x2191; auditability / rollback ease (reviewer experience)</text>
+
+    <circle cx="235" cy="115" r="15" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+    <text x="235" y="119" class="pin" text-anchor="middle">CC</text>
+    <text x="235" y="148" class="t" text-anchor="middle">Claude Code</text>
+    <text x="235" y="163" class="t-s" text-anchor="middle">single-point str_replace</text>
+    <text x="235" y="176" class="t-s" text-anchor="middle">unique + mtime &#x00B7; each step auditable</text>
+
+    <circle cx="595" cy="125" r="15" fill="#1d4ed8" stroke="#0f172a" stroke-width="2" />
+    <text x="595" y="129" class="pin" text-anchor="middle">CX</text>
+    <text x="595" y="158" class="t" text-anchor="middle">Codex (V4A)</text>
+    <text x="595" y="173" class="t-s" text-anchor="middle">inline DSL &#x00B7; rollout persisted</text>
+    <text x="595" y="186" class="t-s" text-anchor="middle">atomic multi-file &#x00B7; easy rollback</text>
+
+    <circle cx="470" cy="200" r="15" fill="#ea580c" stroke="#0f172a" stroke-width="2" />
+    <text x="470" y="204" class="pin" text-anchor="middle">HM</text>
+    <text x="470" y="232" class="t" text-anchor="middle">Hermes (V4A)</text>
+    <text x="470" y="247" class="t-s" text-anchor="middle">V4A passed as function arg</text>
+    <text x="470" y="260" class="t-s" text-anchor="middle">limited by token cap</text>
+
+    <circle cx="500" cy="320" r="15" fill="#15803d" stroke="#0f172a" stroke-width="2" />
+    <text x="500" y="324" class="pin" text-anchor="middle">OC</text>
+    <text x="500" y="352" class="t" text-anchor="middle">OpenClaw (fs)</text>
+    <text x="500" y="367" class="t-s" text-anchor="middle">general-purpose tools &#x00B7; no DSL</text>
+    <text x="500" y="380" class="t-s" text-anchor="middle">no multi-file atomic semantics</text>
+  </g>
+
+  <text x="20" y="465" class="t-s">CX = Codex &#x00B7; CC = Claude Code &#x00B7; OC = OpenClaw &#x00B7; HM = Hermes</text>
+</svg>

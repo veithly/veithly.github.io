@@ -1,0 +1,65 @@
+---
+title: Agent Harness 架构设计
+description: 拆 Codex、Claude Code、OpenClaw、Hermes 四个真实 Harness，作为自己做 Agent 的参考蓝本
+template: splash
+hero:
+  tagline: 四个真实 Agent 系统的工程拆解：每一层参考谁、避开谁、为什么。
+  image:
+    alt: 四个 Agent 系统围绕 Observe、Plan、Act、Verify 循环的架构示意图
+    file: ../../assets/homepage-hero.png
+  actions:
+    - text: 开始阅读 · 01 总览
+      link: /patterns/01-overview/
+      icon: right-arrow
+      variant: primary
+    - text: 系统画像
+      link: /systems/codex/
+      variant: minimal
+    - text: 面试题索引
+      link: /interview/
+      variant: minimal
+---
+
+import Verdict from '@components/Verdict.astro';
+import AgentLoopSVG from '@components/AgentLoopSVG.astro';
+
+<Verdict tldr="这本书带评审视角拆四个真实 Agent Harness。每章读完，你能回答一个问题：自己做 Agent 时，这部分参考谁、避开谁、为什么。" tone="insight" />
+
+## 这本书讲什么
+
+按 Agent 工程模块逐章讲。每章回答 5 个问题：
+
+1. 这个模块在 Agent 系统里解决什么问题？
+2. Codex、Claude Code、OpenClaw、Hermes 分别怎么实现？
+3. 四家的共同点和分歧在哪里？
+4. 你自己做 Agent，哪部分直接复用、哪部分避开？
+5. 一张架构图能否把运行流程讲清楚？
+
+## 四个参考系统
+
+- **Codex**（OpenAI）：本地与云端 coding agent。重点学 coding loop 闭环。
+- **Claude Code**（Anthropic）：agentic coding tool。重点学开发者 UX 与 Git workflow。
+- **OpenClaw**：多通道个人 Agent 控制面。重点学 session、routing、sandbox。
+- **Hermes**（Nous Research）：长期运行、自改进 Agent。重点学 memory、skills、用户模型。
+
+<AgentLoopSVG caption="所有 Agent 都跑这同一个最小循环：Observe → Plan → Act → Verify" />
+
+## 怎么读这本书
+
+- **想做 agent、没思路**：从 [01 总览](/patterns/01-overview/) 顺读。
+- **想参考某一块**：跳到对应章节。每章 §6「复刻方案」给出最小可行、进阶、别做三档。
+- **想看某个系统**：去 [系统画像](/systems/codex/) 区，每个系统一页，附 5 件可直接对照的工程动作。
+- 每章末尾的 §9 给到 `REF/` 下源码的具体文件加行号。
+
+22 章覆盖 agent loop、context、tool 系统、verifier、文件编辑、shell、git、code review、subagent、session、权限、sandbox、多通道入口、观测成本、记忆、skill、cron、自改进、安全、todo list 任务进度面，以及 execution state surfaces 执行状态路由。
+
+## 配套 Skill：把书装进 Claude 或 Cursor
+
+真做 Agent 时，知识要在指尖。我把全书结论压成 [`build-your-own-agent`](/skill/) skill，一行命令载入：
+
+- 10 条铁律（4 家系统都遵守的最小公约数）加 8 维度光谱选型表；
+- 12 文件 Python scaffold 直接复用；
+- 9 份 reference 文档：构建、诊断、选型、重构、安全、上线、面试、跨 skill 组合；
+- lint 脚本：对照 10 铁律静态检查你的 scaffold，可当作 CI gate。
+
+详见 [配套 Skill](/skill/)。

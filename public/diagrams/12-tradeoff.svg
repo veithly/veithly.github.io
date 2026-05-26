@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 480" role="img"
+     aria-label="四家权限模型在枚举深度 × 运维可配置度上的位置">
+  <defs>
+    <filter id="wb12"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="113" /><feDisplacementMap in="SourceGraphic" scale="2" /></filter>
+    <marker id="ar12" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .ax   { font: 600 12.5px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #64748b; }
+      .pin  { font: 700 12.5px sans-serif; fill: #fff; }
+      .note { font: italic 10.5px sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <text x="390" y="26" class="h" text-anchor="middle">权限与审批：枚举类型化深度 × 运维可配置度</text>
+  <text x="390" y="44" class="t-s" text-anchor="middle">越往右枚举越细；越往上运维旋钮越多；选哪种取决于产品和部署方式</text>
+
+  <g filter="url(#wb12)">
+    <rect x="100" y="80" width="280" height="160" fill="#fef3c7" opacity="0.4" />
+    <rect x="380" y="80" width="280" height="160" fill="#dcfce7" opacity="0.4" />
+    <rect x="100" y="240" width="280" height="160" fill="#dbeafe" opacity="0.4" />
+    <rect x="380" y="240" width="280" height="160" fill="#fee2e2" opacity="0.4" />
+
+    <text x="120" y="100" class="t-s">弱枚举 · 多旋钮</text>
+    <text x="640" y="100" class="t-s" text-anchor="end">强枚举 · 多旋钮</text>
+    <text x="110" y="394" class="t-s">弱枚举 · 少旋钮</text>
+    <text x="650" y="394" class="t-s" text-anchor="end">强枚举 · 少旋钮</text>
+
+    <line x1="100" y1="400" x2="660" y2="400" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar12)" />
+    <line x1="100" y1="400" x2="100" y2="70" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar12)" />
+    <line x1="380" y1="80" x2="380" y2="400" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="100" y1="240" x2="660" y2="240" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+
+    <text x="660" y="420" class="ax" text-anchor="end">决策 / 操作 / 答案的枚举类型化深度 →</text>
+    <text x="110" y="68" class="ax">↑ 运维 / 管理员可配置旋钮</text>
+
+    <!-- Hermes: bottom-left (子进程 + fail_open) -->
+    <circle cx="190" cy="290" r="14" fill="#ea580c" stroke="#0f172a" stroke-width="2" />
+    <text x="190" y="294" class="pin" text-anchor="middle">HM</text>
+    <text x="190" y="321" class="t" text-anchor="middle">Hermes</text>
+    <text x="190" y="336" class="t-s" text-anchor="middle">tirith 子进程</text>
+    <text x="190" y="349" class="t-s" text-anchor="middle">exit code verdict</text>
+
+    <!-- OpenClaw: top-middle (27 矩阵给运维) -->
+    <circle cx="430" cy="120" r="14" fill="#15803d" stroke="#0f172a" stroke-width="2" />
+    <text x="430" y="124" class="pin" text-anchor="middle">OC</text>
+    <text x="430" y="151" class="t" text-anchor="middle">OpenClaw</text>
+    <text x="430" y="166" class="t-s" text-anchor="middle">3×3×3 = 27 组合</text>
+    <text x="430" y="179" class="t-s" text-anchor="middle">5-tuple binding</text>
+
+    <!-- Claude Code: top-right (8 source + 5 mode) -->
+    <circle cx="580" cy="140" r="14" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+    <text x="580" y="144" class="pin" text-anchor="middle">CC</text>
+    <text x="580" y="171" class="t" text-anchor="middle">Claude Code</text>
+    <text x="580" y="186" class="t-s" text-anchor="middle">5 mode × 3 behavior</text>
+    <text x="580" y="199" class="t-s" text-anchor="middle">× 8 rule source</text>
+
+    <!-- Codex: right-middle (5x5x6x5 全枚举) -->
+    <circle cx="620" cy="240" r="14" fill="#1d4ed8" stroke="#0f172a" stroke-width="2" />
+    <text x="620" y="244" class="pin" text-anchor="middle">CX</text>
+    <text x="620" y="271" class="t" text-anchor="middle">Codex</text>
+    <text x="620" y="286" class="t-s" text-anchor="middle">5 mode × 5 granular</text>
+    <text x="620" y="299" class="t-s" text-anchor="middle">× 6 op × 5 decision</text>
+  </g>
+
+  <text x="20" y="465" class="t-s">CX = Codex · CC = Claude Code · OC = OpenClaw · HM = Hermes</text>
+</svg>

@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 620" role="img"
+     aria-label="Four subagent-model flows side by side">
+  <defs>
+    <filter id="wb10F"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="83" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar10F" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .col  { font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .note { font: italic 10.5px sans-serif; fill: #92400e; }
+    </style>
+  </defs>
+
+  <text x="440" y="24" class="h" text-anchor="middle">Four subagent flows side by side</text>
+  <text x="440" y="42" class="t-s" text-anchor="middle">From functional (Hermes) &#x2192; typed (Codex) &#x2192; task abstraction (Claude Code) &#x2192; full platform (OpenClaw)</text>
+
+  <g filter="url(#wb10F)">
+    <text x="120" y="70" class="col" text-anchor="middle">Hermes &#x00B7; delegate_task</text>
+    <rect x="40" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="103" class="lbl" text-anchor="middle">delegate_task(goal, ctx)</text>
+
+    <line x1="120" y1="116" x2="120" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar10F)" />
+
+    <rect x="40" y="138" width="160" height="48" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="158" class="lbl" text-anchor="middle">if depth &#x2265; MAX_DEPTH</text>
+    <text x="120" y="174" class="t-s" text-anchor="middle">parent(0)&#x2192;child(1)&#x2192;reject</text>
+
+    <line x1="120" y1="186" x2="120" y2="205" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar10F)" />
+
+    <rect x="40" y="208" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="228" class="lbl" text-anchor="middle">hard-ban 5 tools</text>
+    <text x="120" y="244" class="t-s" text-anchor="middle">delegate &#x00B7; clarify &#x00B7; memory</text>
+    <text x="120" y="258" class="t-s" text-anchor="middle">send_message &#x00B7; execute_code</text>
+
+    <line x1="120" y1="268" x2="120" y2="287" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar10F)" />
+
+    <rect x="40" y="290" width="160" height="48" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="310" class="lbl" text-anchor="middle">ThreadPoolExecutor</text>
+    <text x="120" y="326" class="t-s" text-anchor="middle">3 concurrent by default</text>
+
+    <line x1="120" y1="338" x2="120" y2="357" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar10F)" />
+
+    <rect x="40" y="360" width="160" height="36" rx="8" fill="#e2e8f0" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="383" class="lbl" text-anchor="middle">as_completed blocks</text>
+
+    <text x="120" y="420" class="note" text-anchor="middle">functional &#x00B7; sync blocking</text>
+    <text x="120" y="435" class="note" text-anchor="middle">minimal &#x00B7; clear boundary</text>
+
+    <text x="330" y="70" class="col" text-anchor="middle">Codex &#x00B7; SubAgentSource</text>
+    <rect x="250" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="103" class="lbl" text-anchor="middle">Codex::spawn(args)</text>
+
+    <line x1="330" y1="116" x2="330" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar10F)" />
+
+    <rect x="250" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="158" class="lbl" text-anchor="middle">5 SubAgentSource</text>
+    <text x="330" y="174" class="t-s" text-anchor="middle">Review &#x00B7; Compact</text>
+    <text x="330" y="188" class="t-s" text-anchor="middle">ThreadSpawn &#x00B7; Memory &#x00B7; Other</text>
+
+    <line x1="330" y1="198" x2="330" y2="217" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar10F)" />
+
+    <rect x="250" y="220" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="240" class="lbl" text-anchor="middle">inherit 7 parent services</text>
+    <text x="330" y="256" class="t-s" text-anchor="middle">exec_policy &#x00B7; plugins &#x00B7; mcp</text>
+    <text x="330" y="270" class="t-s" text-anchor="middle">skills &#x00B7; environment &#x00B7; ...</text>
+
+    <line x1="330" y1="280" x2="330" y2="299" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar10F)" />
+
+    <rect x="250" y="302" width="160" height="48" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="322" class="lbl" text-anchor="middle">AskForApproval=Never</text>
+    <text x="330" y="338" class="t-s" text-anchor="middle">approvals route to parent</text>
+
+    <line x1="330" y1="350" x2="330" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar10F)" />
+
+    <rect x="250" y="372" width="160" height="36" rx="8" fill="#e2e8f0" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="395" class="lbl" text-anchor="middle">receiver pushes TurnComplete</text>
+
+    <text x="330" y="430" class="note" text-anchor="middle">typed inheritance</text>
+    <text x="330" y="445" class="note" text-anchor="middle">child &#x2264; parent's capability set</text>
+
+    <text x="540" y="70" class="col" text-anchor="middle">Claude Code &#x00B7; Task</text>
+    <rect x="460" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="103" class="lbl" text-anchor="middle">TaskCreateTool invoked</text>
+
+    <line x1="540" y1="116" x2="540" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar10F)" />
+
+    <rect x="460" y="138" width="160" height="72" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="158" class="lbl" text-anchor="middle">7 TaskTypes</text>
+    <text x="540" y="174" class="t-s" text-anchor="middle">local_bash &#x00B7; local_agent</text>
+    <text x="540" y="188" class="t-s" text-anchor="middle">remote_agent &#x00B7; teammate</text>
+    <text x="540" y="202" class="t-s" text-anchor="middle">workflow &#x00B7; monitor &#x00B7; dream</text>
+
+    <line x1="540" y1="210" x2="540" y2="229" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar10F)" />
+
+    <rect x="460" y="232" width="160" height="48" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="252" class="lbl" text-anchor="middle">FSM states</text>
+    <text x="540" y="268" class="t-s" text-anchor="middle">pending&#x2192;running&#x2192;done/fail/killed</text>
+
+    <line x1="540" y1="280" x2="540" y2="299" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar10F)" />
+
+    <rect x="460" y="302" width="160" height="48" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="322" class="lbl" text-anchor="middle">isConcurrencySafe()</text>
+    <text x="540" y="338" class="t-s" text-anchor="middle">dispatcher decides concurrency</text>
+
+    <line x1="540" y1="350" x2="540" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar10F)" />
+
+    <rect x="460" y="372" width="160" height="36" rx="8" fill="#e2e8f0" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="395" class="lbl" text-anchor="middle">outputFile persisted</text>
+
+    <text x="540" y="430" class="note" text-anchor="middle">task abstraction</text>
+    <text x="540" y="445" class="note" text-anchor="middle">subagent is just one of many</text>
+
+    <text x="760" y="70" class="col" text-anchor="middle">OpenClaw &#x00B7; subagent platform</text>
+    <rect x="680" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="103" class="lbl" text-anchor="middle">spawn_subagent(13 fields)</text>
+
+    <line x1="760" y1="116" x2="760" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar10F)" />
+
+    <rect x="680" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="158" class="lbl" text-anchor="middle">registry registers run</text>
+    <text x="760" y="174" class="t-s" text-anchor="middle">mode (run / session)</text>
+    <text x="760" y="188" class="t-s" text-anchor="middle">sandbox (inherit / require)</text>
+
+    <line x1="760" y1="198" x2="760" y2="217" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar10F)" />
+
+    <rect x="680" y="220" width="160" height="48" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="240" class="lbl" text-anchor="middle">spawnDepth &#x2192; session store</text>
+    <text x="760" y="256" class="t-s" text-anchor="middle">survives process restarts</text>
+
+    <line x1="760" y1="268" x2="760" y2="287" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar10F)" />
+
+    <rect x="680" y="290" width="160" height="60" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="310" class="lbl" text-anchor="middle">return value packs hard warning</text>
+    <text x="760" y="326" class="t-s" text-anchor="middle">"do NOT poll, wait for push event"</text>
+    <text x="760" y="340" class="t-s" text-anchor="middle">written into tool result</text>
+
+    <line x1="760" y1="350" x2="760" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar10F)" />
+
+    <rect x="680" y="372" width="160" height="48" rx="8" fill="#e2e8f0" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="392" class="lbl" text-anchor="middle">subagent-announce</text>
+    <text x="760" y="408" class="t-s" text-anchor="middle">push complete &#x2192; user message</text>
+
+    <text x="760" y="445" class="note" text-anchor="middle">full platform</text>
+    <text x="760" y="460" class="note" text-anchor="middle">enterprise &#x00B7; cross-session resume</text>
+  </g>
+
+  <g>
+    <rect x="40" y="490" width="800" height="100" rx="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1" />
+    <text x="60" y="510" class="lbl">What all four agree on:</text>
+    <text x="60" y="528" class="t-s">&#x00B7; Depth must be tracked: one of MAX_DEPTH / spawnDepth / ThreadSpawn.depth has to exist</text>
+    <text x="60" y="544" class="t-s">&#x00B7; Recursive spawn must be banned: a child cannot spawn the same kind of child &#x2014; via tool-level ban or feature flag</text>
+    <text x="60" y="560" class="t-s">&#x00B7; Child tools are a subset of parent's: never let the child be looser (exec_policy inheritance)</text>
+    <text x="60" y="576" class="t-s">&#x00B7; Completion via push / future: never poll for child-agent state</text>
+  </g>
+
+  <text x="440" y="608" class="t-s" text-anchor="middle">Left-to-right gets heavier; top-to-bottom reduces concurrency freedom. Pick based on the business complexity.</text>
+</svg>

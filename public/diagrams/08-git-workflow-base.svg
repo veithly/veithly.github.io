@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 460" role="img"
+     aria-label="四系统的 git 抽象层深度梯度">
+  <defs>
+    
+    <filter id="wobble">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="7" />
+      <feDisplacementMap in="SourceGraphic" scale="2" />
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#0f172a" />
+    </marker>
+
+    <style>
+    .h     { font: 600 14px sans-serif; fill: #0f172a; }
+    .t     { font: 12px sans-serif; fill: #0f172a; }
+    .t-sub { font: 12px sans-serif; fill: #334155; }
+    .sys   { font: 700 13px sans-serif; fill: #fbfaf7; }
+    .stage { font: 600 12px sans-serif; fill: #0f172a; }
+    .num   { font: 700 16px sans-serif; fill: #ea580c; }
+</style>
+  </defs>
+
+  <text x="20" y="28" class="h">四个 agent 看同一个 repo 看到不同的东西</text>
+  <text x="20" y="48" class="t-sub">抽象层厂度差一个数量级：从一个獨立 crate 到一行 subprocess</text>
+
+  <g filter="url(#wobble)">
+    <!-- common repo at top -->
+    <rect x="340" y="64" width="220" height="36" rx="6"
+          fill="#0f172a" stroke="#0f172a" stroke-width="2" />
+    <text x="450" y="86" class="sys" text-anchor="middle">git repo (.git/HEAD, refs, ...)</text>
+
+    <line x1="120" y1="100" x2="120" y2="125" stroke="#0f172a" stroke-width="1.5" />
+    <line x1="340" y1="100" x2="340" y2="125" stroke="#0f172a" stroke-width="1.5" />
+    <line x1="560" y1="100" x2="560" y2="125" stroke="#0f172a" stroke-width="1.5" />
+    <line x1="780" y1="100" x2="780" y2="125" stroke="#0f172a" stroke-width="1.5" />
+    <line x1="120" y1="125" x2="780" y2="125" stroke="#0f172a" stroke-width="1.5" />
+    <line x1="120" y1="125" x2="120" y2="140" stroke="#0f172a" stroke-width="2" marker-end="url(#arrow)" />
+    <line x1="340" y1="125" x2="340" y2="140" stroke="#0f172a" stroke-width="2" marker-end="url(#arrow)" />
+    <line x1="560" y1="125" x2="560" y2="140" stroke="#0f172a" stroke-width="2" marker-end="url(#arrow)" />
+    <line x1="780" y1="125" x2="780" y2="140" stroke="#0f172a" stroke-width="2" marker-end="url(#arrow)" />
+
+    <!-- Codex column: thickest -->
+    <rect x="20" y="148" width="200" height="270" rx="12"
+          fill="#fbfaf7" stroke="#1d4ed8" stroke-width="2.5" />
+    <text x="120" y="170" class="t" text-anchor="middle" fill="#1d4ed8" font-weight="700">Codex</text>
+    <text x="120" y="186" class="t-sub" text-anchor="middle">git-utils crate</text>
+
+    <rect x="38" y="200" width="164" height="22" rx="4" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.2" />
+    <text x="120" y="216" class="t-sub" text-anchor="middle">GitInfo 强类型</text>
+
+    <rect x="38" y="228" width="164" height="22" rx="4" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.2" />
+    <text x="120" y="244" class="t-sub" text-anchor="middle">GitSha + 5s timeout</text>
+
+    <rect x="38" y="256" width="164" height="22" rx="4" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.2" />
+    <text x="120" y="272" class="t-sub" text-anchor="middle">apply_git_patch</text>
+
+    <rect x="38" y="284" width="164" height="22" rx="4" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.2" />
+    <text x="120" y="300" class="t-sub" text-anchor="middle">baseline 快照</text>
+
+    <rect x="38" y="312" width="164" height="22" rx="4" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.2" />
+    <text x="120" y="328" class="t-sub" text-anchor="middle">recent_commits</text>
+
+    <rect x="38" y="340" width="164" height="22" rx="4" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.2" />
+    <text x="120" y="356" class="t-sub" text-anchor="middle">git_diff_to_remote</text>
+
+    <rect x="38" y="368" width="164" height="22" rx="4" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.2" />
+    <text x="120" y="384" class="t-sub" text-anchor="middle">merge_base_with_head</text>
+
+    <text x="120" y="406" class="t" text-anchor="middle" fill="#1d4ed8" font-weight="700">30+ 个 public fn</text>
+
+    <!-- Claude Code column: thick -->
+    <rect x="240" y="148" width="200" height="220" rx="12"
+          fill="#fbfaf7" stroke="#6d28d9" stroke-width="2.5" />
+    <text x="340" y="170" class="t" text-anchor="middle" fill="#6d28d9" font-weight="700">Claude Code</text>
+    <text x="340" y="186" class="t-sub" text-anchor="middle">utils/git.ts + cache + safety</text>
+
+    <rect x="258" y="200" width="164" height="22" rx="4" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.2" />
+    <text x="340" y="216" class="t-sub" text-anchor="middle">findGitRoot LRU(50)</text>
+
+    <rect x="258" y="228" width="164" height="22" rx="4" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.2" />
+    <text x="340" y="244" class="t-sub" text-anchor="middle">gitFilesystem 缓存</text>
+
+    <rect x="258" y="256" width="164" height="22" rx="4" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.2" />
+    <text x="340" y="272" class="t-sub" text-anchor="middle">gitSafety: bare-repo</text>
+
+    <rect x="258" y="284" width="164" height="22" rx="4" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.2" />
+    <text x="340" y="300" class="t-sub" text-anchor="middle">/review prompt</text>
+
+    <rect x="258" y="312" width="164" height="22" rx="4" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.2" />
+    <text x="340" y="328" class="t-sub" text-anchor="middle">/pr_comments</text>
+
+    <text x="340" y="356" class="t" text-anchor="middle" fill="#6d28d9" font-weight="700">~1000 行代码</text>
+
+    <!-- OpenClaw column: thin -->
+    <rect x="460" y="148" width="200" height="160" rx="12"
+          fill="#fbfaf7" stroke="#15803d" stroke-width="2.5" />
+    <text x="560" y="170" class="t" text-anchor="middle" fill="#15803d" font-weight="700">OpenClaw</text>
+    <text x="560" y="186" class="t-sub" text-anchor="middle">infra/git-root.ts</text>
+
+    <rect x="478" y="200" width="164" height="22" rx="4" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.2" />
+    <text x="560" y="216" class="t-sub" text-anchor="middle">findGitRoot walk-up</text>
+
+    <rect x="478" y="228" width="164" height="22" rx="4" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.2" />
+    <text x="560" y="244" class="t-sub" text-anchor="middle">读 .git/HEAD 拿 SHA</text>
+
+    <text x="560" y="280" class="t" text-anchor="middle" fill="#15803d" font-weight="700">版本戳 only</text>
+    <text x="560" y="298" class="t-sub" text-anchor="middle">~30 行代码</text>
+
+    <!-- Hermes column: thinnest -->
+    <rect x="680" y="148" width="200" height="100" rx="12"
+          fill="#fbfaf7" stroke="#ea580c" stroke-width="2.5" />
+    <text x="780" y="170" class="t" text-anchor="middle" fill="#ea580c" font-weight="700">Hermes</text>
+    <text x="780" y="186" class="t-sub" text-anchor="middle">banner.py</text>
+
+    <rect x="698" y="200" width="164" height="22" rx="4" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.2" />
+    <text x="780" y="216" class="t-sub" text-anchor="middle">upstream/local/ahead</text>
+
+    <text x="780" y="240" class="t" text-anchor="middle" fill="#ea580c" font-weight="700">~25 行</text>
+
+    <!-- bottom gradient -->
+    <text x="20" y="438" class="t-sub">厚</text>
+    <line x1="50" y1="436" x2="850" y2="436" stroke="#0f172a" stroke-width="2" marker-end="url(#arrow)" />
+    <text x="864" y="438" class="t-sub" text-anchor="end">薄</text>
+    <text x="450" y="452" class="t-sub" text-anchor="middle">抽象厚度：Codex » Claude Code » OpenClaw » Hermes</text>
+  </g>
+</svg>

@@ -1,0 +1,181 @@
+---
+/**
+ * <TradeOff /> 支持三种 schema:
+ *  A. 2D 散点图:  axes={[{label},{label}]}  placements={[{label,x,y,color}]}   (x,y ∈ 0..1)
+ *  B. 2D 散点图(简写): axisLeft="..." axisRight="..." items={[{label,x,y,note}]} (x,y ∈ 0..100)
+ *  C. pros/cons 卡片: title="..." options={[{name,pros[],cons[]}]}
+ */
+interface Axis { label: string; }
+interface Placement { label: string; x: number; y: number; color?: string; note?: string; }
+interface Item { label: string; x: number; y: number; note?: string; color?: string; }
+interface Option { name: string; pros?: string[]; cons?: string[]; }
+
+interface Props {
+  axes?: [Axis, Axis];
+  placements?: Placement[];
+  axisLeft?: string;
+  axisRight?: string;
+  items?: Item[];
+  title?: string;
+  options?: Option[];
+  caption?: string;
+}
+
+const { axes, placements, axisLeft, axisRight, items, title, options, caption } = Astro.props;
+
+let mode: 'scatter' | 'cards' = 'scatter';
+let resolvedAxes: [Axis, Axis] | null = null;
+let resolvedPlacements: Placement[] = [];
+
+if (options && options.length > 0) {
+  mode = 'cards';
+} else if (axes && placements) {
+  resolvedAxes = axes;
+  resolvedPlacements = placements;
+} else if (axisLeft && axisRight && items) {
+  resolvedAxes = [{ label: axisLeft }, { label: axisRight }];
+  resolvedPlacements = items.map((it) => ({
+    label: it.label,
+    x: it.x / 100,
+    y: it.y / 100,
+    color: it.color,
+    note: it.note,
+  }));
+}
+
+const W = 480;
+const H = 360;
+const PAD = 40;
+---
+
+{mode === 'scatter' && resolvedAxes && (
+  <figure class="aap-tradeoff">
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`tradeoff: ${resolvedAxes[0].label} vs ${resolvedAxes[1].label}`}>
+      <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="currentColor" stroke-width="2" />
+      <line x1={PAD} y1={H - PAD} x2={PAD} y2={PAD} stroke="currentColor" stroke-width="2" />
+      <text x={W - PAD} y={H - PAD + 24} text-anchor="end" font-size="13" font-family="var(--aap-font-hand, inherit)">
+        {resolvedAxes[0].label} →
+      </text>
+      <text x={PAD - 8} y={PAD} text-anchor="end" font-size="13" font-family="var(--aap-font-hand, inherit)" transform={`rotate(-90 ${PAD - 8} ${PAD})`}>
+        {resolvedAxes[1].label} →
+      </text>
+      {resolvedPlacements.map((p) => {
+        const cx = PAD + p.x * (W - 2 * PAD);
+        const cy = H - PAD - p.y * (H - 2 * PAD);
+        return (
+          <g>
+            <circle cx={cx} cy={cy} r="8" fill={p.color ?? 'var(--aap-color-insight)'} stroke="currentColor" stroke-width="2" />
+            <text x={cx + 14} y={cy + 4} font-size="13" font-family="var(--aap-font-hand, inherit)">{p.label}</text>
+          </g>
+        );
+      })}
+    </svg>
+    {caption && <figcaption>{caption}</figcaption>}
+  </figure>
+)}
+
+{mode === 'cards' && options && (
+  <figure class="aap-tradeoff-cards">
+    {title && <header class="title">{title}</header>}
+    <div class="grid">
+      {options.map((opt) => (
+        <div class="card">
+          <h4>{opt.name}</h4>
+          {opt.pros && opt.pros.length > 0 && (
+            <ul class="pros">
+              {opt.pros.map((p) => <li>{p}</li>)}
+            </ul>
+          )}
+          {opt.cons && opt.cons.length > 0 && (
+            <ul class="cons">
+              {opt.cons.map((c) => <li>{c}</li>)}
+            </ul>
+          )}
+        </div>
+      ))}
+    </div>
+    {caption && <figcaption>{caption}</figcaption>}
+  </figure>
+)}
+
+<style>
+  .aap-tradeoff {
+    margin: var(--aap-sp-6) 0;
+    padding: var(--aap-sp-4);
+    background: var(--aap-paper);
+    border: 1px solid var(--aap-paper-line);
+    border-radius: var(--aap-radius-md);
+    box-shadow: var(--aap-shadow-soft);
+    color: var(--aap-ink);
+  }
+  .aap-tradeoff svg {
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+    height: auto;
+  }
+  .aap-tradeoff figcaption,
+  .aap-tradeoff-cards figcaption {
+    margin-top: var(--aap-sp-2);
+    text-align: center;
+    font-size: var(--aap-fs-xs);
+    color: var(--aap-ink-muted);
+    font-style: italic;
+  }
+
+  .aap-tradeoff-cards {
+    margin: var(--aap-sp-6) 0;
+    padding: var(--aap-sp-6);
+    background: var(--aap-paper);
+    border: 1px solid var(--aap-paper-line);
+    border-radius: var(--aap-radius-md);
+    box-shadow: var(--aap-shadow-soft);
+    color: var(--aap-ink);
+  }
+  .aap-tradeoff-cards .title {
+    font-family: var(--aap-font-display);
+    font-weight: 700;
+    font-size: var(--aap-fs-md);
+    margin-bottom: var(--aap-sp-4);
+    padding-bottom: var(--aap-sp-2);
+    border-bottom: 1px solid var(--aap-paper-line);
+    letter-spacing: -0.005em;
+  }
+  .aap-tradeoff-cards .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--aap-sp-3);
+  }
+  .aap-tradeoff-cards .card {
+    background: var(--aap-paper-soft);
+    border: 1px solid var(--aap-paper-line);
+    border-radius: var(--aap-radius-sm);
+    padding: var(--aap-sp-4);
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+  .aap-tradeoff-cards .card:hover {
+    border-color: var(--aap-ink-muted);
+    transform: translateY(-2px);
+  }
+  .aap-tradeoff-cards .card h4 {
+    margin: 0 0 var(--aap-sp-2) 0;
+    font-size: var(--aap-fs-base);
+    line-height: 1.3;
+    font-family: var(--aap-font-display);
+    font-weight: 600;
+    letter-spacing: -0.005em;
+  }
+  .aap-tradeoff-cards ul {
+    margin: var(--aap-sp-1) 0;
+    padding-left: 1.2rem;
+    font-size: var(--aap-fs-xs);
+    line-height: 1.55;
+    color: var(--aap-ink-soft);
+  }
+  .aap-tradeoff-cards ul.pros li::marker {
+    color: var(--aap-color-shared);
+  }
+  .aap-tradeoff-cards ul.cons li::marker {
+    color: var(--aap-color-risk);
+  }
+</style>

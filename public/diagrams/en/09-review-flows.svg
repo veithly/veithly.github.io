@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 660" role="img"
+     aria-label="Four review patterns laid out side by side">
+  <defs>
+    <filter id="wb09F"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="71" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar09F" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .col  { font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .note { font: italic 10.5px sans-serif; fill: #92400e; }
+    </style>
+  </defs>
+
+  <text x="430" y="24" class="h" text-anchor="middle">Four code-review flows side by side</text>
+  <text x="430" y="42" class="t-s" text-anchor="middle">From &#x201C;same-chat prompt&#x201D; to &#x201C;independent sub-agent&#x201D; to &#x201C;remote pipeline&#x201D; to &#x201C;pipeline hook&#x201D;</text>
+
+  <g filter="url(#wb09F)">
+    <text x="120" y="70" class="col" text-anchor="middle">Codex &#x00B7; double-layer sub-agent</text>
+    <rect x="40" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="103" class="lbl" text-anchor="middle">user /review</text>
+
+    <line x1="120" y1="116" x2="120" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar09F)" />
+
+    <rect x="40" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="158" class="lbl" text-anchor="middle">fork sub-agent</text>
+    <text x="120" y="174" class="t-s" text-anchor="middle">web_search=off &#x00B7; Spawn=off</text>
+    <text x="120" y="189" class="t-s" text-anchor="middle">approval=Never</text>
+
+    <line x1="120" y1="198" x2="120" y2="217" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar09F)" />
+
+    <rect x="40" y="220" width="160" height="48" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="240" class="lbl" text-anchor="middle">run REVIEW_PROMPT</text>
+    <text x="120" y="256" class="t-s" text-anchor="middle">4 target templates</text>
+
+    <line x1="120" y1="268" x2="120" y2="287" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar09F)" />
+
+    <rect x="40" y="290" width="160" height="36" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="313" class="lbl" text-anchor="middle">parse_review_output</text>
+
+    <line x1="120" y1="326" x2="120" y2="345" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar09F)" />
+
+    <rect x="40" y="348" width="160" height="36" rx="8" fill="#e2e8f0" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="371" class="lbl" text-anchor="middle">main agent continues</text>
+
+    <rect x="40" y="420" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="443" class="lbl" text-anchor="middle">main-agent tool_call</text>
+
+    <line x1="120" y1="456" x2="120" y2="475" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar09F)" />
+
+    <rect x="40" y="478" width="160" height="48" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="498" class="lbl" text-anchor="middle">guardian reviewer</text>
+    <text x="120" y="514" class="t-s" text-anchor="middle">risk + 5s timeout</text>
+
+    <line x1="120" y1="526" x2="120" y2="545" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar09F)" />
+
+    <rect x="40" y="548" width="160" height="36" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="571" class="lbl" text-anchor="middle">allow / deny / timeout</text>
+
+    <text x="120" y="610" class="note" text-anchor="middle">Two reviewer agents</text>
+    <text x="120" y="625" class="note" text-anchor="middle">one reviews code &#x00B7; one reviews approvals</text>
+
+    <text x="330" y="70" class="col" text-anchor="middle">Claude Code &#x00B7; local prompt</text>
+    <rect x="250" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="103" class="lbl" text-anchor="middle">user /review #123</text>
+
+    <line x1="330" y1="116" x2="330" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar09F)" />
+
+    <rect x="250" y="138" width="160" height="48" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="158" class="lbl" text-anchor="middle">LOCAL_REVIEW_PROMPT</text>
+    <text x="330" y="174" class="t-s" text-anchor="middle">fed back into main-agent context</text>
+
+    <line x1="330" y1="186" x2="330" y2="205" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar09F)" />
+
+    <rect x="250" y="208" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="228" class="lbl" text-anchor="middle">main agent runs gh</text>
+    <text x="330" y="244" class="t-s" text-anchor="middle">gh pr view &#x2192; gh pr diff</text>
+    <text x="330" y="258" class="t-s" text-anchor="middle">&#x2192; analyse + 5 sections</text>
+
+    <line x1="330" y1="268" x2="330" y2="287" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar09F)" />
+
+    <rect x="250" y="290" width="160" height="36" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="313" class="lbl" text-anchor="middle">markdown findings</text>
+
+    <text x="330" y="360" class="note" text-anchor="middle">no independent reviewer agent</text>
+    <text x="330" y="375" class="note" text-anchor="middle">role-swap inside same chat</text>
+
+    <text x="540" y="70" class="col" text-anchor="middle">CC &#x00B7; /ultrareview remote</text>
+    <rect x="460" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="103" class="lbl" text-anchor="middle">user /ultrareview</text>
+
+    <line x1="540" y1="116" x2="540" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar09F)" />
+
+    <rect x="460" y="138" width="160" height="36" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="161" class="lbl" text-anchor="middle">quota / billing gate</text>
+
+    <line x1="540" y1="174" x2="540" y2="193" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar09F)" />
+
+    <rect x="460" y="196" width="160" height="48" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="216" class="lbl" text-anchor="middle">teleport &#x2192; CCR Web</text>
+    <text x="540" y="232" class="t-s" text-anchor="middle">GitHub app fetches code</text>
+
+    <line x1="540" y1="244" x2="540" y2="263" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar09F)" />
+
+    <rect x="460" y="266" width="160" height="60" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="286" class="lbl" text-anchor="middle">bug-hunter pipeline</text>
+    <text x="540" y="302" class="t-s" text-anchor="middle">10-20 minutes</text>
+    <text x="540" y="316" class="t-s" text-anchor="middle">sandbox + quota</text>
+
+    <line x1="540" y1="326" x2="540" y2="345" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar09F)" />
+
+    <rect x="460" y="348" width="160" height="36" rx="8" fill="#e2e8f0" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="371" class="lbl" text-anchor="middle">task-notification write-back</text>
+
+    <text x="540" y="410" class="note" text-anchor="middle">independent remote session</text>
+    <text x="540" y="425" class="note" text-anchor="middle">deepest &#x00B7; most expensive</text>
+
+    <text x="750" y="70" class="col" text-anchor="middle">OpenClaw / Hermes</text>
+    <rect x="670" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="750" y="103" class="lbl" text-anchor="middle">OC: main-agent fs.write</text>
+
+    <line x1="750" y1="116" x2="750" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar09F)" />
+
+    <rect x="670" y="138" width="160" height="48" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="750" y="158" class="lbl" text-anchor="middle">after_tool_call hook</text>
+    <text x="750" y="174" class="t-s" text-anchor="middle">user plugin attaches reviewer</text>
+
+    <line x1="750" y1="186" x2="750" y2="205" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar09F)" />
+
+    <rect x="670" y="208" width="160" height="36" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="750" y="231" class="lbl" text-anchor="middle">findings &#x2192; system msg</text>
+
+    <text x="750" y="280" class="note" text-anchor="middle">divider &#x2193; Hermes</text>
+    <line x1="670" y1="290" x2="830" y2="290" stroke="#64748b" stroke-dasharray="4 3" stroke-width="1" />
+
+    <rect x="670" y="298" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="750" y="321" class="lbl" text-anchor="middle">HM: &#x201C;review this&#x201D;</text>
+
+    <line x1="750" y1="334" x2="750" y2="353" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar09F)" />
+
+    <rect x="670" y="356" width="160" height="36" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="750" y="379" class="lbl" text-anchor="middle">terminal git diff</text>
+
+    <line x1="750" y1="392" x2="750" y2="411" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar09F)" />
+
+    <rect x="670" y="414" width="160" height="36" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="750" y="437" class="lbl" text-anchor="middle">main agent answers directly</text>
+
+    <text x="750" y="475" class="note" text-anchor="middle">OC = pipeline hook</text>
+    <text x="750" y="490" class="note" text-anchor="middle">HM = zero infrastructure</text>
+  </g>
+
+  <text x="430" y="640" class="t-s" text-anchor="middle">Isolation decreases right-to-left; onboarding cost increases left-to-right. Pick by agent role + review importance.</text>
+</svg>

@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 520" role="img" aria-labelledby="title desc">
+  <title id="title">Three-layer task progress architecture</title>
+  <desc id="desc">Approval plan, execution todo, durable task, runtime event stream, and compaction recovery are separated.</desc>
+  <defs>
+    <style>
+      .bg { fill: #fbfaf7; }
+      .box { fill: #ffffff; stroke: #d8d1c3; stroke-width: 2; }
+      .plan { fill: #eff6ff; stroke: #2563eb; }
+      .todo { fill: #f5f3ff; stroke: #7c3aed; }
+      .task { fill: #fff7ed; stroke: #f97316; }
+      .event { fill: #f0fdf4; stroke: #16a34a; }
+      .title { font: 700 22px Inter, Arial, sans-serif; fill: #1f2933; }
+      .head { font: 700 18px Inter, Arial, sans-serif; fill: #1f2933; }
+      .text { font: 500 14px Inter, Arial, sans-serif; fill: #475569; }
+      .code { font: 600 13px "JetBrains Mono", Consolas, monospace; fill: #1f2933; }
+      .arrow { stroke: #64748b; stroke-width: 2.5; fill: none; marker-end: url(#arrow); }
+      .thin { stroke-width: 2; }
+      .dash { stroke-dasharray: 7 6; }
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#64748b" />
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1180" height="520" />
+  <text class="title" x="54" y="48">Do not collapse every progress concept into one global plan</text>
+  <text class="text" x="54" y="75">A stable agent keeps approval, execution focus, durable background work, and runtime facts in different surfaces.</text>
+
+  <g transform="translate(70 128)">
+    <rect class="box plan" x="0" y="0" width="280" height="150" rx="14" />
+    <text class="head" x="24" y="38">1. Approval Plan</text>
+    <text class="text" x="24" y="70">Before execution</text>
+    <text class="text" x="24" y="96">User may reject or edit</text>
+    <text class="code" x="24" y="126">Plan Mode / proposal</text>
+  </g>
+
+  <g transform="translate(450 128)">
+    <rect class="box todo" x="0" y="0" width="280" height="150" rx="14" />
+    <text class="head" x="24" y="38">2. Execution Todo</text>
+    <text class="text" x="24" y="70">Current session focus</text>
+    <text class="text" x="24" y="96">One in_progress item</text>
+    <text class="code" x="24" y="126">pending / in_progress / done</text>
+  </g>
+
+  <g transform="translate(830 128)">
+    <rect class="box task" x="0" y="0" width="280" height="150" rx="14" />
+    <text class="head" x="24" y="38">3. Durable Task</text>
+    <text class="text" x="24" y="70">Background or team work</text>
+    <text class="text" x="24" y="96">Owner, blockers, locks</text>
+    <text class="code" x="24" y="126">file / db / queue</text>
+  </g>
+
+  <path class="arrow" d="M350 203 H438" />
+  <path class="arrow" d="M730 203 H818" />
+  <text class="code" x="372" y="188">approve</text>
+  <text class="code" x="744" y="188">promote</text>
+
+  <g transform="translate(230 350)">
+    <rect class="box event" x="0" y="0" width="300" height="110" rx="14" />
+    <text class="head" x="24" y="36">Runtime Event Stream</text>
+    <text class="text" x="24" y="67">tool_call, update, failed, completed</text>
+    <text class="text" x="24" y="91">Grounded in external facts</text>
+  </g>
+
+  <g transform="translate(650 350)">
+    <rect class="box event" x="0" y="0" width="300" height="110" rx="14" />
+    <text class="head" x="24" y="36">Compaction / Resume</text>
+    <text class="text" x="24" y="67">Inject unfinished work only</text>
+    <text class="text" x="24" y="91">Keep completed work in audit log</text>
+  </g>
+
+  <path class="arrow thin dash" d="M530 405 C590 405, 590 405, 638 405" />
+  <path class="arrow thin dash" d="M590 278 V338" />
+  <path class="arrow thin dash" d="M486 350 C392 308, 306 278, 226 278" />
+  <path class="arrow thin dash" d="M812 350 C884 308, 932 278, 970 278" />
+  <text class="code" x="538" y="324">events update todo</text>
+</svg>

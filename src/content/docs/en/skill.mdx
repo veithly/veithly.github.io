@@ -1,0 +1,246 @@
+---
+title: build-your-own-agent · Companion Skill
+description: Engineering playbook distilled from 22 chapters + 4 systems studied, packaged as a Claude/Cursor skill you can install with one command.
+---
+
+import Verdict from '@components/Verdict.astro';
+import BuildRecipe from '@components/BuildRecipe.astro';
+import SourceTrail from '@components/SourceTrail.astro';
+import CompareTable from '@components/CompareTable.astro';
+
+<Verdict tldr="build-your-own-agent is a project-side engineering index: 22 chapters, 220 interview drills, and four system comparisons are distilled into a 5-phase Build flow, a 4-path Diagnose flow, 10 static lint rules, and 9 runtime anti-pattern checks. Each step points to source-backed references and runnable scripts." tone="insight" />
+
+## §1 · What this Skill is
+
+The companion engineering artifact to this book. Compresses 22-chapter conclusions into a Claude Code / Cursor loadable `build-your-own-agent` skill that does two jobs:
+
+1. Build: scaffold a production-grade agent harness from zero.
+2. Diagnose & Optimize: audit an existing agent against the 10 iron laws + 9 anti-patterns and apply the source-backed fix.
+
+Both jobs share one vocabulary (10 laws + 8 axes) and point at source-level reference implementations from Codex / Claude Code / OpenClaw / Hermes.
+
+- 1 SKILL.md entry: 10 iron laws + 8-axis spectrum + Build/Diagnose dual flow navigation;
+- 9 reference docs: independently loadable, mapped to nine sub-tasks (build flow, diagnose flow, design, scaffold, refactor, security, production, interview, cross-skill);
+- 3 executable scripts: `init-agent-project.py` (standard initializer) + `lint-agent-design.py` (static 10-rule check + progress advisory) + `diagnose-agent.py` (runtime 9 anti-pattern detection from `rollout.jsonl`);
+- asset templates + `assets/scaffold/` as the single source for generated files: `AGENTS.md.template`, `pyproject.toml.template`, `README.md.template`, `.gitignore.template`, `ci-lint-diagnose.yml.template`, and source templates. New projects start in one command.
+
+```text
+build-your-own-agent/
+├── SKILL.md                              # entry: 10 laws + Build/Diagnose flows
+├── LICENSE.txt                           # MIT + attribution
+├── references/
+│   ├── build-agent-workflow.md          # 5-phase end-to-end Build flow
+│   ├── diagnose-agent.md                # 4 diagnosis flows + 9 AP → fix map
+│   ├── picking-from-spectrum.md         # decision trees (8 axes)
+│   ├── agent-scaffold.md                # standard Python scaffold
+│   ├── migration-guide.md               # 10-stage refactor playbook
+│   ├── security-checklist.md            # 5-layer defense stack
+│   ├── production-deployment.md         # 7-phase deploy
+│   ├── interview-prep.md                # 20 highest-value questions
+│   └── skill-interop.md                 # combine with mcp-builder / etc.
+├── scripts/
+│   ├── init-agent-project.py            # standard new-agent initializer
+│   ├── lint-agent-design.py             # 10-rule static check (text/json/--rules subset)
+│   └── diagnose-agent.py                # 9 anti-pattern runtime detection
+└── assets/
+    ├── AGENTS.md.template               # new-project architecture doc skeleton
+    ├── pyproject.toml.template          # deps + ruff/pytest/mypy config
+    ├── README.md.template               # project readme skeleton
+    ├── .gitignore.template              # runtime/cache/secret exclusions
+    ├── ci-lint-diagnose.yml.template    # GitHub Actions pipeline
+    └── scaffold/                        # single source for generated source files
+```
+
+## §2 · Install
+
+Two ways to install:
+
+### Option A · Claude Code (recommended)
+
+```bash
+git clone https://github.com/your-org/AgentArchitecturePatterns.git
+cp -r AgentArchitecturePatterns/skills/build-your-own-agent ~/.claude/skills/
+# Restart Claude Code; appears in the skill picker.
+```
+
+### Option B · Vendor it in your project
+
+```bash
+cp -r path/to/AgentArchitecturePatterns/skills/build-your-own-agent ./skills/
+# Declare in AGENTS.md / CLAUDE.md:
+# "When designing an agent, load skill at ./skills/build-your-own-agent/SKILL.md."
+```
+
+## §3 · One-line invocation patterns
+
+The skill loads on demand without polluting context. Two main paths: Build and Diagnose.
+
+<CompareTable
+  systems={['Your prompt', 'Loaded references', 'Output', 'When to use']}
+  rows={[
+    {
+      label: 'Building a coding agent',
+      values: [
+        '"I want a Codex-like coding agent with a sandbox"',
+        'SKILL.md + build-agent-workflow.md + agent-scaffold.md',
+        '5-phase Build flow + initializer + standard Python scaffold + source reference per step',
+        'Starting from scratch'
+      ],
+    },
+    {
+      label: 'Stuck on architecture',
+      values: [
+        '"Should the loop borrow from Codex rollout or Claude Code 7 transitions?"',
+        'SKILL.md + picking-from-spectrum.md',
+        '8-axis decision tree + three worked examples',
+        'Phase 1 decisions'
+      ],
+    },
+    {
+      label: 'Task progress surface',
+      values: [
+        '"Should todo list use Codex update_plan or Claude Code TodoWrite?"',
+        'SKILL.md + picking-from-spectrum.md',
+        'Axis 8: approval plan / execution todo / durable task layering',
+        'Runtime progress design'
+      ],
+    },
+    {
+      label: 'Execution state routing',
+      values: [
+        '"Where should tool progress, todo, and away summary appear?"',
+        'SKILL.md + picking-from-spectrum.md + docs-site §22',
+        'Execution-state router: source / audience / lifetime / context policy',
+        'Designing multi-layer progress surfaces'
+      ],
+    },
+    {
+      label: 'Diagnose existing agent',
+      values: [
+        '"Agent is slow / expensive / leaking / looping / unsafe"',
+        'SKILL.md + diagnose-agent.md + scripts/diagnose-agent.py',
+        '4 diagnosis flows + 9 anti-pattern → source-backed fix map',
+        'Production trouble'
+      ],
+    },
+    {
+      label: 'Upgrade existing agent',
+      values: [
+        '"Lint fails 8/10, how do I refactor in stages?"',
+        'SKILL.md + migration-guide.md',
+        '10-stage refactor, 1-3 days each, one stage per law',
+        '1-year-old codebase, no time for rewrite'
+      ],
+    },
+    {
+      label: 'Pre-launch review',
+      values: [
+        '"Launch next week, final gate"',
+        'security-checklist.md + production-deployment.md + lint + diagnose',
+        '5-layer security + 7-phase deploy + dual-script CI gate',
+        '3 days before launch'
+      ],
+    },
+    {
+      label: 'Interview prep',
+      values: [
+        '"Interviewing for an agent infra role"',
+        'SKILL.md + interview-prep.md',
+        '20 high-frequency questions + chapter pointers + three-paragraph answer template',
+        '1 week before interview'
+      ],
+    },
+  ]}
+  caption="Load on demand. Build and Diagnose are two clean entry points."
+/>
+
+### §3.1 · One-line commands: CI / local sweep
+
+```bash
+# Standard new-agent initialization
+python ~/.claude/skills/build-your-own-agent/scripts/init-agent-project.py ./my-agent \
+    --profile coding-cli \
+    --test-cmd "python -m pytest -ra"
+
+# Static lint (10 iron laws; CI gate)
+python ~/.claude/skills/build-your-own-agent/scripts/lint-agent-design.py /path/to/agent
+python ~/.claude/skills/build-your-own-agent/scripts/lint-agent-design.py /path/to/agent --format json
+
+# Runtime diagnosis (9 anti-patterns; weekly sweep)
+python ~/.claude/skills/build-your-own-agent/scripts/diagnose-agent.py /path/to/rollouts/ --allow-empty
+python ~/.claude/skills/build-your-own-agent/scripts/diagnose-agent.py /path/to/rollouts/ \
+    --metrics /path/to/metrics.jsonl \
+    --agent-src /path/to/agent \
+    --format json
+```
+
+Exit 0 = pass; 1 = at least one finding. JSON output is stable enough to feed GitHub Actions / Jenkins / GitLab CI directly. `assets/ci-lint-diagnose.yml.template` is a working pipeline skeleton.
+
+## §4 · The 10 Iron Laws at a glance
+
+These 10 rules are the skill's spine. Every law is one that all four reference systems obey.
+
+<BuildRecipe
+  steps={[
+    { title: 'Turn is the source of truth', detail: 'Everything written to disk, every retry, every recovery happens at turn boundaries. Define what a turn is on day 1 and never break the invariant.' },
+    { title: 'Context has a cache boundary', detail: 'Layer 1-N is frozen (cached). Layer N+1...end is recomputed every turn. Memory snapshots and skill indexes above the boundary; timestamps and per-turn state below.' },
+    { title: 'Prompt is data, never instructions', detail: 'Always declare external content (web fetch, email, tool output) as data inside the prompt, wrapped with a session-unique nonce so attackers cannot forge boundaries.' },
+    { title: 'Three verifier tiers always', detail: 'Hard (external test/exit code) + soft (token budget) + give-up (model self-stops). Production needs at least hard + soft.' },
+    { title: 'Sandbox first, then trust', detail: 'OS-level sandbox is the hard runtime boundary. LLM-layer trust comes after. Defaults must be network=deny + fs_write=restricted.' },
+    { title: 'Redact at import time, not at log time', detail: 'Token redaction config snapshotted at module load so the LLM cannot bypass mid-turn by exporting an env var.' },
+    { title: 'fail_open beats fail_closed as the default', detail: 'Strict-by-default leads to "users disable safety entirely". Make fail_open the default; let production opt into fail_closed explicitly.' },
+    { title: 'Memory writes need a frozen snapshot', detail: 'When memory enters the prompt it must be a snapshot taken at turn start, not a live reference. Live references invalidate prefix cache and risk mid-turn mutation.' },
+    { title: 'Skills are content, but loadable code is supply chain', detail: 'Bundled allowlist + scanner + provenance signature is non-negotiable for production. User-installed skills require a 4-tier trust ladder x 3-verdict matrix.' },
+    { title: 'Audit trail is the last mile', detail: 'rollout.jsonl / trajectory / SecurityAuditReport. Without one of these you cannot investigate when something goes wrong.' },
+  ]}
+  title="10 Iron Laws of Agent Harness"
+/>
+
+Each law maps to a chapter with worked examples. Want to know how Codex / Claude Code / OpenClaw / Hermes actually implement law N? Read the corresponding chapter's §11 interview section.
+
+## §5 · How this skill relates to the book
+
+The skill does not replace the book. It is the toolkit you reach for after reading:
+
+```
+The book — 22 chapters (depth + cases + comparison)
+   │
+   ├─ distilled to 10 iron laws ────► SKILL.md (entry)
+   ├─ extracted to 8-axis spectrum ─► picking-from-spectrum.md
+   ├─ top 20 of 220 questions ──────► interview-prep.md
+   └─ engineering takeaways ────────► scaffold / migration / security / production
+```
+
+If a law feels under-explained, jump back to the chapter. If you forget "wait, how does Codex do that transition again", let the skill find the citation for you.
+
+## §6 · Roadmap
+
+The skill is versioned in lockstep with the book. New references and rule edits land in the repo `CHANGELOG.md`. Welcome contributions on:
+
+- You built an agent — which laws actually bit you, and how you adjusted them;
+- Use cases missing from the §5 cross-reference table;
+- Any reference doc that missed a case your real project hit.
+
+<SourceTrail
+  title="Skill source map"
+  pins={[
+    { system: 'Codex', path: 'skills/build-your-own-agent/SKILL.md', desc: 'Entry: 10 iron laws + Build/Diagnose flows' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/references/build-agent-workflow.md', desc: '5-phase end-to-end Build flow' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/references/diagnose-agent.md', desc: '4 diagnosis flows + 9 anti-pattern fix map' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/references/picking-from-spectrum.md', desc: 'Per-axis decision trees' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/references/agent-scaffold.md', desc: 'Standard Python scaffold' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/references/migration-guide.md', desc: '10-stage refactor playbook' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/references/security-checklist.md', desc: '5-layer defense stack' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/references/production-deployment.md', desc: '7-phase production deploy' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/references/interview-prep.md', desc: '20 highest-value questions' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/references/skill-interop.md', desc: 'Chain with other skills' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/scripts/init-agent-project.py', desc: 'Standard new-agent initializer' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/scripts/lint-agent-design.py', desc: '10-rule static lint' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/scripts/diagnose-agent.py', desc: '9 anti-pattern runtime diagnosis' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/assets/AGENTS.md.template', desc: 'New-project architecture skeleton' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/assets/ci-lint-diagnose.yml.template', desc: 'GitHub Actions pipeline' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/assets/scaffold/', desc: 'Single source for generated source files' },
+  ]}
+/>
+
+The `Codex` tag is just colour-coding. These paths all live under `skills/` in this repository and become direct GitHub links once the repo is public.

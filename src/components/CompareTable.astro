@@ -1,0 +1,137 @@
+---
+/**
+ * <CompareTable systems={...} rows={[{ label, values: [..4..] }]} />
+ * 强约束：systems 4 列、rows 每行 values 必须 4 项。
+ */
+interface Row {
+  label: string;
+  values: string[];
+}
+interface Props {
+  systems?: [string, string, string, string];
+  rows: Row[];
+  caption?: string;
+  dimensionLabel?: string;
+}
+const {
+  systems = ['Codex', 'Claude Code', 'OpenClaw', 'Hermes'],
+  rows,
+  caption,
+  dimensionLabel = '维度',
+} = Astro.props;
+---
+
+<figure class="aap-compare">
+  <table>
+    <colgroup>
+      <col class="aap-compare__col-dimension" />
+      {systems.map(() => <col class="aap-compare__col-system" />)}
+    </colgroup>
+    <thead>
+      <tr>
+        <th scope="col">{dimensionLabel}</th>
+        {systems.map((s) => <th scope="col">{s}</th>)}
+      </tr>
+    </thead>
+    <tbody>
+      {rows.map((row) => (
+        <tr>
+          <th scope="row">{row.label}</th>
+          {row.values.map((v) => <td>{v}</td>)}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+  .aap-compare {
+    margin: var(--aap-sp-6) 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    border: 1px solid var(--aap-paper-line);
+    border-radius: var(--aap-radius-md);
+    background: var(--aap-paper);
+    box-shadow: var(--aap-shadow-soft);
+  }
+  .aap-compare::-webkit-scrollbar { height: 6px; }
+  .aap-compare::-webkit-scrollbar-thumb {
+    background: var(--aap-paper-line);
+    border-radius: 3px;
+  }
+  .aap-compare::-webkit-scrollbar-thumb:hover {
+    background: var(--aap-ink-muted);
+  }
+  .aap-compare table {
+    display: table;
+    width: 100%;
+    max-width: none;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: var(--aap-fs-sm);
+    min-width: 56rem; /* keeps 1 dimension-col + 4 system-cols readable; smaller viewports scroll */
+    table-layout: fixed;
+  }
+  .aap-compare__col-dimension {
+    width: 11rem;
+  }
+  .aap-compare__col-system {
+    width: calc((100% - 11rem) / 4);
+  }
+  .aap-compare thead {
+    display: table-header-group;
+  }
+  .aap-compare tbody {
+    display: table-row-group;
+  }
+  .aap-compare tr {
+    display: table-row;
+  }
+  .aap-compare th,
+  .aap-compare td {
+    padding: var(--aap-sp-3) var(--aap-sp-4);
+    text-align: left;
+    border-bottom: 1px solid var(--aap-paper-line);
+    vertical-align: top;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .aap-compare tbody tr:last-child th,
+  .aap-compare tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .aap-compare thead th {
+    background: var(--aap-paper-soft);
+    font-family: var(--aap-font-body);
+    font-weight: 600;
+    font-size: var(--aap-fs-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--aap-ink-soft);
+  }
+  .aap-compare tbody th {
+    color: var(--aap-ink);
+    font-weight: 600;
+    font-family: var(--aap-font-display);
+    letter-spacing: -0.005em;
+  }
+  .aap-compare :where(code, a) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .aap-compare tbody tr:hover {
+    background: var(--aap-paper-soft);
+    transition: background 0.12s ease;
+  }
+  .aap-compare figcaption {
+    padding: var(--aap-sp-3) var(--aap-sp-4);
+    font-size: var(--aap-fs-xs);
+    color: var(--aap-ink-muted);
+    border-top: 1px solid var(--aap-paper-line);
+    font-style: italic;
+  }
+</style>

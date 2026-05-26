@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 480" role="img"
+     aria-label="四家 Tool System 在协议直白度 × 中间件能力 两条轴上的位置">
+  <defs>
+    <filter id="wb04"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="11" /><feDisplacementMap in="SourceGraphic" scale="2" /></filter>
+    <marker id="ar04" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .ax   { font: 600 12.5px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #64748b; }
+      .pin  { font: 700 12.5px sans-serif; fill: #fff; }
+      .note { font: italic 10.5px sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <text x="390" y="26" class="h" text-anchor="middle">Tool System：协议直白度 × 中间件能力</text>
+  <text x="390" y="44" class="t-s" text-anchor="middle">协议越贴近官方就越直白，但中间件能力天花板就越低；OpenClaw 反其道而行</text>
+
+  <g filter="url(#wb04)">
+    <rect x="100" y="80" width="280" height="160" fill="#dbeafe" opacity="0.4" />
+    <rect x="380" y="80" width="280" height="160" fill="#fef3c7" opacity="0.4" />
+    <rect x="100" y="240" width="280" height="160" fill="#fee2e2" opacity="0.4" />
+    <rect x="380" y="240" width="280" height="160" fill="#dcfce7" opacity="0.4" />
+
+    <text x="120" y="100" class="t-s">抽象厚 + 中间件强</text>
+    <text x="640" y="100" class="t-s" text-anchor="end">直白 + 中间件强 · 圣杯</text>
+    <text x="110" y="394" class="t-s">抽象厚 + 钩子少（最差）</text>
+    <text x="400" y="260" class="t-s">直白 + 钩子少</text>
+
+    <line x1="100" y1="400" x2="660" y2="400" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar04)" />
+    <line x1="100" y1="400" x2="100" y2="70" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar04)" />
+    <line x1="380" y1="80" x2="380" y2="400" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="100" y1="240" x2="660" y2="240" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+
+    <text x="660" y="420" class="ax" text-anchor="end">协议直白度（越右越贴近一种官方 API）→</text>
+    <text x="110" y="68" class="ax">↑ 中间件能力（before/after_tool_call 钩子层数）</text>
+
+    <!-- OpenClaw: top-left -->
+    <circle cx="240" cy="120" r="15" fill="#15803d" stroke="#0f172a" stroke-width="2" />
+    <text x="240" y="124" class="pin" text-anchor="middle">OC</text>
+    <text x="240" y="153" class="t" text-anchor="middle">OpenClaw</text>
+    <text x="240" y="168" class="t-s" text-anchor="middle">tool-policy-pipeline</text>
+    <text x="240" y="181" class="t-s" text-anchor="middle">5-6 层中间件 · 抽象最厚</text>
+
+    <!-- Claude Code: top, leans right -->
+    <circle cx="440" cy="135" r="15" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+    <text x="440" y="139" class="pin" text-anchor="middle">CC</text>
+    <text x="440" y="167" class="t" text-anchor="middle">Claude Code</text>
+    <text x="440" y="182" class="t-s" text-anchor="middle">tool_use 并行 + canUseTool</text>
+    <text x="440" y="195" class="t-s" text-anchor="middle">协议直白、钩子点有限</text>
+
+    <!-- Hermes: bottom-mid -->
+    <circle cx="460" cy="290" r="15" fill="#ea580c" stroke="#0f172a" stroke-width="2" />
+    <text x="460" y="294" class="pin" text-anchor="middle">HM</text>
+    <text x="460" y="322" class="t" text-anchor="middle">Hermes</text>
+    <text x="460" y="337" class="t-s" text-anchor="middle">registry → adapter 三协议</text>
+    <text x="460" y="350" class="t-s" text-anchor="middle">skills_guard · 权限分散</text>
+
+    <!-- Codex: bottom-right -->
+    <circle cx="610" cy="320" r="15" fill="#1d4ed8" stroke="#0f172a" stroke-width="2" />
+    <text x="610" y="324" class="pin" text-anchor="middle">CX</text>
+    <text x="610" y="352" class="t" text-anchor="middle">Codex</text>
+    <text x="610" y="367" class="t-s" text-anchor="middle">Responses + apply_patch DSL</text>
+    <text x="610" y="380" class="t-s" text-anchor="middle">execpolicy 三维 · 钩子止于此</text>
+
+    <text x="540" y="125" class="note" text-anchor="middle">右上角空白</text>
+    <text x="540" y="142" class="note" text-anchor="middle">直白和钩子层数互相挤压</text>
+  </g>
+
+  <text x="20" y="465" class="t-s">CX = Codex · CC = Claude Code · OC = OpenClaw · HM = Hermes</text>
+</svg>

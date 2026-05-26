@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 510" role="img"
+     aria-label="四家 Agent 在短期可控性 × 长期自治度 两条轴上的分布与场景映射">
+  <defs>
+    <filter id="wb01">
+      <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="3" />
+      <feDisplacementMap in="SourceGraphic" scale="2" />
+    </filter>
+    <marker id="ar01" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#0f172a" />
+    </marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .sub  { font: 12px sans-serif; fill: #64748b; }
+      .ax   { font: 600 12.5px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #64748b; }
+      .pin  { font: 700 12.5px sans-serif; fill: #fff; }
+      .case { font: italic 11px sans-serif; fill: #475569; }
+      .quad { font: 12px sans-serif; fill: #94a3b8; }
+    </style>
+  </defs>
+
+  <text x="410" y="28" class="h" text-anchor="middle">四家位置：短期可控性 ↔ 长期自治度</text>
+  <text x="410" y="48" class="sub" text-anchor="middle">同一份 Agent 工程，4 个分布在对角线上的取舍点：不是优劣，是场景适配</text>
+
+  <g filter="url(#wb01)">
+    <!-- background quadrants -->
+    <rect x="100" y="80" width="310" height="170" fill="#fef3c7" opacity="0.4" />
+    <rect x="410" y="80" width="310" height="170" fill="#dcfce7" opacity="0.4" />
+    <rect x="100" y="250" width="310" height="180" fill="#dbeafe" opacity="0.4" />
+    <rect x="410" y="250" width="310" height="180" fill="#fee2e2" opacity="0.4" />
+
+    <text x="115" y="100" class="quad">短期严控 · 不自跑</text>
+    <text x="705" y="100" class="quad" text-anchor="end">短期严控 · 长跑也行</text>
+    <text x="115" y="270" class="quad">每步审批 · 不自跑</text>
+    <text x="705" y="270" class="quad" text-anchor="end">放手让它跑</text>
+
+    <!-- axes -->
+    <line x1="100" y1="430" x2="720" y2="430" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar01)" />
+    <line x1="100" y1="430" x2="100" y2="70" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar01)" />
+    <line x1="410" y1="80" x2="410" y2="430" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="100" y1="250" x2="720" y2="250" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+
+    <text x="720" y="452" class="ax" text-anchor="end">短期可控性（每步审批的难度）→</text>
+    <text x="110" y="68" class="ax">↑ 长期自治度（自跑 + 自学）</text>
+
+    <!-- Codex: bottom-left, high control / low autonomy -->
+    <circle cx="190" cy="355" r="15" fill="#1d4ed8" stroke="#0f172a" stroke-width="2" />
+    <text x="190" y="359" class="pin" text-anchor="middle">CX</text>
+    <text x="190" y="388" class="t" text-anchor="middle">Codex</text>
+    <text x="190" y="403" class="t-s" text-anchor="middle">execpolicy 每步审 + rollout 可恢复</text>
+    <text x="190" y="420" class="case" text-anchor="middle">「改一个 repo · 每步 review」</text>
+
+    <!-- Claude Code: middle -->
+    <circle cx="345" cy="275" r="15" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+    <text x="345" y="279" class="pin" text-anchor="middle">CC</text>
+    <text x="345" y="308" class="t" text-anchor="middle">Claude Code</text>
+    <text x="345" y="323" class="t-s" text-anchor="middle">5 优先级 + 7 transition</text>
+    <text x="345" y="340" class="case" text-anchor="middle">「IDE coding · 渐进自动化」</text>
+
+    <!-- OpenClaw: upper-middle, plugin + lane -->
+    <circle cx="510" cy="195" r="15" fill="#15803d" stroke="#0f172a" stroke-width="2" />
+    <text x="510" y="199" class="pin" text-anchor="middle">OC</text>
+    <text x="510" y="228" class="t" text-anchor="middle">OpenClaw</text>
+    <text x="510" y="243" class="t-s" text-anchor="middle">plugin 主导 + lane 并发</text>
+    <text x="510" y="260" class="case" text-anchor="middle">「Slack bot · 多用户并发」</text>
+
+    <!-- Hermes: top-right, most autonomy -->
+    <circle cx="645" cy="120" r="15" fill="#ea580c" stroke="#0f172a" stroke-width="2" />
+    <text x="645" y="124" class="pin" text-anchor="middle">HM</text>
+    <text x="645" y="153" class="t" text-anchor="middle">Hermes</text>
+    <text x="645" y="168" class="t-s" text-anchor="middle">memory + self-eval</text>
+    <text x="645" y="185" class="case" text-anchor="middle">「私人助理 · 长跑跨会话」</text>
+  </g>
+
+  <text x="410" y="490" class="t-s" text-anchor="middle">没有「最好」，只有「适配场景」：改 repo 选左下、IDE coding 选中间、做 server 选右上、长跑助理选最右上</text>
+</svg>

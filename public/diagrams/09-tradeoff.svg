@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 480" role="img"
+     aria-label="四家 code review 在 reviewer 隔离度 × 上手成本 两条轴上的位置">
+  <defs>
+    <filter id="wb09"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="61" /><feDisplacementMap in="SourceGraphic" scale="2" /></filter>
+    <marker id="ar09" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .ax   { font: 600 12.5px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #64748b; }
+      .pin  { font: 700 12.5px sans-serif; fill: #fff; }
+      .note { font: italic 10.5px sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <text x="390" y="26" class="h" text-anchor="middle">Code Review：reviewer 隔离度 × 上手成本</text>
+  <text x="390" y="44" class="t-s" text-anchor="middle">隔离度越高，reviewer 越像独立 agent；但上手 / 配置成本就越高</text>
+
+  <g filter="url(#wb09)">
+    <rect x="100" y="80" width="280" height="160" fill="#fef3c7" opacity="0.4" />
+    <rect x="380" y="80" width="280" height="160" fill="#dcfce7" opacity="0.4" />
+    <rect x="100" y="240" width="280" height="160" fill="#dbeafe" opacity="0.4" />
+    <rect x="380" y="240" width="280" height="160" fill="#fee2e2" opacity="0.4" />
+
+    <text x="120" y="100" class="t-s">轻量 · 同对话塞 prompt</text>
+    <text x="640" y="100" class="t-s" text-anchor="end">轻量 · 独立 agent（圣杯）</text>
+    <text x="110" y="394" class="t-s">重 · 同对话（最不值）</text>
+    <text x="650" y="394" class="t-s" text-anchor="end">重 · 独立 agent · 工程上限</text>
+
+    <line x1="100" y1="400" x2="660" y2="400" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar09)" />
+    <line x1="100" y1="400" x2="100" y2="70" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar09)" />
+    <line x1="380" y1="80" x2="380" y2="400" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="100" y1="240" x2="660" y2="240" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+
+    <text x="660" y="420" class="ax" text-anchor="end">reviewer 跟主 agent 的隔离深度 →</text>
+    <text x="110" y="68" class="ax">↑ 用户 / 开发者上手成本（越低越好）</text>
+
+    <!-- Hermes: top-left (无隔离 + 极轻) -->
+    <circle cx="150" cy="120" r="14" fill="#ea580c" stroke="#0f172a" stroke-width="2" />
+    <text x="150" y="124" class="pin" text-anchor="middle">HM</text>
+    <text x="150" y="151" class="t" text-anchor="middle">Hermes</text>
+    <text x="150" y="166" class="t-s" text-anchor="middle">terminal-only</text>
+    <text x="150" y="179" class="t-s" text-anchor="middle">零基础设施</text>
+
+    <!-- Claude Code /review local -->
+    <circle cx="290" cy="130" r="14" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+    <text x="290" y="134" class="pin" text-anchor="middle">CC</text>
+    <text x="290" y="161" class="t" text-anchor="middle">CC /review (local)</text>
+    <text x="290" y="176" class="t-s" text-anchor="middle">一段内嵌 prompt</text>
+    <text x="290" y="189" class="t-s" text-anchor="middle">同对话塞回主 agent</text>
+
+    <!-- OpenClaw plugin (middle, somewhat isolated) -->
+    <circle cx="425" cy="290" r="14" fill="#15803d" stroke="#0f172a" stroke-width="2" />
+    <text x="425" y="294" class="pin" text-anchor="middle">OC</text>
+    <text x="425" y="321" class="t" text-anchor="middle">OpenClaw plugin</text>
+    <text x="425" y="336" class="t-s" text-anchor="middle">tool-policy after hook</text>
+    <text x="425" y="349" class="t-s" text-anchor="middle">中等隔离 · 中等成本</text>
+
+    <!-- Codex sub-agent (right, high isolation, medium ease) -->
+    <circle cx="555" cy="155" r="14" fill="#1d4ed8" stroke="#0f172a" stroke-width="2" />
+    <text x="555" y="159" class="pin" text-anchor="middle">CX</text>
+    <text x="555" y="186" class="t" text-anchor="middle">Codex sub-agent</text>
+    <text x="555" y="201" class="t-s" text-anchor="middle">受约束 config · 4 种 target</text>
+    <text x="555" y="214" class="t-s" text-anchor="middle">+ guardian 双层</text>
+
+    <!-- Claude Code /ultrareview (far right + lower) -->
+    <circle cx="620" cy="310" r="14" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+    <text x="620" y="314" class="pin" text-anchor="middle">UR</text>
+    <text x="620" y="341" class="t" text-anchor="middle">CC /ultrareview</text>
+    <text x="620" y="356" class="t-s" text-anchor="middle">远程 CCR session</text>
+    <text x="620" y="369" class="t-s" text-anchor="middle">10-20 分钟 pipeline</text>
+  </g>
+
+  <text x="20" y="465" class="t-s">CX = Codex · CC = Claude Code · OC = OpenClaw · HM = Hermes · UR = Ultrareview</text>
+</svg>

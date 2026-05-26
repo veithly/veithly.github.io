@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" role="img"
+     aria-label="上下文压缩 4 个核心决策">
+  <defs>
+    <filter id="wb02"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="221" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar02" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .col  { font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .note { font: italic 10.5px sans-serif; fill: #92400e; }
+      .num  { font: 700 12.5px sans-serif; fill: #fff; }
+    </style>
+  </defs>
+  <text x="360" y="26" class="h" text-anchor="middle">上下文压缩的 4 个核心决策</text>
+  <text x="360" y="44" class="t-s" text-anchor="middle">每个 agent 都要回答这四个问题，回答不同 = 系统不同</text>
+
+  <g filter="url(#wb02)">
+    <rect x="60" y="70"  width="600" height="60" rx="10" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <circle cx="92" cy="100" r="16" fill="#0f172a" />
+    <text x="92" y="105" class="num" text-anchor="middle">1</text>
+    <text x="120" y="93" class="lbl">什么时候压？</text>
+    <text x="120" y="112" class="t">被动（OOM 后重试） vs 主动（到阈值就压）</text>
+    <text x="120" y="125" class="t-s">代价：早压浪费、晚压崩溃</text>
+
+    <rect x="60" y="140" width="600" height="60" rx="10" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <circle cx="92" cy="170" r="16" fill="#0f172a" />
+    <text x="92" y="175" class="num" text-anchor="middle">2</text>
+    <text x="120" y="163" class="lbl">压谁？</text>
+    <text x="120" y="182" class="t">最老消息 / 工具结果 / 中间历史 / 多策略联动</text>
+    <text x="120" y="195" class="t-s">护住关键证据 vs 让长跑能继续</text>
+
+    <rect x="60" y="210" width="600" height="60" rx="10" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <circle cx="92" cy="240" r="16" fill="#0f172a" />
+    <text x="92" y="245" class="num" text-anchor="middle">3</text>
+    <text x="120" y="233" class="lbl">怎么压？</text>
+    <text x="120" y="252" class="t">丢掉 / 折叠 / 摘要（辅助模型） / 文件式存档</text>
+    <text x="120" y="265" class="t-s">操作越复杂越贵，越简单越易丢上下文</text>
+
+    <rect x="60" y="280" width="600" height="60" rx="10" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <circle cx="92" cy="310" r="16" fill="#0f172a" />
+    <text x="92" y="315" class="num" text-anchor="middle">4</text>
+    <text x="120" y="303" class="lbl">压出来还在不在 context 里？</text>
+    <text x="120" y="322" class="t">替换全部 / 替换中段保头尾 / 持久化到 JSONL</text>
+    <text x="120" y="335" class="t-s">决定能不能事后审计 / 跨 session 回看</text>
+  </g>
+</svg>

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 460" role="img"
+     aria-label="OpenClaw before/after tool hook flow">
+  <defs>
+    <filter id="wb02"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="221" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar02" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .col  { font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .note { font: italic 10.5px sans-serif; fill: #92400e; }
+      .num  { font: 700 12.5px sans-serif; fill: #fff; }
+    </style>
+  </defs>
+  <text x="380" y="26" class="h" text-anchor="middle">OpenClaw · 工具调用的中间件链</text>
+  <text x="380" y="44" class="t-s" text-anchor="middle">before / after / persist 三段 hook 让 verifier 中间件化</text>
+
+  <g filter="url(#wb02)">
+    <rect x="260" y="70" width="240" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="380" y="93" class="lbl" text-anchor="middle">tool.call</text>
+
+    <line x1="380" y1="106" x2="380" y2="135" stroke="#0f172a" stroke-width="2" marker-end="url(#ar02)" />
+
+    <rect x="220" y="138" width="320" height="48" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="380" y="158" class="lbl" text-anchor="middle">before_tool_call hook chain</text>
+    <text x="380" y="175" class="t-s" text-anchor="middle">任一返回 { error } → 立即发 tool 流 error 帧</text>
+
+    <line x1="380" y1="186" x2="380" y2="215" stroke="#0f172a" stroke-width="2" marker-end="url(#ar02)" />
+
+    <rect x="260" y="218" width="240" height="36" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="380" y="241" class="lbl" text-anchor="middle">执行 tool</text>
+
+    <line x1="380" y1="254" x2="380" y2="283" stroke="#0f172a" stroke-width="2" marker-end="url(#ar02)" />
+
+    <rect x="220" y="286" width="320" height="48" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="380" y="306" class="lbl" text-anchor="middle">after_tool_call hook chain</text>
+    <text x="380" y="323" class="t-s" text-anchor="middle">subscribeEmbeddedPiSession 转 lifecycle:error</text>
+
+    <line x1="380" y1="334" x2="380" y2="363" stroke="#0f172a" stroke-width="2" marker-end="url(#ar02)" />
+
+    <rect x="220" y="366" width="320" height="48" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="380" y="386" class="lbl" text-anchor="middle">tool_result_persist hook</text>
+    <text x="380" y="403" class="t-s" text-anchor="middle">通过则入 session JSONL（持久化）</text>
+
+    <line x1="540" y1="162" x2="640" y2="162" stroke="#b91c1c" stroke-width="2" stroke-dasharray="3 3" marker-end="url(#ar02)" />
+    <text x="700" y="158" class="lbl" text-anchor="middle" fill="#b91c1c">error 帧</text>
+    <text x="700" y="172" class="t-s" text-anchor="middle" fill="#b91c1c">agent.wait resolve</text>
+  </g>
+</svg>

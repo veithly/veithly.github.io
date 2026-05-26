@@ -1,0 +1,34 @@
+{
+  "name": "agent-harness-docs",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Agent Harness 架构设计：拆 Codex / Claude Code / OpenClaw / Hermes 四个真实 Harness，作为自己做 Agent 的参考蓝本",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "check": "astro check",
+    "check:template": "node scripts/check-chapter-template.mjs",
+    "check:i18n": "node scripts/check-i18n-parity.mjs",
+    "check:all": "pnpm check && pnpm check:template && pnpm check:i18n"
+  },
+  "dependencies": {
+    "@astrojs/mdx": "^5.0.5",
+    "@astrojs/react": "^5.0.5",
+    "@astrojs/starlight": "^0.39.2",
+    "astro": "^6.3.2",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.9",
+    "@types/node": "^25.7.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^6.0.3"
+  }
+}

@@ -1,0 +1,71 @@
+---
+/**
+ * <Verdict tldr="一段话结论" />
+ * 用于章节 §1 "TL;DR"。一段密集的结论摘要，覆盖四家的核心取舍。
+ *
+ * 长内容自适应：当 tldr 超过 ~120 字符（约 1-2 句），
+ * 自动切换为「dense」模式，正文降级为 Inter（更适合密集阅读），
+ * 避免大段 Playfair 形成视觉墙。
+ */
+interface Props {
+  tldr: string;
+  tone?: 'default' | 'warn' | 'insight';
+}
+const { tldr, tone = 'default' } = Astro.props;
+const DENSE_THRESHOLD = 120;
+const isDense = tldr.length > DENSE_THRESHOLD;
+---
+
+<aside class:list={['aap-verdict', `aap-verdict--${tone}`, { 'aap-verdict--dense': isDense }]} role="note" aria-label="本章结论 / Chapter verdict">
+  <span class="aap-verdict__tag">TL;DR</span>
+  <p class="aap-verdict__body">{tldr}</p>
+</aside>
+
+<style>
+  .aap-verdict {
+    --bar: var(--aap-color-tradeoff);
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--aap-sp-4);
+    align-items: start;
+    border: 1px solid var(--aap-paper-line);
+    border-left: 3px solid var(--bar);
+    border-radius: var(--aap-radius-md);
+    padding: var(--aap-sp-4) var(--aap-sp-6);
+    margin: var(--aap-sp-4) 0 var(--aap-sp-6);
+    background: var(--aap-paper-soft);
+    box-shadow: var(--aap-shadow-soft);
+    position: relative;
+  }
+  .aap-verdict--warn { --bar: var(--aap-color-risk); }
+  .aap-verdict--insight { --bar: var(--aap-color-judgment); }
+  .aap-verdict__tag {
+    font-family: var(--aap-font-mono);
+    font-weight: 700;
+    background: var(--bar);
+    color: var(--aap-paper);
+    padding: 0.2rem 0.55rem;
+    border-radius: var(--aap-radius-sm);
+    font-size: var(--aap-fs-xs);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    align-self: flex-start;
+  }
+  .aap-verdict__body {
+    margin: 0;
+    line-height: 1.65;
+    font-size: var(--aap-fs-md);
+    font-family: var(--aap-font-display);
+    font-weight: 500;
+    color: var(--aap-ink);
+    letter-spacing: -0.005em;
+  }
+  /* 长内容自适应：切换到 Inter，降低字号，回到正文级行距 */
+  .aap-verdict--dense .aap-verdict__body {
+    font-family: var(--aap-font-body);
+    font-weight: 400;
+    font-size: var(--aap-fs-base);
+    line-height: 1.7;
+    letter-spacing: 0;
+  }
+</style>

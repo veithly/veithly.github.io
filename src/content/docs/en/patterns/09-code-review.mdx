@@ -1,0 +1,971 @@
+---
+title: 09 · Code Review
+sidebar:
+  order: 9
+description: Main agent + constrained reviewer sub-agent vs prompt-as-command vs remote ultrareview pipeline vs no native review. Four review models
+---
+
+import Verdict from '@components/Verdict.astro';
+import CompareTable from '@components/CompareTable.astro';
+import Diagram from '@components/Diagram.astro';
+import TradeOff from '@components/TradeOff.astro';
+import ScoreCard from '@components/ScoreCard.astro';
+import BuildRecipe from '@components/BuildRecipe.astro';
+import SourceTrail from '@components/SourceTrail.astro';
+import SourceBlock from '@components/SourceBlock.astro';
+
+## §1 · TL;DR
+
+<Verdict tldr="Code review's core pattern is «let another agent check what this agent is doing» — easy to say, harder to actually build, because there are four concrete questions to answer. Should the reviewer be the same conversation or an independent agent (same conversation is cheap but drifts easily; independent is expensive but judges more cleanly)? What should the reviewer look at — uncommitted changes, current branch vs base branch, a specific commit, a user-supplied diff (at least four targets to support)? How should the reviewer handle approvals when it runs commands (popping a wall of approval dialogs annoys the user; popping none risks allowing dangerous commands)? How is the review output consumed (free-form markdown for humans, or structured findings piped into the IDE)? The four systems make wildly different trade-offs. Codex goes the deepest, shipping two independent reviewer systems. The first is user-triggered code review, run by an independent sub-agent thread (`run_codex_thread_one_shot`) whose config is carefully trimmed: `web_search` disabled (otherwise the reviewer wanders off searching for docs), `SpawnCsv` / `MultiAgentV2` disabled (so the reviewer cannot recursively spawn more sub-agents), `AskForApproval` set to `Never` (so the reviewer never pops dialogs), a separate cheaper model allowed (`review_model` field — e.g. main agent on GPT-5, reviewer on mini to save cost), and each of the 4 review targets has its own parameterised prompt template. The second is `guardian/review`, specifically doing «agent reviewing agent's dangerous actions» — when the main agent wants to run a risky command, the guardian sub-agent looks at it first and returns risk level + allow/deny. It even has a delicious anti-jailbreak rule written explicitly into `GUARDIAN_REJECTION_INSTRUCTIONS`: «after a guardian denial, the main agent may try a workaround to achieve the same outcome; reject it.» Claude Code takes two paths. Local `/review` is the prompt-as-command pattern: a carefully written prompt is dropped back into the main agent and the model itself runs `gh pr view` → `gh pr diff` → analyse. Implementation is minimal but reviewer role isolation is missing. Remote `/ultrareview` teleports the review into Claude Code Web (CCR — Anthropic's hosted Claude Code service running on their own sandbox cluster), where the GitHub app clones the repo, runs a 10-20 minute bug-hunter pipeline (several independent agents each watching one dimension — security / performance / correctness / style), and after completion a task-notification push event stream ships the results back to the local IDE in real time, with a quota / billing gate (free quota exhausted triggers an overage confirmation popup). OpenClaw chooses not to build review in at all — «review» means wildly different things across enterprises (PR review, commit review, lint review, security review, business-logic review), so the platform only provides a hook and lets users attach their own reviewer middleware to the `tool-policy-pipeline`'s `after_tool_call`. Hermes is the most minimal — no entry point at all; if the model wants to review, it goes through `terminal_tool` to run `git diff` and self-checks. For a serious reviewer system: independent sub-agent + constrained config + structured output is the most reliable three-piece combo." />
+
+## §2 · Base architecture
+
+<Diagram
+  src="/diagrams/09-code-review-base.svg"
+  alt="Four review paths: dual-agent vs prompt-as-command vs remote pipeline vs no native build"
+  caption="Four review models coexist: constrained sub-agent, in-context prompt directive, remote bug-hunter, external plugin hook."
+/>
+
+Coverage on four review responsibilities:
+
+<CompareTable
+  rows={[
+    { label: 'Review trigger', values: ['`/review` command + 4 targets (uncommitted / base-branch / commit / custom) + guardian auto-audit', '`/review <PR>` local prompt + `/ultrareview` remote entry', 'Not built-in; bring your own plugin or slash command', 'Not built-in; model runs `git diff` via terminal'] },
+    { label: 'Reviewer shape', values: ['A sub-agent thread (`run_codex_thread_one_shot`) with its own system prompt', 'Same conversation; just a long prompt injected into context', 'Remote CCR session (GitHub app clones repo → runs ~10 min → writes back)', 'No dedicated reviewer'] },
+    { label: 'Reviewer constraints', values: ['Disables web_search / SpawnCsv / Collab / MultiAgentV2; `AskForApproval::Never` prevents recursive approval', 'Goes through BashTool to `gh pr`; no special constraints', 'Remote sandbox + quota + billing gate', 'None'] },
+    { label: 'Output handling', values: ['`parse_review_output_event` parses structured findings; `ExitedReviewModeEvent` ends the mode', 'Model returns markdown in chat', 'Remote task completion piped back via task-notification', 'Free-form chat output'] },
+  ]}
+  caption="Engineering depth of treating review as a separate agent"
+  dimensionLabel="Dimension"
+/>
+
+## §3 · How each system does it
+
+### Codex · Independent sub-agent runs review + 4 parameterized targets + guardian dual layer
+
+Codex's core judgement on code review is: review and the main conversation are fundamentally different tasks — the main conversation's goal is "help the user complete their needs" (with bias, seeing full history, allowed any tool), and the review's goal is "make an independent critical judgement" (no bias, no history, only the current diff, no state-changing tools). If the same agent has to flip between the two roles, the model instinctively biases toward "defending what I just did" — it has seen too much context and knows the "why" behind each change, making it hard to critically look at the diff. So Codex makes review a fully independent sub-agent from the start, with a clean context and a restricted capability set.
+
+Concretely: when the user triggers review (via /review command or API), Codex doesn't continue in the main conversation but instead spawns a brand new codex thread (the review sub-agent), with its config carefully trimmed — all unneeded features disabled, the reviewer-specific system prompt installed, and approval policy forced to Never:
+
+<SourceBlock path="REF/codex/codex-rs/core/src/tasks/review.rs" lines="94-138" system="codex" summary="Reviewer sub-agent: dangerous features off + AskForApproval=Never + dedicated system prompt">
+
+```rust
+async fn start_review_conversation(
+    session: Arc<SessionTaskContext>,
+    ctx: Arc<TurnContext>,
+    input: Vec<UserInput>,
+    cancellation_token: CancellationToken,
+) -> Option<async_channel::Receiver<Event>> {
+    let config = ctx.config.clone();
+    let mut sub_agent_config = config.as_ref().clone();
+    // Carry over review-only feature restrictions so the delegate cannot
+    // re-enable blocked tools (web search, collab tools, view image).
+    if let Err(err) = sub_agent_config
+        .web_search_mode
+        .set(WebSearchMode::Disabled)
+    {
+        panic!("by construction Constrained<WebSearchMode> must always support Disabled: {err}");
+    }
+    let _ = sub_agent_config.features.disable(Feature::SpawnCsv);
+    let _ = sub_agent_config.features.disable(Feature::Collab);
+    let _ = sub_agent_config.features.disable(Feature::MultiAgentV2);
+
+    // Set explicit review rubric for the sub-agent
+    sub_agent_config.base_instructions = Some(crate::REVIEW_PROMPT.to_string());
+    sub_agent_config.permissions.approval_policy = Constrained::allow_only(AskForApproval::Never);
+
+    let model = config
+        .review_model
+        .clone()
+        .unwrap_or_else(|| ctx.model_info.slug.clone());
+    sub_agent_config.model = Some(model);
+    (run_codex_thread_one_shot(
+        sub_agent_config,
+        // ...
+        SubAgentSource::Review,
+        /*final_output_json_schema*/ None,
+        /*initial_history*/ None,
+    )
+    .await)
+        .ok()
+        .map(|io| io.rx_event)
+}
+```
+
+</SourceBlock>
+
+Three details in this config code each solve a specific concrete problem. The first is setting web_search to Disabled — reviewer should not be searching the web for docs, otherwise when it sees an unfamiliar API call it will instinctively go research "what does this API do," several minutes of review time wasted on web search and the review drifting off-topic; forcing Disabled means reviewer can only judge from the diff itself. The second is disabling the SpawnCsv / Collab / MultiAgentV2 trio — these are all "this agent can spawn more sub-agents" capabilities; if left on the reviewer could spawn reviewer-of-reviewer creating recursion, exploding tokens and latency; disabling these keeps reviewer to "single agent + tool calls." The third is AskForApproval::Never — reviewer running commands (e.g. git diff, git log) should not pop approval dialogs, because the user's attention is on the main agent and being interrupted by reviewer approvals is very annoying; Never means reviewer never pops approvals, and if approval is needed it must throw an error to let the main agent handle it (reviewer is typically read-only and shouldn't need approval).
+
+The `review_model` field deserves a special mention — it allows reviewer to use a model different from the main agent. The main agent runs expensive GPT-5 for complex reasoning and tool calls, but reviewer's task is comparatively simple (look at diff, find issues), and can use a cheaper mini model; at 5-20K token per review, the savings are real money at scale. This design reflects the "different tasks deserve different cost models" mindset.
+
+Review target is the user's "what should I review?" parameter. Codex provides 4 targets, each with its own parameterized prompt template:
+
+<SourceBlock path="REF/codex/codex-rs/core/src/review_prompts.rs" lines="15-37" system="codex" summary="Four review-target prompts">
+
+```rust
+const UNCOMMITTED_PROMPT: &str = "Review the current code changes (staged, unstaged, and untracked files) and provide prioritized findings.";
+
+const BASE_BRANCH_PROMPT_BACKUP: &str = "Review the code changes against the base branch '{{branch}}'. Start by finding the merge diff between the current branch and {{branch}}'s upstream e.g. (`git merge-base HEAD \"$(git rev-parse --abbrev-ref \"{{branch}}@{upstream}\")\"`), then run `git diff` against that SHA to see what changes we would merge into the {{branch}} branch. Provide prioritized, actionable findings.";
+const BASE_BRANCH_PROMPT: &str = "Review the code changes against the base branch '{{base_branch}}'. The merge base commit for this comparison is {{merge_base_sha}}. Run `git diff {{merge_base_sha}}` to inspect the changes relative to {{base_branch}}. Provide prioritized, actionable findings.";
+
+const COMMIT_PROMPT_WITH_TITLE: &str = "Review the code changes introduced by commit {{sha}} (\"{{title}}\"). Provide prioritized, actionable findings.";
+const COMMIT_PROMPT: &str = "Review the code changes introduced by commit {{sha}}. Provide prioritized, actionable findings.";
+```
+
+</SourceBlock>
+
+Each of the four targets maps to a clear use case. UNCOMMITTED is "I just made changes, take a look" — staged + unstaged + untracked all included, fastest result, suitable for local pre-review before PR submission. BASE_BRANCH is "how much does this branch differ from the main branch" — classic PR-review precursor, letting reviewer see "if I open this PR now, what changes would the main branch absorb"; here a performance optimisation deserves dedicated explanation: the template has two versions — BASE_BRANCH_PROMPT is the "main agent already computed merge_base_sha" version, directly handing the SHA to reviewer so reviewer can `git diff {{merge_base_sha}}` in one line; BASE_BRANCH_PROMPT_BACKUP is the "main agent has not computed merge_base" backup, asking reviewer to run `git merge-base HEAD upstream` itself. Why split into two versions? Because `git merge-base` can take 1-5 seconds in large monorepos; if main agent can compute it (main agent has the git-utils crate and can run it concurrently), let it, instead of wasting a reviewer tool call on something already known. COMMIT_PROMPT is "review one specific commit" — used for historical retrospection; COMMIT_PROMPT_WITH_TITLE is the variant that also includes commit title (if the caller knows the title, pass it to reviewer for more context).
+
+Codex's second review system is `guardian/review.rs`, which is entirely different from code review — guardian does not review code changes, it reviews the dangerous actions the main agent is about to run. Concretely: the main agent wants to run `rm -rf /tmp/cache`, which by rights should pop an approval dialog for the user; but the user may be having coffee or doing something else, and seeing approval dialogs every time is annoying. So a guardian sub-agent looks first — given `{tool, args, cwd, sandbox_state}` context, calls the model to judge "how risky is this command" and returns an allow / deny / timeout three-state decision. If guardian deems risk low (e.g. `rm -rf /tmp/cache` is in a temp dir and the cache looks irrelevant), it auto-allows without disturbing the user; if it judges high risk, it denies and reports the reasoning to the main agent.
+
+Two special guardian instructions deserve careful reading:
+
+<SourceBlock path="REF/codex/codex-rs/core/src/guardian/review.rs" lines="45-58" system="codex" summary="Guardian, agent-reviewing-agent, with rejection + timeout instructions">
+
+```rust
+const GUARDIAN_REJECTION_INSTRUCTIONS: &str = concat!(
+    "The agent must not attempt to achieve the same outcome via workaround, ",
+    "indirect execution, or policy circumvention. ",
+    "Proceed only with a materially safer alternative, ",
+    "or if the user explicitly approves the action after being informed of the risk. ",
+    "Otherwise, stop and request user input.",
+);
+
+const GUARDIAN_TIMEOUT_INSTRUCTIONS: &str = concat!(
+    "The automatic permission approval review did not finish before its deadline. ",
+    "Do not assume the action is unsafe based on the timeout alone. ",
+    "You may retry once, or ask the user for guidance or explicit approval.",
+);
+```
+
+</SourceBlock>
+
+The first block, GUARDIAN_REJECTION_INSTRUCTIONS, is Codex's explicit defense against agent-side jailbreak. The concrete attack pattern: main agent wants to `rm -rf /important`, guardian denies it; main agent gives up but maybe thinks "let me get the same result a different way" (e.g. switch to `find /important -delete`, or `cd /important && rm -rf .`); if guardian doesn't recognise these as workarounds, they bypass the denial. So Codex writes into guardian's prompt explicitly "agent must not attempt to achieve the same outcome via workaround, indirect execution, or policy circumvention," so when guardian denies it also denies all variants that achieve the same effect, not just the literal command. This is encoding a real engineering lesson directly into the prompt — very detailed. The second block, GUARDIAN_TIMEOUT_INSTRUCTIONS, handles guardian itself failing — guardian calling the model API may timeout due to network issues (default 5 seconds); if the default is "timeout = unsafe" the system would be too conservative, denying every action; this block tells the main agent "timeout does not mean unsafe; you may retry once, or ask the user directly." Beyond these two, guardian also has a circuit breaker — three consecutive denials in a row triggers a 30-second pause, preventing a model glitch from denying everything and freezing the main agent.
+
+### Claude Code · Local prompt-as-command + remote ultrareview dual track
+
+Claude Code's judgement on code review differs from Codex's — it considers code review to split along the "review depth" axis: users wanting quick review (30 seconds to take a glance at PR quality) use local; users wanting deep review (10-20 minute professional pipeline finding all bugs) use remote. The two paths share no code, because their needs are completely different.
+
+The local version is very simple — pure prompt-as-command:
+
+<SourceBlock path="REF/claude-code-2.1.88-expanded/src/commands/review.ts" lines="9-31" system="claude" summary="/review is a written prompt; no separate reviewer agent">
+
+```ts
+const LOCAL_REVIEW_PROMPT = (args: string) => `
+      You are an expert code reviewer. Follow these steps:
+
+      1. If no PR number is provided in the args, run \`gh pr list\` to show open PRs
+      2. If a PR number is provided, run \`gh pr view <number>\` to get PR details
+      3. Run \`gh pr diff <number>\` to get the diff
+      4. Analyze the changes and provide a thorough code review that includes:
+         - Overview of what the PR does
+         - Analysis of code quality and style
+         - Specific suggestions for improvements
+         - Any potential issues or risks
+
+      Keep your review concise but thorough. Focus on:
+      - Code correctness
+      - Following project conventions
+      - Performance implications
+      - Test coverage
+      - Security considerations
+
+      Format your review with clear sections and bullet points.
+
+      PR number: ${args}
+    `
+```
+
+</SourceBlock>
+
+This implementation is 25 lines of prompt string with no business logic — user types `/review 123`, Claude Code drops `LOCAL_REVIEW_PROMPT(123)` into the chat context, and the model in the next turn runs gh pr view → gh pr diff → analyze itself. Several engineering benefits flow from "the command itself doesn't call code, just injects a prompt." First, implementation cost is extremely low — writing a prompt is 10x faster than writing a TypeScript function; Claude Code uses this pattern for `/review` / `/refactor` / `/test` / `/docs` / `/explain` etc., each being 25-50 lines of prompt string. Second, users can see and modify — Claude Code's slash command source is itself a markdown file in `.claude/commands/`, users can open it, see the prompt, and modify it. Third, model capability compounding — when models upgrade, all prompt-as-command commands' capabilities upgrade together; the GPT-4 → GPT-5 transition `/review` didn't change a single line but review quality visibly improved. Fourth, cross-tool composition — one prompt sentence tells the model "use gh pr view → gh pr diff → analyze," and the model itself composes the tool calls, far simpler than writing a TypeScript function that wraps gh CLI itself.
+
+The cost is also clear — the local version has no reviewer role isolation. The model is in the same conversation context (has seen all main agent history), with the same feature set (web_search, sub-agent nesting all enabled), with the same approval policy. If a user's review standards require strict critical judgement (e.g. "is this code secure"), the local version might be too compromised by historical context to be neutral. This is the fundamental limit of prompt-as-command: you can only tweak prompt content, not agent configuration.
+
+The remote version is the opposite — treats review as an independent product, runs in Anthropic's remote sandbox:
+
+<SourceBlock path="REF/claude-code-2.1.88-expanded/src/commands/review/reviewRemote.ts" lines="1-32" system="claude" summary="/ultrareview remote pipeline design notes">
+
+```ts
+/**
+ * Teleported /ultrareview execution. Creates a CCR session with the current repo,
+ * sends the review prompt as the initial message, and registers a
+ * RemoteAgentTask so the polling loop pipes results back into the local
+ * session via task-notification. Mirrors the /ultraplan → CCR flow.
+ *
+ * TODO(#22051): pass useBundleMode once landed so local-only / uncommitted
+ * repo state is captured. The GitHub-clone path (current) only works for
+ * pushed branches on repos with the Claude GitHub app installed.
+ */
+```
+
+</SourceBlock>
+
+The comments above have several key design points worth expanding. "Teleport" is a Claude Code abstraction — it allows a local session to migrate state to a remote CCR session, run there, and migrate results back. The user's experience is "I typed /ultrareview locally, it ran remotely for 10 minutes, and the result appears in my local chat." Implementation detail: a RemoteAgentTask is registered into the local polling loop, which periodically polls remote task status; when the remote task completes, task-notification mechanism writes results back into the local session's message stream — completely equivalent to a local-command experience. CCR (Claude Code on the Web) is a remote agent runtime specifically designed for tasks beyond local capacity (see chapter 18 on cron and background tasks).
+
+The remote version does several things the local version cannot. First, runs deep pipelines — in the remote sandbox the bug-hunter pipeline runs 10-20 minutes with several independent agents each watching a dimension (security, performance, correctness, style), each agent using its own specialised prompt and model, drilling down and aggregating into structured findings; the local version is impossible because users would never wait that long. Second, homogenised results — the remote sandbox runs the same base image, same git version, same lint config, results fully reproducible; the local version is affected by user environment (macOS / Linux / Windows version differences, git / gh version differences) so review quality varies. Third, independent billing — /ultrareview runs through quota / billing checks (see ultrareviewQuota.ts), free quota exhausted triggers an overage dialog requiring confirmation before charging, team / enterprise users go through directly; this monetization mode is only possible remote, locally you can't bill anyone. Fourth, CI integration — remote review is essentially a cron job, can subscribe GitHub webhooks so PR open auto-runs review.
+
+There are costs: the remote version depends on push branch (GitHub app clones repo via git clone, can't see locally uncommitted code), which is why the comment has `TODO(#22051)` saying they need useBundleMode to land for local code upload; the remote version needs network (offline users cannot use it); the remote sandbox sees all code, enterprise-sensitive scenarios may have privacy concerns.
+
+### OpenClaw · Don't build review in, make it a hook in the plugin pipeline
+
+OpenClaw's judgement on code review is: "review" means wildly different things across enterprises — some teams define it as PR review (look at diff, give improvement suggestions), some as commit review (look at historical commits, find regressions), some as lint review (auto-run lint tools, aggregate reports), some as security review (specifically look for injection, auth holes), some as business-logic review (check whether code matches business rules); these "review" workflows share only the meta pattern "let another agent check," but the implementation details are completely different. So OpenClaw chooses not to build in any specific review implementation, but to provide hooks so users define it themselves in plugins.
+
+The practical pattern is: users attach a self-written reviewer middleware to the after_tool_call hook in tool-policy-pipeline.ts (see chapter 04 §3). Whenever the model finishes editing a file via fs.write, the middleware receives `{ tool_name, args, result }`, runs a user-defined reviewer prompt (perhaps "check whether this change broke any existing tests," "check whether this code follows company coding standards," or "check whether SQL injection was introduced"), and the result is injected as a system message into the main agent's context next turn. This "review as pipeline side effect, not explicit command" model fits enterprise customization much better — teams can define any review logic according to their business, without conforming to a platform's "standard review flow."
+
+OpenClaw's choice here is completely consistent with its overall positioning — it is an agent control plane, not a coding tool; any hardcoded implementation of "review" — a function with highly variable business definition — would be wrong, and flexibility should be left to the user.
+
+### Hermes · Don't abstract review at all, let the model run it through terminal
+
+Hermes goes the most minimalist route — neither a /review command nor a reviewer agent; the entire project has zero "code review" code. To review, the user directly tells the agent "look at the code I just changed and see if there are issues," and the agent uses terminal_tool to run `git diff` to get the changes, then outputs review content in the main conversation.
+
+This model's benefit is zero infrastructure — no reviewer agent to maintain, no prompt templates to maintain, no review target parameterization to think about. The cost is also large — review quality depends entirely on user prompts and the model's attention: with no constrained system prompt locking the model into reviewer role, the model may drift into "let me fix it for you" (directly editing rather than just commenting); with no structured output format, review results may be markdown bullets one turn and prose paragraphs the next inconsistently; with no 4-target parameterization, users must figure out "what to review" and tell the agent accurately.
+
+For Hermes's positioning (multi-platform chat agent where code review is not a core scenario), this is reasonable — most users talking to Hermes are doing daily affairs, not code review, so forcing a reviewer abstraction on every user is unnecessary complexity. But if a user really wants to use Hermes for serious code review, they have to write a full prompt + repeatedly align agent behaviour — far less efficient than using Codex directly.
+
+## §4 · Common ground across the four systems on code review
+
+The four systems differ greatly in review engineering depth (Codex two-layer sub-agents vs Hermes zero infrastructure), but if review is built at all, three things are consensus.
+
+**The first is that review must cognitively switch into "another agent role."** Even without a dedicated sub-agent, a special system prompt at least snaps the model into "reviewer mindset" — Codex uses an independent sub-agent + REVIEW_PROMPT, Claude Code local explicitly opens the prompt with "You are an expert code reviewer," OpenClaw lets users write their own reviewer prompt. Only Hermes does not do this switch (lets the model figure it out itself), and review quality is noticeably worse. The engineering principle behind this is "model behaviour strongly depends on the role set by prompt" — without telling it "you are now reviewer," it tends to act in the main-conversation "help user solve problems" mode, possibly skipping issue-finding to go directly to issue-fixing.
+
+**The second is that the final product of review should be structured findings.** Codex uses parse_review_output_event to parse reviewer output into structured `{findings: [{severity, file, line, message, suggestion}]}` lists, which downstream IDEs can use directly for inline highlights; Claude Code's prompt explicitly demands "Format your review with clear sections and bullet points" to ensure at least clean markdown; OpenClaw lets users define output schema. Structured output's benefit is machine-consumability — can feed IDE highlights, can feed the next agent turn for auto-fix, can aggregate across multiple reviews for statistics. If output is free-form prose paragraphs (Hermes default), downstream can only show it to humans, and the agent automation path is broken.
+
+**The third is reviewer should not pop approval dialogs when running commands.** Codex explicitly sets AskForApproval::Never, Claude Code local lets reviewer only use BashTool to run read-only commands, OpenClaw lets users control the tool set in hooks; all follow the "reviewer is read-only" principle. The consideration is UX — the user's attention is on the main agent, being interrupted by reviewer approvals is very annoying; if reviewer truly needs approval (meaning it wants to do side-effecting operations), then it should not be reviewer, it should be a different agent.
+
+## §5 · Key divergence among the four on code review
+
+<Diagram
+  src="/diagrams/09-tradeoff.svg"
+  alt="Four code reviews on a 2D plane: reviewer isolation × cost to onboard"
+  caption="Hermes / Claude Code local sit top-left (lightweight but same conversation); Codex sub-agent and ultrareview sit bottom-right (independent agent, deep engineering)."
+/>
+
+"How deep review should go" is the real determinant of which approach fits which scenario. From "what kind of agent are you building," each of the four trade-offs maps to one most-suitable product positioning.
+
+**If you are building a coding-first agent and need serious review, then Codex's sub-agent model is the standard answer to follow.** Constrained independent config (disabling web_search, SpawnCsv, Collab, MultiAgentV2; AskForApproval=Never) + 4 parameterized targets (uncommitted, base-branch, commit, custom) + independent cheaper model (review_model field) + structured output (parse_review_output_event). The cost is high abstraction overhead — maintaining a full reviewer system — but for a coding agent this is a worthwhile investment.
+
+**If your agent already runs commands and you only want to add a review entry point that users can conveniently use, then Claude Code's local /review is the most economical**. 25 lines of prompt string solve it, no business logic at all, can ship in a day. The cost is reviewer has no role isolation — but for a product where "review is one of many functions" (not coding-first), this cost is acceptable.
+
+**If you want to do serious deep review (run a professional bug-hunter pipeline), then Claude Code's /ultrareview remote model is the reference**. Treat review as an independent product — remote sandbox runs 10-20 minutes, multiple dimensions in parallel (security / performance / correctness / style), with quota / billing gate, integrated with GitHub webhooks for CI. The cost is building an entire remote agent runtime (only Anthropic-scale teams can afford it), not for typical products to replicate.
+
+**If you are building an enterprise internal agent platform where review rules vary by team**, then OpenClaw's "don't build it in, make review a plugin pipeline hook" model is the right choice. Let teams define what "review" means; the platform only provides hooks and orchestration. The cost is low out-of-the-box — users must write their own reviewer middleware, which can burden small teams.
+
+**If your agent has nothing to do with code review (chat agent, customer support agent), then Hermes's "don't do review" restraint is correct**. Forcibly adding a review abstraction is over-engineering. The cost is that real review quality has no guarantee, but it was never a core scenario.
+
+## §6 · My take
+
+<ScoreCard
+  rows={[
+    { system: 'Codex', value: '★★★★★', reason: 'Dual-layer review: code review through a constrained sub-agent + 4 target prompts; guardian audits approval requests through its own reviewer agent + jailbreak defense + circuit breaker. Highest engineering depth', risk: 'High abstraction cost; guardian adds latency and tokens; standalone review_model adds ops complexity' },
+    { system: 'Claude Code', value: '★★★★', reason: '/review (local minimal) + /ultrareview (remote pipeline) two-tier coverage; ultrareview runs ~10 min bug-hunter; quota / billing gate', risk: 'ultrareview requires GitHub app + pushed branch; local /review has no reviewer role isolation' },
+    { system: 'OpenClaw', value: '★★★', reason: 'No built-in is the right choice for a control plane: let users define their reviewer. plugin pipeline + after_tool_call supports it fully', risk: 'Low out-of-box readiness; users must author the reviewer prompt and orchestration' },
+    { system: 'Hermes', value: '★★', reason: 'Zero infrastructure, terminal git diff + user prompt', risk: 'No reviewer role isolation; high chance of drift; unstable output format' },
+  ]}
+  caption="Scoring axes: reviewer isolation + onboarding cost + output parseability"
+  headers={['System', 'Score', 'Strengths', 'Risks']}
+/>
+
+## §7 · Build recipe
+
+Below is the recipe distilled from the four systems for writing your own reviewer agent. Start with a prompt then extract into a sub-agent, finally avoid five common dead ends.
+
+<BuildRecipe
+  title="Build recipe"
+  minimal={[
+    'Start with a fixed prompt (borrow from Claude Code\'s local /review) — user inputs PR number / commit SHA / diff, model itself runs gh pr view / gh pr diff / gh pr comments three steps to gather context then starts review; this is the simplest implementation, single agent runs',
+    'Force the reviewer to emit five fixed sections (overview / quality / suggestions / risks / coverage) — structured output lets users / downstream tools stably parse; forcing each section to be filled prevents the reviewer from being lazy and only checking one or two dimensions',
+    'Split review from fixing into two turns — reviewer outputs findings only ("here\'s a problem, that needs changing"), next turn lets main agent fix based on findings; separation prevents reviewer from being "tempted to quickly fix" and ignoring real design flaws',
+  ]}
+  advanced={[
+    'Extract reviewer into standalone sub-agent (borrow from Codex\'s run_codex_thread_one_shot) — sub-agent has its own trajectory + own prompt + own tool set, completely isolated from main agent; this is the key to "reviewer truly thinks independently rather than echoing main agent"',
+    'Constrained config: disable web_search / SpawnCsv / Collab / recursive sub-agents; AskForApproval=Never — reviewer shouldn\'t web-search (easily distracted by news), shouldn\'t spawn its own sub-agents (recursion bottomless), shouldn\'t prompt for approval (interrupts UX)',
+    'Dedicated reviewer system prompt (borrow from Codex\'s REVIEW_PROMPT) independent from main agent prompt — main agent prompt is "do things proactively", reviewer prompt is "think critically"; mixing causes reviewer to lose critical perspective',
+    'Offer 4 targets (borrow from Codex\'s ReviewTarget): uncommitted (local uncommitted changes) / base-branch (all changes vs main) / commit (specified commit SHA) / custom (user-defined) — different scenarios need different scope',
+    'Let reviewer use cheaper model (borrow from Codex\'s review_model field) — main agent uses GPT-5, reviewer uses mini or Haiku; reviewer task is relatively simple (input diff output findings), cheap model suffices; saves cost',
+    'Add a guardian agent-audits-agent layer (borrow from Codex\'s guardian/review.rs) — risk level + timeout + circuit breaker triplet; reviewer running long / output looking weird / giving high-risk assessments, guardian intervenes',
+    'Structured output (borrow from Codex\'s parse_review_output_event) — make reviewer emit JSON schema-compliant results (each finding has severity / file / line / suggestion fields), downstream tools (CI / dashboard / Slack bot) can consume',
+  ]}
+  avoid={[
+    'Don\'t let reviewer share the main agent\'s conversation history — reviewer seeing "what main agent thought before" actually biases toward "the direction already taken" (cognitive anchoring bias); reviewer should "cold start" looking only at code',
+    'Don\'t let reviewer modify code — reviewer outputs findings only, fixing is main agent\'s next turn; letting reviewer modify = letting referee play, losing independence',
+    'Don\'t let reviewer spawn its own sub-agents — forms reviewer-of-reviewer-of-reviewer recursion bottomlessly; hard-limit sub-agent from re-spawning',
+    'Don\'t use reviewer to replace lint / tests — reviewer is supplement not replacement; CI\'s hard verifier (lint / test / type check) must still run, reviewer only looks at "human-perspective issues"',
+    'Don\'t forget reviewer\'s approval_policy must be Never — reviewer prompting for approval = UX broken (user expects reviewer to run automatically, popup interrupts flow)',
+  ]}
+/>
+
+## §8 · Four review flows side by side
+
+<Diagram
+  src="/diagrams/09-review-flows.svg"
+  alt="Four review models side by side"
+  caption="Codex runs a dual-layer sub-agent (code review + guardian); Claude Code injects a prompt locally / runs a pipeline remotely; OpenClaw hooks the tool policy; Hermes lets the model use terminal directly."
+/>
+
+Lining them up shows the progression of "another agent checks this agent": from same-context prompt, to standalone sub-agent, to remote pipeline, to pipeline hook. Depth grows monotonically.
+
+## §9 · Source map & further reading
+
+<SourceTrail
+  title="Source map & further reading"
+  entries={[
+    { system: 'Codex', path: 'REF/codex/codex-rs/core/src/tasks/review.rs', lines: '40-138', desc: 'ReviewTask: build sub-agent, constrain config, process events' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/core/src/review_prompts.rs', lines: '15-130', desc: '4 ReviewTargets + templated prompts' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/core/src/guardian/review.rs', lines: '1-200', desc: 'Guardian reviewing approvals: rejection / timeout / circuit breaker' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/core/src/guardian/review_session.rs', desc: 'Guardian sub-session config builder' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/core/src/review_format.rs', desc: 'parse_review_output_event + render_review_output_text' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/commands/review.ts', lines: '1-57', desc: '/review + /ultrareview entry' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/commands/review/reviewRemote.ts', lines: '1-100', desc: 'ultrareview remote pipeline + quota check' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/services/api/ultrareviewQuota.ts', desc: 'Free review quota check' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/utils/teleport.ts', desc: 'Teleport: local session → CCR remote state transfer' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/agents/tool-policy-pipeline.ts', desc: 'after_tool_call hook: attach reviewer middleware here (chapter 04)' },
+    { system: 'Hermes', path: 'REF/hermes-agent/tools/terminal_tool.py', desc: 'No native review; runs git diff via terminal (chapter 07)' },
+  ]}
+/>
+
+## §10 · Exercises
+
+1. **🟢 Write a `/review` prompt.** Five fixed sections (overview / quality / suggestions / risks / coverage), forcing the model into reviewer mode in the main conversation. Verify: same diff produces the same output shape twice.
+2. **🟠 Standalone reviewer sub-agent.** Use a framework (LangGraph / openai-agents) to spin a separate thread. Constrained config (cannot spawn sub-agents, cannot modify files). Parameterize review target (uncommitted / branch / commit / custom).
+3. **🟠 Structured findings.** Have the reviewer emit JSON schema: `{findings: [{severity, file, line, message, suggestion}]}` so downstream IDE highlights can consume.
+4. **🔴 Agent-audits-agent.** Build a guardian middle layer: when the main agent wants to run a tool, send `{tool, args}` to a guardian sub-agent for a risk level + decision. Add 5s timeout + circuit breaker after 3 consecutive denials.
+
+## §11 · Interview drill: 10 questions with worked answers
+
+<details>
+<summary>**Q1 · Concept**: Why is Codex's reviewer a standalone sub-agent rather than just a prompt in the main conversation?</summary>
+
+Making review a sub-agent solves three specific problems that a same-conversation prompt cannot.
+
+**1. Context pollution**
+
+The main agent has already run 30 turns of conversation; context is full of "I just grepped for X, I changed file Y, here's why." Asking it to switch to reviewer mode means the model instinctively defends its own implementation — it has seen too much context and knows every change's "motivation." A reviewer needs critical distance. A standalone sub-agent gets a clean context, sees the diff only, no history. This is the largest single factor in review quality.
+
+**2. Feature isolation**
+
+The main agent may have web_search / SpawnCsv / Collab / MultiAgentV2 enabled. Reviewer shouldn't use any of them — its task is read the diff, not search the web (drifts), not spawn more sub-agents (recursion), not collab with unrelated agents (off-topic). Codex's sub-agent config explicitly `.disable(Feature::SpawnCsv)` etc.
+
+**3. Approval isolation**
+
+If the main agent's approval_policy is `on-failure` or `on-request`, reviewer running tools triggers approvals. Problem: reviewer prompts approval → user approves → reviewer continues → next prompt… user's attention is meant for the main agent, hijacked by reviewer. Codex sets `AskForApproval::Never` so reviewer never prompts; if approval is needed, raise to main agent.
+
+Claude Code local `/review` solves none of these because the reviewer shares main agent context. That's why Anthropic built `/ultrareview` — to put review in a remote standalone session, back to the sub-agent design.
+
+Engineering lesson: **when an agent task needs a different model context, different feature set, or different approval behavior, fork a sub-agent**. Any two of those simultaneously and sub-agent is the only viable design.
+
+**Source**: [`codex/codex-rs/core/src/tasks/review.rs:94-138`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/core/src/tasks/review.rs#L94-L138) (the `start_review_conversation` function + the three feature disables).
+
+**Follow-up**: "Sub-agent doubles tokens. Worth it?" Yes. Per turn review tokens are 5-20K; sub-agent adds < 2K for the system prompt — under 10%. The independent judgment improvement is far more than 10%.
+</details>
+
+<details>
+<summary>**Q2 · Architecture**: Codex maintains both a "code review" and a "guardian approval review" sub-agent. Over-engineered?</summary>
+
+Not over-engineering. They're different tasks that must be different pipelines. Goals diverge:
+
+**Code review reviewer**:
+
+- Trigger: user `/review`
+- Input: a diff
+- Output: findings list (structured issues + suggestions)
+- Time: 30s - 5min
+- Key constraint: standalone context, avoid main agent contamination
+
+**Guardian reviewer**:
+
+- Trigger: main agent wants a risky command
+- Input: tool name + args + current cwd / sandbox state
+- Output: allow / deny / timeout (three-state)
+- Time: must be < 5s (can't block main agent)
+- Key constraint: fast and breakable by circuit breaker
+
+Common ground? Just the meta-pattern "another agent audits." The specific prompts, timeouts, output shapes, constraints, and recovery strategies all differ. Forcing them into one reviewer means neither works:
+
+- Code review can't complete in 5s
+- Guardian doesn't need 4 targets
+
+Keeping them separate is right, just like frontend / backend / DevOps being separate professions — meta tasks rhyme, specific execution differs.
+
+Guardian's special designs:
+
+1. **`GUARDIAN_REJECTION_INSTRUCTIONS`** explicitly say "agent must not attempt to achieve the same outcome via workaround." This is anti-reverse-jailbreak — main agent denied by guardian might think "let me do the same bad thing differently." Codex bakes the defense into the prompt.
+2. **`GUARDIAN_TIMEOUT_INSTRUCTIONS`** say timeout ≠ unsafe. Guardian might just be slow because model API hung. Main agent shouldn't auto-treat as unsafe.
+3. **Circuit breaker**: 3 consecutive denies trigger a 30s cooldown. Stops guardian bugs from blanket-denying everything.
+
+This "agent audits agent" depth is unique to Codex among the four. Claude Code goes with permission mode + canUseTool hook (lighter, more policy + callback than full sub-agent).
+
+**Source**: [`codex/codex-rs/core/src/guardian/review.rs:1-200`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/core/src/guardian/review.rs#L1-L200).
+
+**Follow-up**: "Why doesn't Anthropic's Claude Code do guardian?" Claude Code's permission mode is user config (plan / acceptEdits / bypassPermissions); canUseTool is a sync callback. No "another agent audits" component. Anthropic's call: in most scenarios policy + callback suffices; extra agent layer adds latency + token costs.
+</details>
+
+<details>
+<summary>**Q3 · Concept**: What's the relationship between `REVIEW_PROMPT` and `BASE_BRANCH_PROMPT`?</summary>
+
+`REVIEW_PROMPT` is reviewer sub-agent's **system prompt**: defines the reviewer's role, output format, evaluation axes. Lives throughout the sub-agent.
+
+`BASE_BRANCH_PROMPT` etc. are **task prompts**: the first user message that says "this time review this target." One of four is picked per launch.
+
+Traditional system + user analogy:
+
+- `REVIEW_PROMPT` ≈ "You are an expert code reviewer. Emit findings in 5 sections…" (role + rules)
+- `BASE_BRANCH_PROMPT` ≈ "Review the current branch vs base branch foo, merge base SHA is abc123" (concrete task)
+
+Why two layers?
+
+1. **Task templating**: 4 review targets share the reviewer role but vary task params (base branch name, commit SHA, custom prompt). Templates can be parameterized.
+2. **Target swap doesn't require restart**: theoretically one reviewer sub-agent can review multiple targets (Codex currently does only one) without re-init.
+3. **A/B testable**: change reviewer role only via `REVIEW_PROMPT`; change a target's wording only via its template. Independent evolution.
+
+The 4 specific targets:
+
+- `UNCOMMITTED_PROMPT`: current staged + unstaged + untracked. Fastest, good for "I just changed something, take a look."
+- `BASE_BRANCH_PROMPT`: current branch vs base. Local pre-PR review.
+- `COMMIT_PROMPT`: a specific commit. For looking back at history.
+- `CUSTOM_PROMPT`: user-defined. Most flexible, easiest to drift.
+
+Engineering philosophy: **prompts are code — reusable, parameterizable, diffable**. Codex puts review prompts in `review_prompts.rs` rather than inline in `review.rs` because more prompts (`SECURITY_PROMPT`, `PERFORMANCE_PROMPT`) are coming.
+
+**Source**: [`codex/codex-rs/core/src/review_prompts.rs:1-130`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/core/src/review_prompts.rs#L1-L130).
+
+**Follow-up**: "What's the difference between BASE_BRANCH_PROMPT and BACKUP?" The former gives reviewer a fixed merge_base_sha (main agent already computed it); BACKUP makes reviewer run `git merge-base` itself when the SHA wasn't precomputed. Saves a tool call when possible.
+</details>
+
+<details>
+<summary>**Q4 · Concept**: What is prompt-as-command and why does Claude Code use it heavily?</summary>
+
+Prompt-as-command is "implement a command as a polished prompt." User types `/review 123`, Claude Code injects `LOCAL_REVIEW_PROMPT(123)` into chat context, and the model runs `gh pr view`, `gh pr diff` etc. itself to complete review. The command has no code, just prompt text injection.
+
+Why use it heavily?
+
+**1. Extremely cheap to implement**
+
+Writing a prompt is 10× faster than writing a TypeScript function. `/review` is 25 lines of prompt string, zero business logic. Adding `/refactor`? Write a refactor prompt. `/test`, `/docs`, `/explain` — same.
+
+**2. User-visible, user-editable, diffable**
+
+Claude Code's slash commands are markdown files (in `.claude/commands/`). Users can open them, see the prompt, tweak it. Command-source-transparency beats black-box functions.
+
+**3. Compounds with model capability**
+
+Model upgrades automatically improve every slash command. GPT-4 → GPT-5 — `/review` got no code change but quality improved noticeably. Bet on model growth, software-2.0 style.
+
+**4. Tool composition**
+
+`/review` prompt tells the model "run gh pr view → gh pr diff → analyze." Model composes tool calls itself. If implementing as TypeScript, you'd write `runGhPrView()` / `runGhPrDiff()` / `parseAndAnalyze()` — each needs BashTool integration. Prompt one-liner.
+
+**When NOT to use prompt-as-command:**
+
+1. **Strong consistency required**: same output format / same SHA / same number every time — functions beat prompts.
+2. **Side-effect sensitive**: prompts let the model run commands; model can misroute. Use functions when side effects must be tight.
+3. **Latency sensitive**: prompt-as-command adds at least one model call (5-30s). IDE hover tooltips can't tolerate that.
+
+Claude Code uses prompt-as-command for fuzzy tasks (review / planning / docs) and functions for precise tasks (BashTool / FileEdit). Complementary modes.
+
+**Source**: `claude-code/src/commands/review.ts:9-31` (25-line LOCAL_REVIEW_PROMPT) + other commands in `src/commands/`.
+
+**Follow-up**: "Does Codex use prompt-as-command?" Codex puts all review prompts as Rust string constants, but review itself is a sub-agent. Codex doesn't treat "user-triggered prompt injection" as a slash command; it triggers a sub-agent. Different style, both fine.
+</details>
+
+<details>
+<summary>**Q5 · Engineering**: `/ultrareview` runs remotely on CCR, not locally. Concretely, what's the benefit?</summary>
+
+`/ultrareview` isn't just `/review` plus deeper — it treats review as its own product. Concrete benefits:
+
+**1. Doesn't use user's machine**
+
+Local review running 10-20 minutes hogs the user's CPU, disk IO, network. The user can't use Claude Code for anything else. Remote review runs in Anthropic's sandbox; user's machine just waits for push notification.
+
+**2. Runs deep pipelines**
+
+Remote can run a bug-hunter pipeline: several independent agents each take a dimension (security / performance / correctness / style), each 3-5 minutes. Local can't run 10-20 minute deep pipelines — users won't wait.
+
+**3. Reproducible results**
+
+Remote sandbox runs the same base image, same git version, same lint config. Repeatable. Local varies by user's environment (macOS / Linux / Windows, different git / gh versions); review quality fluctuates.
+
+**4. Independent billing**
+
+`/ultrareview` goes through quota / billing checks. Free quota exhausted triggers overage dialog; enterprise tiers bypass. Monetization only works remotely — locally you can't bill anyone.
+
+**5. CI integration**
+
+Remote review is just a cron job (see chapter 18). Hook a GitHub webhook; PR open auto-triggers review. Local can't.
+
+**Downsides exist**:
+
+- **Needs pushed branch**: remote pulls via GitHub app + clone; local uncommitted code invisible. The source TODO mentions "useBundleMode" for uploading local code.
+- **Network dependency**: offline users can't use it; local `/review` still works.
+- **Privacy concerns**: remote sandbox sees all code; enterprise sensitive code may resist. Anthropic offers enterprise deployment options to mitigate.
+
+Engineering philosophy: **some tasks shouldn't run on the user's machine**. Model inference (already remote), long tasks (cron), deep pipelines (ultrareview), CI tasks (webhook). Decoupling cost / performance / monitoring from "the user's machine" is SaaS standard practice.
+
+**Source**: `claude-code/src/commands/review/reviewRemote.ts:1-100` (teleport entry) + `src/services/api/ultrareviewQuota.ts` + `src/utils/teleport.ts`.
+
+**Follow-up**: "Does Codex have anything like ultrareview?" Codex's `app-server` exposes APIs to the frontend, but review itself is still local sub-agent. No "remote deep pipeline." OpenAI's product positioning is CLI; SaaS path not taken.
+</details>
+
+<details>
+<summary>**Q6 · Practical**: Your agent needs code review. Implement a minimum viable version from scratch.</summary>
+
+Four stages: **prompt → sub-agent → structured → workflow**.
+
+**Day 1 · A prompt**
+
+Borrow Claude Code's pattern. Write a `/review` slash command:
+
+```ts
+const reviewPrompt = (target: string) => `
+You are an expert code reviewer. Review changes in: ${target}.
+Output exactly 5 sections:
+1. **Overview** (1-2 sentences)
+2. **Code quality** (bullet list)
+3. **Suggestions** (bullet list with file:line)
+4. **Risks** (bullet list with severity)
+5. **Test coverage** (assessment + gaps)
+`;
+```
+
+Inject into main agent context; next turn it runs `git diff` or `gh pr diff` and emits review.
+
+**Day 2 · Standalone sub-agent**
+
+Switch reviewer to a separate thread (via LangGraph, openai-agents, or your own). New thread has no main agent history; only:
+
+```python
+sub_messages = [
+    {"role": "system", "content": REVIEW_SYSTEM_PROMPT},
+    {"role": "user", "content": f"Review this diff:\n{diff_text}"},
+]
+```
+
+Effect: reviewer can't be biased by main agent's history.
+
+**Day 3 · Constrained config**
+
+Disable web search, file write; set `approval=Never`. With LangGraph, sub-agent's tool list only has `git_diff`:
+
+```python
+reviewer_tools = [git_diff]  # cannot write files, cannot browse
+reviewer = create_agent(tools=reviewer_tools, system_prompt=REVIEW_SYSTEM_PROMPT)
+```
+
+**Day 4 · Structured output**
+
+Reviewer emits JSON not markdown:
+
+```python
+class ReviewFinding(BaseModel):
+    severity: Literal["info", "warning", "error"]
+    file: str
+    line: int | None
+    category: Literal["correctness", "performance", "security", "style"]
+    message: str
+    suggestion: str | None
+
+class ReviewOutput(BaseModel):
+    overview: str
+    findings: list[ReviewFinding]
+    test_coverage_gaps: list[str]
+
+reviewer = create_agent(..., output_type=ReviewOutput)
+```
+
+Downstream can consume programmatically — auto-post inline comments, sort by severity, group by file.
+
+**Day 5 · Parameterized target**
+
+Borrow Codex's four targets:
+
+```python
+def make_review_target(kind: Literal["uncommitted", "branch", "commit", "custom"], **kwargs):
+    if kind == "uncommitted":
+        return f"git diff HEAD"
+    elif kind == "branch":
+        return f"git diff {kwargs['base']}..HEAD"
+    elif kind == "commit":
+        return f"git show {kwargs['sha']}"
+    elif kind == "custom":
+        return kwargs["prompt"]
+```
+
+User: `/review --target=branch --base=main` or `/review --target=commit --sha=abc123`.
+
+**Day 6 · Workflow integration**
+
+Push results to GitHub PR:
+
+```python
+findings = reviewer.run(target_diff)
+for f in findings.findings:
+    gh_post_inline_comment(pr=pr_number, file=f.file, line=f.line, body=f.message)
+```
+
+Or wire it into CI as a step (chapter 18 background agent).
+
+**Week 2 onwards**:
+
+- Guardian-style agent-audits-agent (see Q2)
+- Remote review pipeline (if SaaS)
+- Multi-reviewer collaboration (security + correctness)
+
+Engineering disciplines:
+
+1. **Don't build sub-agents from day 1.** Validate review quality with prompt-as-command first.
+2. **Don't let reviewer modify code.** Output findings only; main agent fixes next turn.
+3. **Don't review entire PR history.** Review diff only — history irrelevant.
+
+**Sources**: simple to fancy — Claude Code `commands/review.ts:9-31` → Codex `tasks/review.rs:94-138` → Codex `guardian/review.rs:1-200`.
+
+**Follow-up**: "How long should the review prompt be?" 1500-3000 tokens. Shorter, model doesn't know how to review; longer, prompt dominates token cost. Codex `REVIEW_PROMPT` ≈ 2000 tokens.
+</details>
+
+<details>
+<summary>**Q7 · Architecture**: OpenClaw makes review an `after_tool_call` hook; Codex makes it a sub-agent. What's the underlying difference?</summary>
+
+The two models differ on three axes: trigger timing, model role, output destination.
+
+**Trigger timing**
+
+- Codex sub-agent: user `/review` or main agent post-task. Point-trigger, each is a complete task.
+- OpenClaw pipeline hook: every `fs.write` auto-fires. Stream-trigger, bound to tool call frequency.
+
+**Model role**
+
+- Codex sub-agent: standalone agent gets clean context, focused on review.
+- OpenClaw hook: could be the main agent itself (same conversation) or another model configured by user; context decided by plugin.
+
+**Output destination**
+
+- Codex sub-agent: findings parsed into structured data via `parse_review_output_event`; user/UI decides usage.
+- OpenClaw hook: findings usually injected as `system message` in next turn. Main agent sees them and decides whether to fix.
+
+**Suitable scenarios**
+
+- Codex mode fits "periodic review": user wrote a batch of commits, wants overall quality check. Clear task boundary.
+- OpenClaw mode fits "continuous review": every tool call passes through; finds issues and feeds main agent immediately. Like linter-on-save in an IDE.
+
+**Engineering trade-off**
+
+- Codex mode: token cost bounded (each review is a discrete task), feedback delayed (user must trigger).
+- OpenClaw mode: feedback immediate (write triggers review), token cost spikes (reviewer runs on every tool call).
+
+Recommendations:
+
+1. **Most cases: Codex mode** — user-triggered, isolated sub-agent, structured findings.
+2. **Special cases: OpenClaw hook** — security-sensitive scenarios where every `fs.write` goes through a sec reviewer; or compliance scenarios where every git push goes through a policy reviewer.
+3. **Coexistence is fine**: daily Codex-style `/review`, critical paths OpenClaw-style hook as backstop.
+
+Engineering philosophy: **review's shape depends on its location in the agent loop**. Point task = sub-agent; stream filter = pipeline hook; remote deep pipeline = SaaS product (ultrareview). Three positions, three implementations, none interchangeable.
+
+**Source**: [`openclaw/src/agents/tool-policy-pipeline.ts`](https://github.com/openclaw/openclaw/blob/f6d0712f508b1f926ad6fc42f7d07b1a60e62730/src/agents/tool-policy-pipeline.ts) (`after_tool_call` hook, see chapter 04).
+
+**Follow-up**: "Concrete example of OpenClaw plugin doing review?"
+
+```ts
+const reviewHook: ToolPolicy = {
+  name: 'inline-review',
+  after_tool_call: async ({ tool, result, context }) => {
+    if (tool === 'fs.write') {
+      const findings = await reviewerAgent.run({ diff: result.diff });
+      if (findings.severity === 'error') {
+        return { inject_system: `Review found issues:\n${findings.summary}` };
+      }
+    }
+    return null;
+  },
+};
+```
+
+Simple and flexible, but every user writes their own. OpenClaw intentionally leaves it to the ecosystem.
+</details>
+
+<details>
+<summary>**Q8 · Engineering**: What's the goal of Codex's `parse_review_output_event`? Why not just emit markdown?</summary>
+
+`parse_review_output_event` parses reviewer output into **structured findings**:
+
+```rust
+struct ReviewFinding {
+    severity: Severity,        // Info / Warning / Error
+    file: PathBuf,
+    line_range: Option<Range>,
+    category: Category,        // Correctness / Performance / Security / Style
+    message: String,
+    suggestion: Option<String>,
+}
+```
+
+Not markdown. Three reasons:
+
+**1. Downstream consumers need structure**
+
+Review results feed multiple consumers:
+
+- TUI rendering (sort by severity, group by file, filter by category)
+- VS Code integration (turn findings into inline diagnostics, share LSP channel)
+- CI reports (aggregate issue counts by category)
+- Auto-fix pipeline (find severity=error and feed main agent to fix)
+
+Each consumer would have to re-parse from markdown. `parse_review_output_event` parses once, multiplexes.
+
+**2. Cross-model consistency**
+
+Reviewer on GPT-5 vs Claude Sonnet emits subtly different markdown (heading styles, bullet symbols, emphasis). JSON schema forces uniform structure. Model upgrades / switches don't break UI.
+
+**3. Evolvable**
+
+Want to add `ai_confidence` (per-finding confidence)? Update schema + reviewer prompt; downstream consumers pick up new field, others ignore. Markdown forces each consumer to update its parser.
+
+**Implementation**
+
+Codex tells reviewer in prompt to emit JSON; `parse_review_output_event` uses serde to deserialize. Failures fall back to wrapping the whole output as an `Unknown` finding to avoid crashing.
+
+Similar patterns:
+
+- OpenAI `tools.function.parameters` is structured schema, not prose.
+- LangChain `StructuredOutputParser` defaults to JSON schema.
+- Any scenario needing "consumable" model output should be schema-first, not markdown-first.
+
+Engineering philosophy: **LLM output has two uses — for humans vs for programs**. Humans get markdown; programs get JSON / YAML. Mixing them ("markdown with embedded JSON") is an anti-pattern (hard to parse, unstable format).
+
+**Source**: [`codex/codex-rs/core/src/review_format.rs`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/core/src/review_format.rs) (`parse_review_output_event` + `render_review_output_text`).
+
+**Follow-up**: "Claude Code's `/review` emits markdown — how does downstream consume?" Claude Code's local `/review` is mostly for humans, no programmatic downstream. When structured output matters, use `/ultrareview` — the remote pipeline emits JSON via task-notification, another schema-first path.
+</details>
+
+<details>
+<summary>**Q9 · Practical**: Your team complains agent-written code reviews miss too many bugs. Systematically improve quality.</summary>
+
+Four stages: **observability → prompt → multi-role → auto-fix**.
+
+**Stage 1 (1 week) · Audit log every review**
+
+Each review writes: reviewer model, prompt version, diff size, findings count, severity distribution, user feedback (accept / reject). After a week:
+
+- Are certain categories systematically missed? (e.g., security findings underrepresented)
+- Certain file patterns under-handled? (e.g., SQL files yield high error rate)
+- What do users typically reject? (false positive vs over-suggestion)
+
+Not "improve quality" yet — just "find where the gaps are." No data, no fix.
+
+**Stage 2 (1-2 weeks) · Targeted prompt tweaks**
+
+Based on audit data, add specific instructions to reviewer:
+
+```text
+When reviewing SQL:
+- Always check for SQL injection risks
+- Always check parameter binding
+- Always check transaction boundaries
+
+When reviewing security-sensitive code (auth, crypto, file I/O):
+- Always check input validation
+- Always check error handling reveals no internal state
+- Always check resource cleanup paths
+```
+
+These let reviewer dig deeper in specific contexts. Cost: longer prompts, more tokens per review.
+
+**Stage 3 (2-3 weeks) · Multi-reviewer roles**
+
+Split reviewer into roles:
+
+- **correctness reviewer**: logic bugs
+- **security reviewer**: security holes
+- **performance reviewer**: perf
+- **style reviewer**: conventions
+
+Each gets a dedicated prompt + tool set. Codex's sub-agent model supports this — spawn 4 reviewers in parallel, each on one axis, then aggregate findings.
+
+Cost: 4× tokens. Quality improvement is noticeable. Anthropic's ultrareview does exactly this.
+
+**Stage 4 (4-6 weeks) · Auto-fix + feedback loop**
+
+After findings, let main agent attempt fixes. Run tests, commit if passes. Feedback points:
+
+- Findings main agent can't fix → reviewer prompt too vague. Tighten prompts.
+- Findings main agent fixed but tests broke → reviewer false positive. Reduce.
+- Findings main agent fixed, tests passed, user still rejected → wrong fix direction. Adjust suggestion style.
+
+This feedback loop over 6 months pushes hit rate from 60% to 90%+.
+
+**Engineering disciplines**:
+
+1. **Don't treat "deeper reviewer" as a silver bullet.** Some bugs are only visible at runtime; static review can't catch them. Accept the miss rate.
+2. **Quantify review quality.** Define metrics (hit rate, false positive rate, user acceptance) — don't rely on "feels worse."
+3. **Run controlled experiments.** Before/after prompt change, run 50 same diffs and compare findings.
+4. **Open feedback channels.** When users reject a finding, surface options (false positive / style mismatch / fix too expensive / other). These are the gold for prompt iteration.
+
+Real precedent: GitHub Copilot Review went through this exact path — single reviewer → multi-reviewer → feedback loop. A year.
+
+**Follow-up**: "Sensitive internal code can't be sent to Anthropic / OpenAI. What now?" (1) Self-host a model (Llama / Mistral / DeepSeek) as reviewer. (2) Critical review local, common review SaaS. (3) Enterprise tier typically offers data residency.
+</details>
+
+<details>
+<summary>**Q10 · Open-ended**: Design a "universal review framework" pulling the best of each system.</summary>
+
+Layered design, light to heavy, enable layers as needed:
+
+**Layer 1 · Prompt-as-command (required)**
+
+```typescript
+const review = createSlashCommand({
+  name: '/review',
+  args_schema: { target: 'uncommitted | branch | commit | custom' },
+  prompt: (args) => REVIEW_PROMPT_TEMPLATE(args),
+});
+```
+
+Borrow Claude Code local `/review`. No standalone agent, zero overhead.
+
+**Layer 2 · Standalone sub-agent (recommended)**
+
+```typescript
+const reviewer = createSubAgent({
+  name: 'reviewer',
+  system_prompt: REVIEW_SYSTEM_PROMPT,
+  features_disabled: ['web_search', 'spawn_subagent', 'collab'],
+  approval_policy: 'never',
+  model: opts.review_model ?? opts.model,
+  output_schema: ReviewOutputSchema,
+});
+
+await reviewer.review({ target: 'branch', base: 'main' });
+```
+
+Borrow Codex sub-agent. Isolated context, constrained config, structured output.
+
+**Layer 3 · Multi-reviewer collaboration (advanced)**
+
+```typescript
+const review_team = createReviewTeam({
+  reviewers: [
+    { name: 'correctness', prompt: CORRECTNESS_PROMPT },
+    { name: 'security', prompt: SECURITY_PROMPT },
+    { name: 'performance', prompt: PERFORMANCE_PROMPT },
+  ],
+  aggregation: 'merge-by-severity',
+});
+```
+
+Borrow ultrareview's bug-hunter pipeline. Multiple reviewers in parallel, merged by severity.
+
+**Layer 4 · Pipeline hook (special cases)**
+
+```typescript
+const policyHook = createToolPolicyHook({
+  on: 'after_tool_call',
+  filter: (tool) => tool.name === 'fs.write',
+  handler: async ({ result }) => {
+    const findings = await reviewer.run({ diff: result.diff });
+    return { inject_system: formatFindings(findings) };
+  },
+});
+```
+
+Borrow OpenClaw. Stream-trigger, reviewer per tool call.
+
+**Layer 5 · Guardian (security-critical)**
+
+```typescript
+const guardian = createGuardian({
+  on: 'before_tool_call',
+  filter: (tool) => tool.dangerous,
+  reviewer_prompt: GUARDIAN_PROMPT,
+  timeout_ms: 5000,
+  circuit_breaker: { max_consecutive_denies: 3, cooldown_ms: 30_000 },
+});
+```
+
+Borrow Codex guardian. Agent-audits-agent, anti-workaround, anti-jailbreak, anti-hang.
+
+**Layer 6 · Remote deep pipeline (SaaS)**
+
+```typescript
+const ultrareview = createRemoteReview({
+  endpoint: 'wss://your-saas.com/ultrareview',
+  github_app: 'your-app-id',
+  pipeline: 'bug-hunter',
+  quota_check: true,
+});
+
+await ultrareview.start({ pr: 123, callback: postToLocalSession });
+```
+
+Borrow `/ultrareview`. Local push triggers; remote pipeline runs; callback to local.
+
+**Structured output schema (required)**
+
+```typescript
+interface ReviewFinding {
+  severity: 'info' | 'warning' | 'error';
+  file: string;
+  line_range?: { start: number; end: number };
+  category: 'correctness' | 'performance' | 'security' | 'style';
+  message: string;
+  suggestion?: string;
+  confidence?: number;
+}
+
+interface ReviewOutput {
+  overview: string;
+  findings: ReviewFinding[];
+  test_coverage_gaps: string[];
+  reviewer_id: string;
+  prompt_version: string;
+}
+```
+
+Borrow Codex `parse_review_output_event`. One schema, multiple consumers.
+
+**Audit log (required)**
+
+```typescript
+interface ReviewAuditEvent {
+  ts: number;
+  reviewer: string;
+  target: { kind: string; ... };
+  diff_size_bytes: number;
+  findings_count: number;
+  severity_breakdown: Record<Severity, number>;
+  user_feedback?: { accepted: string[]; rejected: string[]; reason?: string };
+  tokens_used: number;
+  duration_ms: number;
+}
+```
+
+JSONL on disk; feeds review quality improvements (Q9 Stage 1).
+
+**API example**
+
+```typescript
+import { createReviewSystem } from '@your-org/review';
+
+const review = createReviewSystem({
+  prompt_template: REVIEW_PROMPT,
+  reviewers: ['correctness', 'security'],
+  output_schema: ReviewOutputSchema,
+  audit_sink: jsonlFileSink('./review-audit.log'),
+});
+
+const result = await review.run({ target: 'branch', base: 'main' });
+console.log(result.findings);
+```
+
+**Vs four systems**:
+
+- Codex + layered API + pipeline hook integration.
+- Claude Code + standalone sub-agent route (not just prompt-as-command).
+- OpenClaw + sub-agent model (not just hooks).
+- Hermes + everything.
+
+Effort: 6-8 person-months + 2 months docs / tests / tuning. The value is "tiered layers by user maturity" rather than forcing the heaviest mode from day one.
+
+**Cross-language**: core API JSON in/out, schema cross-language shared. Reviewer prompts are strings, reusable anywhere.
+
+**Source composition**: Codex `tasks/review.rs:94-138` + `guardian/review.rs:1-200` + Claude Code `commands/review.ts:9-31` + OpenClaw `tool-policy-pipeline.ts`. Stitch the highlights = review framework v0.1.
+
+**Follow-up**: "How to keep the framework's own reviewer from getting buggy?" Every reviewer needs reviewing. Codex's guardian audits the main agent; same idea: reviewers should be audited. Concretely: maintain 50 regression diffs with known findings; every reviewer prompt change runs them; hit rate drop = rollback.
+</details>

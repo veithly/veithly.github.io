@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" role="img"
+     aria-label="工具 dispatch 4 个关键问题">
+  <defs>
+    <filter id="wb02"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="221" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar02" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .col  { font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .note { font: italic 10.5px sans-serif; fill: #92400e; }
+      .num  { font: 700 12.5px sans-serif; fill: #fff; }
+    </style>
+  </defs>
+  <text x="360" y="26" class="h" text-anchor="middle">工具 dispatch 的 4 个关键问题</text>
+  <text x="360" y="44" class="t-s" text-anchor="middle">协议形态 + 时机 + 并行度 + 副作用：四个轴决定 dispatch 长什么样</text>
+
+  <g filter="url(#wb02)">
+    <rect x="60" y="70" width="290" height="115" rx="10" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <circle cx="92" cy="100" r="16" fill="#0f172a" />
+    <text x="92" y="105" class="num" text-anchor="middle">1</text>
+    <text x="120" y="93" class="lbl">调用形式</text>
+    <text x="120" y="112" class="t">function call / tool_use block / RPC？</text>
+    <text x="120" y="130" class="t-s">Codex Responses</text>
+    <text x="120" y="146" class="t-s">Claude Code Anthropic tool_use</text>
+    <text x="120" y="162" class="t-s">OpenClaw pi-agent-core</text>
+    <text x="120" y="178" class="t-s">Hermes 双协议适配</text>
+
+    <rect x="370" y="70" width="290" height="115" rx="10" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <circle cx="402" cy="100" r="16" fill="#0f172a" />
+    <text x="402" y="105" class="num" text-anchor="middle">2</text>
+    <text x="430" y="93" class="lbl">调度时机</text>
+    <text x="430" y="112" class="t">流式中开始 vs 等完整 turn？</text>
+    <text x="430" y="130" class="t-s">流式：Codex / Claude Code</text>
+    <text x="430" y="146" class="t-s">事件流：OpenClaw</text>
+    <text x="430" y="162" class="t-s">turn 末：Hermes</text>
+    <text x="430" y="178" class="t-s">流式越早响应越省 latency</text>
+
+    <rect x="60" y="195" width="290" height="115" rx="10" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <circle cx="92" cy="225" r="16" fill="#0f172a" />
+    <text x="92" y="230" class="num" text-anchor="middle">3</text>
+    <text x="120" y="218" class="lbl">并行度</text>
+    <text x="120" y="237" class="t">单工具串行 / 同 turn 多工具并行？</text>
+    <text x="120" y="255" class="t-s">Claude Code dispatchToolUseBlocks 并行</text>
+    <text x="120" y="271" class="t-s">Codex / Hermes 默认串行</text>
+    <text x="120" y="287" class="t-s">OpenClaw session lane 串行同 session</text>
+    <text x="120" y="303" class="t-s">并行省 latency 但要 reconcile</text>
+
+    <rect x="370" y="195" width="290" height="115" rx="10" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <circle cx="402" cy="225" r="16" fill="#0f172a" />
+    <text x="402" y="230" class="num" text-anchor="middle">4</text>
+    <text x="430" y="218" class="lbl">副作用</text>
+    <text x="430" y="237" class="t">直接 / sandbox / 权限层？</text>
+    <text x="430" y="255" class="t-s">Codex execpolicy + sandbox</text>
+    <text x="430" y="271" class="t-s">Claude Code canUseTool hook</text>
+    <text x="430" y="287" class="t-s">OpenClaw before_tool_call</text>
+    <text x="430" y="303" class="t-s">Hermes skills_guard</text>
+  </g>
+</svg>

@@ -1,0 +1,246 @@
+---
+title: build-your-own-agent · 配套 Skill
+description: 把 22 章 + 4 系统的工程结论沉淀成一个可直接安装的 Claude / Cursor Skill。设计自己的 Agent 时一行命令调出。
+---
+
+import Verdict from '@components/Verdict.astro';
+import BuildRecipe from '@components/BuildRecipe.astro';
+import SourceTrail from '@components/SourceTrail.astro';
+import CompareTable from '@components/CompareTable.astro';
+
+<Verdict tldr="build-your-own-agent 是随项目一起用的工程索引：22 章、220 道面试题和 4 个系统对比被压成 5 阶段 Build 流程、4 路径 Diagnose 流程、10 条铁律静态 lint 和 9 个 anti-pattern 运行时诊断。每一步都给到源码依据和可执行脚本。" tone="insight" />
+
+## §1 · 这个 Skill 是什么
+
+本书的姐妹工程产物。把 22 章工程结论压成一个 Claude Code 或 Cursor 可直接 `load skill` 的 `build-your-own-agent`，干两件事：
+
+1. Build：从零搭一个生产级 agent harness；
+2. Diagnose & Optimize：审计或优化既有 agent，按 10 条铁律找问题、按 9 个 anti-pattern 给修复方案。
+
+两条路径共享同一套词汇（10 铁律加 8 axes），底层指向 Codex、Claude Code、OpenClaw、Hermes 的源码级参考实现。
+
+- 1 个 SKILL.md 入口：进门读本，含 10 条铁律加 8 维度光谱表加 Build/Diagnose 双流程导航；
+- 9 个 reference 文档：按需加载，对应构建流程、诊断流程、选型、写代码、重构、安全、部署、面试、跨 skill 组合九大子任务；
+- 3 个可执行脚本：`init-agent-project.py` 标准初始化，`lint-agent-design.py` 静态 10 铁律检查 + progress advisory，`diagnose-agent.py` 运行时 9 个 anti-pattern 检测（读 `rollout.jsonl`）；
+- assets 模板 + `assets/scaffold/` 单一来源：`AGENTS.md.template`、`pyproject.toml.template`、`README.md.template`、`.gitignore.template`、`ci-lint-diagnose.yml.template` 和生成项目源码模板，新项目从同一套模板落地。
+
+```text
+build-your-own-agent/
+├── SKILL.md                              # 入口：10 铁律 + Build/Diagnose 双流程
+├── LICENSE.txt                           # MIT + 致谢
+├── references/
+│   ├── build-agent-workflow.md          # 5 阶段端到端 Build 流程
+│   ├── diagnose-agent.md                # 4 个诊断流程 + AP 修复地图
+│   ├── picking-from-spectrum.md         # 选型决策树（8 axes）
+│   ├── agent-scaffold.md                # 标准 Python 脚手架
+│   ├── migration-guide.md               # 10 阶段旧 agent 重构
+│   ├── security-checklist.md            # 5 层安全防御栈
+│   ├── production-deployment.md         # 7 阶段生产部署
+│   ├── interview-prep.md                # 20 道高价值面试题
+│   └── skill-interop.md                 # 与 mcp-builder / frontend-design 等组合
+├── scripts/
+│   ├── init-agent-project.py            # 新 agent 项目标准初始化
+│   ├── lint-agent-design.py             # 10 铁律静态检查（text/json/--rules 子集）
+│   └── diagnose-agent.py                # 9 个 anti-pattern 运行时检测
+└── assets/
+    ├── AGENTS.md.template               # 新 agent 项目架构文档骨架
+    ├── pyproject.toml.template          # 依赖加 ruff/pytest/mypy 配置
+    ├── README.md.template               # 项目说明骨架
+    ├── .gitignore.template              # 运行时/缓存/secret 排除
+    ├── ci-lint-diagnose.yml.template    # GitHub Actions 流水线
+    └── scaffold/                        # 生成项目源码单一来源
+```
+
+## §2 · 安装方法
+
+skill 已随仓库一起开源。两种安装方式：
+
+### 选 A · Claude Code（推荐）
+
+```bash
+git clone https://github.com/your-org/AgentArchitecturePatterns.git
+cp -r AgentArchitecturePatterns/skills/build-your-own-agent ~/.claude/skills/
+# 重启 Claude Code 后即可在 skill 选择器看到
+```
+
+### 选 B · 项目内嵌
+
+```bash
+cp -r path/to/AgentArchitecturePatterns/skills/build-your-own-agent ./skills/
+# 在 AGENTS.md / CLAUDE.md 里声明：
+# "When designing an agent, load skill at ./skills/build-your-own-agent/SKILL.md."
+```
+
+## §3 · 一句话调用模式
+
+skill 按需加载，不污染上下文。日常用法分 Build 和 Diagnose 两条主线：
+
+<CompareTable
+  systems={['你的提示', '加载内容', '产出', '何时用']}
+  rows={[
+    {
+      label: '想做 coding agent',
+      values: [
+        '"我要做 Codex 那种带 sandbox 的 coding agent"',
+        'SKILL.md + build-agent-workflow.md + agent-scaffold.md',
+        '5 阶段 Build 流程 + 初始化脚本 + 标准 Python scaffold + 每步源码参考',
+        '从 0 起步'
+      ],
+    },
+    {
+      label: '架构选型卡住了',
+      values: [
+        '"loop 用 Codex 的 rollout 还是 Claude Code 的 7 transitions"',
+        'SKILL.md + picking-from-spectrum.md',
+        '8 axes 决策树 + 三个 worked example 对照',
+        'Phase 1 决策中'
+      ],
+    },
+    {
+      label: '任务进度面选型',
+      values: [
+        '"todo list 用 Codex update_plan 还是 Claude Code TodoWrite"',
+        'SKILL.md + picking-from-spectrum.md',
+        '第 8 轴：approval plan / execution todo / durable task 分层建议',
+        '设计运行时进度面'
+      ],
+    },
+    {
+      label: '执行状态面路由',
+      values: [
+        '"tool progress、todo、away summary 应该分别显示到哪里"',
+        'SKILL.md + picking-from-spectrum.md + docs-site §22',
+        'execution state router：source / audience / lifetime / context policy',
+        '设计多层进度面'
+      ],
+    },
+    {
+      label: '已有 agent 要诊断',
+      values: [
+        '"我的 agent 慢 / 贵 / 漏 / loop / 不安全"',
+        'SKILL.md + diagnose-agent.md + scripts/diagnose-agent.py',
+        '4 个诊断流程 + 9 个 anti-pattern → 最佳修复地图',
+        '生产出问题时'
+      ],
+    },
+    {
+      label: '已有 agent 要升级',
+      values: [
+        '"lint 失败 8/10，怎么渐进式重构"',
+        'SKILL.md + migration-guide.md',
+        '10 阶段重构计划，每阶段 1-3 天，每条铁律对应一个阶段',
+        '已上线 1 年的旧 agent'
+      ],
+    },
+    {
+      label: '上线前 review',
+      values: [
+        '"下周上线，最后一道关卡"',
+        'security-checklist.md + production-deployment.md + lint + diagnose',
+        '5 层安全栈 + 7 阶段部署 + 双脚本作 CI gate',
+        '上线前 3 天'
+      ],
+    },
+    {
+      label: '面试准备',
+      values: [
+        '"面试 agent infra 岗，重点考什么"',
+        'SKILL.md + interview-prep.md',
+        '20 道高频题 + 章节定位 + 三段式答题',
+        '面试前 1 周'
+      ],
+    },
+  ]}
+  caption="按 sub-task 加载，平均一次只看 SKILL.md + 1-2 个 reference。Build 和 Diagnose 两条主线，加载分明。"
+/>
+
+### §3.1 · 一行命令：CI / 本地巡检
+
+```bash
+# 标准初始化新 agent 项目
+python ~/.claude/skills/build-your-own-agent/scripts/init-agent-project.py ./my-agent \
+    --profile coding-cli \
+    --test-cmd "python -m pytest -ra"
+
+# 静态 lint 10 铁律（适合 CI gate）
+python ~/.claude/skills/build-your-own-agent/scripts/lint-agent-design.py /path/to/agent
+python ~/.claude/skills/build-your-own-agent/scripts/lint-agent-design.py /path/to/agent --format json
+
+# 运行时 9 个 anti-pattern 检测（适合每周巡检）
+python ~/.claude/skills/build-your-own-agent/scripts/diagnose-agent.py /path/to/rollouts/ --allow-empty
+python ~/.claude/skills/build-your-own-agent/scripts/diagnose-agent.py /path/to/rollouts/ \
+    --metrics /path/to/metrics.jsonl \
+    --agent-src /path/to/agent \
+    --format json
+```
+
+退出码 0 表示通过，1 表示有 finding。JSON 格式稳定，可直接喂 GitHub Actions / Jenkins / GitLab CI。`assets/ci-lint-diagnose.yml.template` 是一个开箱即用的 CI 流水线骨架。
+
+## §4 · 10 条铁律一览
+
+这 10 条是 skill 的核心。摘自全书 4 系统对比，4 家全部遵守才进表。
+
+<BuildRecipe
+  steps={[
+    { title: 'Turn is the source of truth', detail: '一切落盘、重试、回滚都发生在 turn 边界。Day 1 定义清楚 turn，永远不破。' },
+    { title: 'Context has a cache boundary', detail: 'Layer 1-N 冻结、Layer N+1 每轮重算。memory snapshot 在上面，timestamp 在下面。' },
+    { title: 'Prompt is data, never instructions', detail: '外部内容（web fetch、email、tool output）一律 <external_content_{nonce}> 包起来。攻击者伪造不了 nonce。' },
+    { title: 'Three verifier tiers always', detail: 'Hard（外部 exit code）+ Soft（token budget）+ Give-up（model self-stop）。生产至少要前两层。' },
+    { title: 'Sandbox first, then trust', detail: 'OS-level sandbox 是运行时防御的硬边界。LLM-layer trust 是补充。默认 network=deny + fs_write=restricted。' },
+    { title: 'Redact at import time, not at log time', detail: 'redact 配置 import 时快照定下来。否则 LLM 中途 `export FOO=` 可绕过。' },
+    { title: 'fail_open beats fail_closed at default', detail: '默认严格 → 用户禁掉所有 safety。默认 fail_open，让生产显式 opt-in fail_closed。' },
+    { title: 'Memory writes need a frozen snapshot', detail: 'memory 入 prompt 时是 turn-start 时的 freeze，不是 live ref。否则缓存失效 + 中途 mutation。' },
+    { title: 'Skills are content, but loadable code is supply chain', detail: '内置 allowlist + scanner + 签名是生产底线。用户安装的 skill 要 4 阶 × 3 信任矩阵。' },
+    { title: 'Audit trail is the last mile', detail: 'rollout.jsonl / trajectory / SecurityAuditReport。没有这个，出事查不到。' },
+  ]}
+  title="10 Iron Laws of Agent Harness"
+/>
+
+每条都对应一章详尽案例。想知道 Codex、Claude Code、OpenClaw、Hermes 具体怎么落地这条规则，去对应章节的 §11 面试题段落。
+
+## §5 · 与本书的对照
+
+skill 不替代本书。是读完本书后随手能用的工具箱。两者关系：
+
+```
+本书 22 章 (深度 + 案例 + 对比)
+   │
+   ├─ 提炼 10 铁律 ───────────► SKILL.md (入口)
+   ├─ 整理 8 axes 光谱 ───────► picking-from-spectrum.md
+   ├─ 抽出 220 道题 top 20 ───► interview-prep.md
+   └─ 工程结论沉淀 ─────────► scaffold / migration / security / production
+```
+
+读 skill 时某条铁律觉得没说透，跳回本书对应章。写 agent 时记不清「Codex 那条转换怎么写」，让 skill 替你找出处。
+
+## §6 · 路线图
+
+skill 跟本书同步更新。如果新增 reference 或修改规则，会在仓库 `CHANGELOG.md` 中记录。欢迎在 issues 里贡献：
+
+- 你做了一个 agent，哪些铁律实际遇到坑、怎么调；
+- 哪些 use case 没在第 5 节的对照表里；
+- 某条 reference 文档跑你的真实项目时漏了什么。
+
+<SourceTrail
+  title="skill 源码入口"
+  pins={[
+    { system: 'Codex', path: 'skills/build-your-own-agent/SKILL.md', desc: '主入口：10 铁律 + Build/Diagnose 双流程' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/references/build-agent-workflow.md', desc: '5 阶段端到端 Build 流程' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/references/diagnose-agent.md', desc: '4 个诊断流程 + 9 anti-pattern 修复地图' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/references/picking-from-spectrum.md', desc: '选型决策树 8 axes' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/references/agent-scaffold.md', desc: '标准 Python 脚手架' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/references/migration-guide.md', desc: '10 阶段重构指南' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/references/security-checklist.md', desc: '5 层安全栈' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/references/production-deployment.md', desc: '7 阶段部署' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/references/interview-prep.md', desc: '20 道高价值面试题' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/references/skill-interop.md', desc: '与其他 skill 链式组合' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/scripts/init-agent-project.py', desc: '新 agent 项目标准初始化' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/scripts/lint-agent-design.py', desc: '10 铁律静态 lint' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/scripts/diagnose-agent.py', desc: '9 anti-pattern 运行时诊断' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/assets/AGENTS.md.template', desc: '新项目架构文档骨架' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/assets/ci-lint-diagnose.yml.template', desc: 'GitHub Actions 流水线' },
+    { system: 'Codex', path: 'skills/build-your-own-agent/assets/scaffold/', desc: '生成项目源码单一来源' },
+  ]}
+/>
+
+`Codex` 标签只是颜色复用。这些路径都在本仓库 `skills/` 下，仓库公开后即可直链。

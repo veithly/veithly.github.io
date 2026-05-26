@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 480" role="img"
+     aria-label="Four sandbox solutions plotted across self-managed depth vs deployment flexibility">
+  <defs>
+    <filter id="wb13"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="131" /><feDisplacementMap in="SourceGraphic" scale="2" /></filter>
+    <marker id="ar13" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .ax   { font: 600 12.5px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #64748b; }
+      .pin  { font: 700 12.5px sans-serif; fill: #fff; }
+      .note { font: italic 10.5px sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <text x="390" y="26" class="h" text-anchor="middle">Sandbox solutions: self-managed depth &#x00D7; deployment flexibility</text>
+  <text x="390" y="44" class="t-s" text-anchor="middle">Right = more sandbox code written in-house; up = more back-end options. Pick by who you ship to.</text>
+
+  <g filter="url(#wb13)">
+    <rect x="100" y="80" width="280" height="160" fill="#fef3c7" opacity="0.4" />
+    <rect x="380" y="80" width="280" height="160" fill="#dcfce7" opacity="0.4" />
+    <rect x="100" y="240" width="280" height="160" fill="#dbeafe" opacity="0.4" />
+    <rect x="380" y="240" width="280" height="160" fill="#fee2e2" opacity="0.4" />
+
+    <text x="120" y="100" class="t-s">no self-management &#x00B7; many back-ends</text>
+    <text x="640" y="100" class="t-s" text-anchor="end">deep self-management &#x00B7; many back-ends</text>
+    <text x="110" y="394" class="t-s">no self-management &#x00B7; one back-end</text>
+    <text x="650" y="394" class="t-s" text-anchor="end">deep self-management &#x00B7; one back-end</text>
+
+    <line x1="100" y1="400" x2="660" y2="400" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar13)" />
+    <line x1="100" y1="400" x2="100" y2="70" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar13)" />
+    <line x1="380" y1="80" x2="380" y2="400" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="100" y1="240" x2="660" y2="240" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+
+    <text x="660" y="420" class="ax" text-anchor="end">depth of sandbox code you implement &#x2192;</text>
+    <text x="110" y="68" class="ax">&#x2191; back-ends / deployment options exposed to users</text>
+
+    <circle cx="170" cy="120" r="14" fill="#ea580c" stroke="#0f172a" stroke-width="2" />
+    <text x="170" y="124" class="pin" text-anchor="middle">HM</text>
+    <text x="170" y="151" class="t" text-anchor="middle">Hermes</text>
+    <text x="170" y="166" class="t-s" text-anchor="middle">TERMINAL_ENV: 6 back-ends</text>
+    <text x="170" y="179" class="t-s" text-anchor="middle">local/docker/modal/ssh...</text>
+
+    <circle cx="340" cy="170" r="14" fill="#15803d" stroke="#0f172a" stroke-width="2" />
+    <text x="340" y="174" class="pin" text-anchor="middle">OC</text>
+    <text x="340" y="201" class="t" text-anchor="middle">OpenClaw</text>
+    <text x="340" y="216" class="t-s" text-anchor="middle">ExecHost &#x00D7; 3 back-ends</text>
+    <text x="340" y="229" class="t-s" text-anchor="middle">sandbox/gateway/node</text>
+
+    <circle cx="520" cy="160" r="14" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+    <text x="520" y="164" class="pin" text-anchor="middle">CC</text>
+    <text x="520" y="191" class="t" text-anchor="middle">Claude Code</text>
+    <text x="520" y="206" class="t-s" text-anchor="middle">schema-based config</text>
+    <text x="520" y="219" class="t-s" text-anchor="middle">+ enabledPlatforms</text>
+
+    <circle cx="620" cy="320" r="14" fill="#1d4ed8" stroke="#0f172a" stroke-width="2" />
+    <text x="620" y="324" class="pin" text-anchor="middle">CX</text>
+    <text x="620" y="351" class="t" text-anchor="middle">Codex</text>
+    <text x="620" y="366" class="t-s" text-anchor="middle">three-platform self-managed</text>
+    <text x="620" y="379" class="t-s" text-anchor="middle">bwrap+seccomp+landlock</text>
+  </g>
+
+  <text x="20" y="465" class="t-s">CX = Codex &#x00B7; CC = Claude Code &#x00B7; OC = OpenClaw &#x00B7; HM = Hermes</text>
+</svg>

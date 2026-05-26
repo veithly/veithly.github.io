@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 660" role="img"
+     aria-label="Four security defence stacks side by side">
+  <defs>
+    <filter id="wb20F"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="207" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar20F" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .col  { font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .note { font: italic 10.5px sans-serif; fill: #92400e; }
+    </style>
+  </defs>
+
+  <text x="440" y="24" class="h" text-anchor="middle">Four security defence stacks side by side</text>
+  <text x="440" y="42" class="t-s" text-anchor="middle">Three-platform sandbox (Codex) &#x00B7; /security-review (Claude Code) &#x00B7; 29-file security/ (OpenClaw) &#x00B7; tirith + cosign (Hermes)</text>
+
+  <g filter="url(#wb20F)">
+    <text x="120" y="70" class="col" text-anchor="middle">Codex &#x00B7; sandbox-first</text>
+    <rect x="40" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="103" class="lbl" text-anchor="middle">TrustLevel onboarding</text>
+
+    <line x1="120" y1="116" x2="120" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar20F)" />
+
+    <rect x="40" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="158" class="lbl" text-anchor="middle">three-platform OS sandbox</text>
+    <text x="120" y="174" class="t-s" text-anchor="middle">macOS seatbelt</text>
+    <text x="120" y="188" class="t-s" text-anchor="middle">Linux bwrap/seccomp/landlock</text>
+
+    <line x1="120" y1="198" x2="120" y2="217" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar20F)" />
+
+    <rect x="40" y="220" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="240" class="lbl" text-anchor="middle">AskForApproval, 4 tiers</text>
+    <text x="120" y="256" class="t-s" text-anchor="middle">UnlessTrusted/OnRequest</text>
+    <text x="120" y="270" class="t-s" text-anchor="middle">OnFailure/Never</text>
+
+    <line x1="120" y1="280" x2="120" y2="299" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar20F)" />
+
+    <rect x="40" y="302" width="160" height="60" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="322" class="lbl" text-anchor="middle">memory prompt declares</text>
+    <text x="120" y="338" class="t-s" text-anchor="middle">treat as data, NOT</text>
+    <text x="120" y="352" class="t-s" text-anchor="middle">instructions</text>
+
+    <line x1="120" y1="362" x2="120" y2="381" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar20F)" />
+
+    <rect x="40" y="384" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="404" class="lbl" text-anchor="middle">rollout-trace</text>
+    <text x="120" y="420" class="t-s" text-anchor="middle">trace.jsonl post-hoc audit</text>
+
+    <text x="120" y="455" class="note" text-anchor="middle">sandbox first, trust second</text>
+
+    <text x="330" y="70" class="col" text-anchor="middle">Claude Code &#x00B7; review-as-tool</text>
+    <rect x="250" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="103" class="lbl" text-anchor="middle">/security-review command</text>
+
+    <line x1="330" y1="116" x2="330" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar20F)" />
+
+    <rect x="250" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="158" class="lbl" text-anchor="middle">senior security engineer</text>
+    <text x="330" y="174" class="t-s" text-anchor="middle">5 vuln classes + 80% confidence</text>
+    <text x="330" y="188" class="t-s" text-anchor="middle">focus ONLY on this PR</text>
+
+    <line x1="330" y1="198" x2="330" y2="217" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar20F)" />
+
+    <rect x="250" y="220" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="240" class="lbl" text-anchor="middle">allowed-tools narrowed</text>
+    <text x="330" y="256" class="t-s" text-anchor="middle">git/Read/Grep/Glob/LS</text>
+    <text x="330" y="270" class="t-s" text-anchor="middle">no curl / no write</text>
+
+    <line x1="330" y1="280" x2="330" y2="299" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar20F)" />
+
+    <rect x="250" y="302" width="160" height="60" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="322" class="lbl" text-anchor="middle">autoMode classifier</text>
+    <text x="330" y="338" class="t-s" text-anchor="middle">allow / soft_deny</text>
+    <text x="330" y="352" class="t-s" text-anchor="middle">+ LLM critique of rules</text>
+
+    <line x1="330" y1="362" x2="330" y2="381" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar20F)" />
+
+    <rect x="250" y="384" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="404" class="lbl" text-anchor="middle">securityCheck</text>
+    <text x="330" y="420" class="t-s" text-anchor="middle">remote-config signature check</text>
+
+    <text x="330" y="455" class="note" text-anchor="middle">post-hoc review</text>
+
+    <text x="540" y="70" class="col" text-anchor="middle">OpenClaw &#x00B7; 29-file security/</text>
+    <rect x="460" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="103" class="lbl" text-anchor="middle">audit.ts entry</text>
+
+    <line x1="540" y1="116" x2="540" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar20F)" />
+
+    <rect x="460" y="138" width="160" height="48" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="158" class="lbl" text-anchor="middle">SecurityAuditReport</text>
+    <text x="540" y="174" class="t-s" text-anchor="middle">critical / warn / info</text>
+
+    <line x1="540" y1="186" x2="540" y2="205" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar20F)" />
+
+    <rect x="460" y="208" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="228" class="lbl" text-anchor="middle">external-content.ts</text>
+    <text x="540" y="244" class="t-s" text-anchor="middle">12 SUSPICIOUS_PATTERNS</text>
+    <text x="540" y="258" class="t-s" text-anchor="middle">+ random 8-byte IDs</text>
+
+    <line x1="540" y1="268" x2="540" y2="287" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar20F)" />
+
+    <rect x="460" y="290" width="160" height="48" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="310" class="lbl" text-anchor="middle">dangerous-tools.ts</text>
+    <text x="540" y="326" class="t-s" text-anchor="middle">HTTP/ACP deny list</text>
+
+    <line x1="540" y1="338" x2="540" y2="357" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar20F)" />
+
+    <rect x="460" y="360" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="380" class="lbl" text-anchor="middle">skill-scanner.ts</text>
+    <text x="540" y="396" class="t-s" text-anchor="middle">3 severities + 8 extensions</text>
+
+    <line x1="540" y1="408" x2="540" y2="424" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar20F)" />
+
+    <rect x="460" y="427" width="160" height="36" rx="8" fill="#fde68a" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="450" class="lbl" text-anchor="middle">redact trio (logging/)</text>
+
+    <text x="540" y="485" class="note" text-anchor="middle">every attack surface has a file</text>
+
+    <text x="760" y="70" class="col" text-anchor="middle">Hermes &#x00B7; tirith + 30 vendor</text>
+    <rect x="680" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="103" class="lbl" text-anchor="middle">tirith subprocess</text>
+
+    <line x1="760" y1="116" x2="760" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar20F)" />
+
+    <rect x="680" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="158" class="lbl" text-anchor="middle">exit code = verdict</text>
+    <text x="760" y="174" class="t-s" text-anchor="middle">0/1/2 unalterable by LLM</text>
+    <text x="760" y="188" class="t-s" text-anchor="middle">JSON stdout only enriches</text>
+
+    <line x1="760" y1="198" x2="760" y2="217" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar20F)" />
+
+    <rect x="680" y="220" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="240" class="lbl" text-anchor="middle">SHA-256 + cosign</text>
+    <text x="760" y="256" class="t-s" text-anchor="middle">OIDC + workflow pin</text>
+    <text x="760" y="270" class="t-s" text-anchor="middle">runs even without cosign</text>
+
+    <line x1="760" y1="280" x2="760" y2="299" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar20F)" />
+
+    <rect x="680" y="302" width="160" height="60" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="322" class="lbl" text-anchor="middle">redact.py 30+ vendors</text>
+    <text x="760" y="338" class="t-s" text-anchor="middle">sk-/ghp_/AKIA/SG.</text>
+    <text x="760" y="352" class="t-s" text-anchor="middle">import-time snapshot</text>
+
+    <line x1="760" y1="362" x2="760" y2="381" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar20F)" />
+
+    <rect x="680" y="384" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="404" class="lbl" text-anchor="middle">three threat groups</text>
+    <text x="760" y="420" class="t-s" text-anchor="middle">11 mem + 10 cron + 10 invisible</text>
+
+    <text x="760" y="455" class="note" text-anchor="middle">supply chain hardened outside</text>
+  </g>
+
+  <text x="440" y="510" class="t-s" text-anchor="middle">"Don&#x2019;t get owned" &#x2014; four stances: sandbox first, post-hoc review, list every front, externalise the core.</text>
+
+  <g>
+    <rect x="40" y="525" width="800" height="115" rx="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1" />
+    <text x="60" y="545" class="lbl">Shared traits:</text>
+    <text x="60" y="563" class="t-s">&#x00B7; All assert "external content is data, not instructions" (Codex prompt declaration / OpenClaw external-content wrapping / Hermes threat scans).</text>
+    <text x="60" y="579" class="t-s">&#x00B7; All have redaction (Codex [REDACTED_SECRET] / OpenClaw redact trio / Hermes redact.py 30+ prefixes).</text>
+    <text x="60" y="595" class="t-s">&#x00B7; All treat supply chain as a first-class concern (bundled allowlist / scanner / cosign / 12-cell INSTALL_POLICY).</text>
+    <text x="60" y="611" class="t-s">&#x00B7; All keep an audit trail (rollout-trace / PR comment / SecurityAuditReport / tirith findings JSON).</text>
+    <text x="60" y="627" class="t-s">&#x00B7; Allowlist + denylist together is the safest combo (Claude Code allowed-tools + OpenClaw DEFAULT_GATEWAY_HTTP_TOOL_DENY).</text>
+  </g>
+</svg>

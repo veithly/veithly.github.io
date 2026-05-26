@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 480" role="img"
+     aria-label="四家多通道入口在通道数量 x 生态开放度上的位置">
+  <defs>
+    <filter id="wb14"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="141" /><feDisplacementMap in="SourceGraphic" scale="2" /></filter>
+    <marker id="ar14" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .ax   { font: 600 12.5px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #64748b; }
+      .pin  { font: 700 12.5px sans-serif; fill: #fff; }
+      .note { font: italic 10.5px sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <text x="390" y="26" class="h" text-anchor="middle">多通道入口：通道数量 x 生态开放度</text>
+  <text x="390" y="44" class="t-s" text-anchor="middle">越往右通道越多；越往上第三方越容易接新通道；选哪种取决于 agent 形态</text>
+
+  <g filter="url(#wb14)">
+    <rect x="100" y="80" width="280" height="160" fill="#fef3c7" opacity="0.4" />
+    <rect x="380" y="80" width="280" height="160" fill="#dcfce7" opacity="0.4" />
+    <rect x="100" y="240" width="280" height="160" fill="#dbeafe" opacity="0.4" />
+    <rect x="380" y="240" width="280" height="160" fill="#fee2e2" opacity="0.4" />
+
+    <text x="120" y="100" class="t-s">少通道 · 开放</text>
+    <text x="640" y="100" class="t-s" text-anchor="end">多通道 · 开放</text>
+    <text x="110" y="394" class="t-s">少通道 · 封闭</text>
+    <text x="650" y="394" class="t-s" text-anchor="end">多通道 · 封闭</text>
+
+    <line x1="100" y1="400" x2="660" y2="400" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar14)" />
+    <line x1="100" y1="400" x2="100" y2="70" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar14)" />
+    <line x1="380" y1="80" x2="380" y2="400" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="100" y1="240" x2="660" y2="240" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+
+    <text x="660" y="420" class="ax" text-anchor="end">通道数量 →</text>
+    <text x="110" y="68" class="ax">↑ 生态开放度（第三方接新通道难度低=高）</text>
+
+    <!-- Claude Code: bottom-left (8 子命令 一个 binary) -->
+    <circle cx="220" cy="290" r="14" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+    <text x="220" y="294" class="pin" text-anchor="middle">CC</text>
+    <text x="220" y="321" class="t" text-anchor="middle">Claude Code</text>
+    <text x="220" y="336" class="t-s" text-anchor="middle">单 binary + 8 subcommand</text>
+    <text x="220" y="349" class="t-s" text-anchor="middle">commander.js</text>
+
+    <!-- Codex: middle-bottom (4 个 binary 多入口但封闭) -->
+    <circle cx="430" cy="280" r="14" fill="#1d4ed8" stroke="#0f172a" stroke-width="2" />
+    <text x="430" y="284" class="pin" text-anchor="middle">CX</text>
+    <text x="430" y="311" class="t" text-anchor="middle">Codex</text>
+    <text x="430" y="326" class="t-s" text-anchor="middle">multi-binary</text>
+    <text x="430" y="339" class="t-s" text-anchor="middle">tui/exec/mcp/app-server</text>
+
+    <!-- OpenClaw: top-middle (19 sub-CLI + channels-plugins 最开放) -->
+    <circle cx="500" cy="130" r="14" fill="#15803d" stroke="#0f172a" stroke-width="2" />
+    <text x="500" y="134" class="pin" text-anchor="middle">OC</text>
+    <text x="500" y="161" class="t" text-anchor="middle">OpenClaw</text>
+    <text x="500" y="176" class="t-s" text-anchor="middle">19 sub-CLI + plugins</text>
+    <text x="500" y="189" class="t-s" text-anchor="middle">ACP + channels-plugins</text>
+
+    <!-- Hermes: right-middle (17 platform 多但内置) -->
+    <circle cx="620" cy="270" r="14" fill="#ea580c" stroke="#0f172a" stroke-width="2" />
+    <text x="620" y="274" class="pin" text-anchor="middle">HM</text>
+    <text x="620" y="301" class="t" text-anchor="middle">Hermes</text>
+    <text x="620" y="316" class="t-s" text-anchor="middle">17 platform adapter</text>
+    <text x="620" y="329" class="t-s" text-anchor="middle">主仓库内置</text>
+  </g>
+
+  <text x="20" y="465" class="t-s">CX = Codex · CC = Claude Code · OC = OpenClaw · HM = Hermes</text>
+</svg>

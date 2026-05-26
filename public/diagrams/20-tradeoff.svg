@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 480" role="img"
+     aria-label="四家安全系统在防御维度 x 覆盖广度上的位置">
+  <defs>
+    <filter id="wb20"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="201" /><feDisplacementMap in="SourceGraphic" scale="2" /></filter>
+    <marker id="ar20" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .ax   { font: 600 12.5px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #64748b; }
+      .pin  { font: 700 12.5px sans-serif; fill: #fff; }
+      .note { font: italic 10.5px sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <text x="390" y="26" class="h" text-anchor="middle">安全栈：防御维度 x 覆盖广度</text>
+  <text x="390" y="44" class="t-s" text-anchor="middle">越往右覆盖战线越多；越往上越「内容/语义级防御」（vs 越下越「runtime/OS 级」）</text>
+
+  <g filter="url(#wb20)">
+    <rect x="100" y="80" width="280" height="160" fill="#fef3c7" opacity="0.4" />
+    <rect x="380" y="80" width="280" height="160" fill="#dcfce7" opacity="0.4" />
+    <rect x="100" y="240" width="280" height="160" fill="#dbeafe" opacity="0.4" />
+    <rect x="380" y="240" width="280" height="160" fill="#fee2e2" opacity="0.4" />
+
+    <text x="120" y="100" class="t-s">内容级 · 窄</text>
+    <text x="640" y="100" class="t-s" text-anchor="end">内容级 · 全战线</text>
+    <text x="110" y="394" class="t-s">runtime 级 · 窄</text>
+    <text x="650" y="394" class="t-s" text-anchor="end">runtime 级 · 全战线</text>
+
+    <line x1="100" y1="400" x2="660" y2="400" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar20)" />
+    <line x1="100" y1="400" x2="100" y2="70" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar20)" />
+    <line x1="380" y1="80" x2="380" y2="400" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="100" y1="240" x2="660" y2="240" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+
+    <text x="660" y="420" class="ax" text-anchor="end">覆盖战线 →</text>
+    <text x="110" y="68" class="ax">↑ 防御靠语义/内容（vs ↓ OS / runtime）</text>
+
+    <circle cx="280" cy="160" r="14" fill="#ea580c" stroke="#0f172a" stroke-width="2" />
+    <text x="280" y="164" class="pin" text-anchor="middle">HM</text>
+    <text x="280" y="191" class="t" text-anchor="middle">Hermes</text>
+    <text x="280" y="206" class="t-s" text-anchor="middle">tirith + redact</text>
+    <text x="280" y="219" class="t-s" text-anchor="middle">+ 11/10/10 威胁组</text>
+
+    <circle cx="560" cy="140" r="14" fill="#15803d" stroke="#0f172a" stroke-width="2" />
+    <text x="560" y="144" class="pin" text-anchor="middle">OC</text>
+    <text x="560" y="171" class="t" text-anchor="middle">OpenClaw</text>
+    <text x="560" y="186" class="t-s" text-anchor="middle">29 文件 security/</text>
+    <text x="560" y="199" class="t-s" text-anchor="middle">+ external-content + audit</text>
+
+    <circle cx="200" cy="300" r="14" fill="#1d4ed8" stroke="#0f172a" stroke-width="2" />
+    <text x="200" y="304" class="pin" text-anchor="middle">CX</text>
+    <text x="200" y="331" class="t" text-anchor="middle">Codex</text>
+    <text x="200" y="346" class="t-s" text-anchor="middle">三平台 OS sandbox</text>
+    <text x="200" y="359" class="t-s" text-anchor="middle">+ TrustLevel + AskForApproval</text>
+
+    <circle cx="540" cy="310" r="14" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+    <text x="540" y="314" class="pin" text-anchor="middle">CC</text>
+    <text x="540" y="341" class="t" text-anchor="middle">Claude Code</text>
+    <text x="540" y="356" class="t-s" text-anchor="middle">/security-review + autoMode</text>
+  </g>
+
+  <text x="20" y="465" class="t-s">CX = Codex · CC = Claude Code · OC = OpenClaw · HM = Hermes</text>
+</svg>

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 480" role="img"
+     aria-label="Four memory stacks plotted across engineering restraint vs retrieval power">
+  <defs>
+    <filter id="wb16"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="161" /><feDisplacementMap in="SourceGraphic" scale="2" /></filter>
+    <marker id="ar16" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .ax   { font: 600 12.5px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #64748b; }
+      .pin  { font: 700 12.5px sans-serif; fill: #fff; }
+      .note { font: italic 10.5px sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <text x="390" y="26" class="h" text-anchor="middle">Memory stack: engineering restraint &#x00D7; retrieval power</text>
+  <text x="390" y="44" class="t-s" text-anchor="middle">Right = stronger retrieval; up = more restraint. Maxing both forces a trade-off.</text>
+
+  <g filter="url(#wb16)">
+    <rect x="100" y="80" width="280" height="160" fill="#fef3c7" opacity="0.4" />
+    <rect x="380" y="80" width="280" height="160" fill="#dcfce7" opacity="0.4" />
+    <rect x="100" y="240" width="280" height="160" fill="#dbeafe" opacity="0.4" />
+    <rect x="380" y="240" width="280" height="160" fill="#fee2e2" opacity="0.4" />
+
+    <text x="120" y="100" class="t-s">weak retrieval &#x00B7; restrained</text>
+    <text x="640" y="100" class="t-s" text-anchor="end">strong retrieval &#x00B7; restrained</text>
+    <text x="110" y="394" class="t-s">weak retrieval &#x00B7; heavy engineering</text>
+    <text x="650" y="394" class="t-s" text-anchor="end">strong retrieval &#x00B7; heavy engineering</text>
+
+    <line x1="100" y1="400" x2="660" y2="400" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar16)" />
+    <line x1="100" y1="400" x2="100" y2="70" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar16)" />
+    <line x1="380" y1="80" x2="380" y2="400" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="100" y1="240" x2="660" y2="240" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+
+    <text x="660" y="420" class="ax" text-anchor="end">retrieval power &#x2192;</text>
+    <text x="110" y="68" class="ax">&#x2191; engineering restraint (less code / fewer deps = higher)</text>
+
+    <circle cx="160" cy="140" r="14" fill="#ea580c" stroke="#0f172a" stroke-width="2" />
+    <text x="160" y="144" class="pin" text-anchor="middle">HM</text>
+    <text x="160" y="171" class="t" text-anchor="middle">Hermes</text>
+    <text x="160" y="186" class="t-s" text-anchor="middle">2 files + 4 actions</text>
+    <text x="160" y="199" class="t-s" text-anchor="middle">frozen snapshot</text>
+
+    <circle cx="290" cy="200" r="14" fill="#1d4ed8" stroke="#0f172a" stroke-width="2" />
+    <text x="290" y="204" class="pin" text-anchor="middle">CX</text>
+    <text x="290" y="231" class="t" text-anchor="middle">Codex</text>
+    <text x="290" y="246" class="t-s" text-anchor="middle">AGENTS.md injection</text>
+    <text x="290" y="259" class="t-s" text-anchor="middle">+ stage1/phase2 background job</text>
+
+    <circle cx="500" cy="270" r="14" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+    <text x="500" y="274" class="pin" text-anchor="middle">CC</text>
+    <text x="500" y="301" class="t" text-anchor="middle">Claude Code</text>
+    <text x="500" y="316" class="t-s" text-anchor="middle">4 MemoryTypes</text>
+    <text x="500" y="329" class="t-s" text-anchor="middle">+ 2 prompt modes + drift</text>
+
+    <circle cx="600" cy="320" r="14" fill="#15803d" stroke="#0f172a" stroke-width="2" />
+    <text x="600" y="324" class="pin" text-anchor="middle">OC</text>
+    <text x="600" y="351" class="t" text-anchor="middle">OpenClaw</text>
+    <text x="600" y="366" class="t-s" text-anchor="middle">FTS5 + sqlite-vec</text>
+  </g>
+
+  <text x="20" y="465" class="t-s">CX = Codex &#x00B7; CC = Claude Code &#x00B7; OC = OpenClaw &#x00B7; HM = Hermes</text>
+</svg>

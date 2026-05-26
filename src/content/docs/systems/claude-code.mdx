@@ -1,0 +1,70 @@
+---
+title: Claude Code
+description: "Anthropic Claude Code：TypeScript 加 skill engine 加多入口 IDE 集成的 agent 形态最完整"
+sidebar:
+  order: 2
+---
+
+import Verdict from '@components/Verdict.astro';
+import CompareTable from '@components/CompareTable.astro';
+import SourceTrail from '@components/SourceTrail.astro';
+
+<Verdict tldr="Claude Code 是开发者 UX 做得最完整的 agent。17 个内置 skill、skillify 元 skill、4 种入口（CLI、IDE、Web、Mobile），`/insights` 加 `/security-review` 加 autoMode 三件套构成 agent 自我审计的闭环。系统闭源，本站分析基于公开文档加 npm 包 sourcemap 解包。基于解包的结论显式标「行为推断」。" tone="insight" />
+
+## §1 · Claude Code 是什么
+
+Anthropic 出品的 agentic coding tool，以 npm 包 `@anthropic-ai/claude-code` 发布。同一份 TypeScript 代码库支持终端、Cursor 风格 IDE 插件、Web、Mobile 四种入口。
+
+## §2 · 按目录分层的架构栈
+
+<CompareTable
+  rows={[
+    { label: '入口', values: ['`cli/` 终端入口', '`server/` IDE 后端', '`remote/` Web、Mobile 客户端协议', '`entrypoints/` 子命令分发'] },
+    { label: '命令与处理器', values: ['`commands/` 显式 slash 命令（`/memory`、`/insights`、`/security-review`、`/cron`）', '`cli/handlers/` 处理 autoMode、classifier、skillify 等闭环', '`commands.ts` 注册表', '`schemas/` 命令参数 schema'] },
+    { label: 'Skill 引擎', values: ['`skills/bundled/` 17 个内置 skill', '`skills/skillify.ts` 4 轮 AskUserQuestion 蒸馏 skill', '`SkillTool` 跑 skill', 'frontmatter 5 字段（name、description、allowed-tools、when_to_use、context: inline\\|fork）'] },
+    { label: '记忆', values: ['`memdir/` 4 种 MemoryType（user、feedback、project、reference）', 'COMBINED 对比 INDIVIDUAL 两种 prompt 模式', 'MEMORY_DRIFT_CAVEAT 显式提醒 stale', '「Before recommending from memory」强制 grep 验证'] },
+    { label: '挂钩与钩子', values: ['`hooks/` 生命周期钩子', '`buddy/` 协作模式', '`coordinator/` 多 agent 调度', '`outputStyles/` 输出格式注入'] },
+    { label: '观测与计费', values: ['`cost-tracker.ts` 加 `costHook.ts` 实时跟成本', '`commands/insights.ts` Opus 跑 jsonl 出 narrative', '`logEvent("tengu_*")` 事件流', '`modelCost.ts` 硬编码定价表'] },
+  ]}
+  caption="Claude Code 把每个能力都尽量给到 slash command 入口，开发者 UX 拉满。"
+/>
+
+## §3 · 工程亮点
+
+1. **skill 机制是行业天花板**：内置 17 个 skill 加 `skillify` 元 skill。`skillify` 用 4 轮 AskUserQuestion 把一段 session 蒸馏成 SKILL.md，是「agent 自己产 skill」最完整的闭环。
+2. **多入口共用一份代码**：4 种入口走同一个 turn loop，只在 `entrypoints/` 层做协议适配。
+3. **autoMode classifier**：让 LLM 审用户写的 auto allow、soft_deny、env 分类规则，从 clarity、completeness、conflicts 三个角度评。
+4. **`/security-review` 当 senior security engineer**：LLM 跑 PR diff，5 类漏洞加 80% 置信度门槛，主动排除 DOS 和磁盘密钥这类问题。
+5. **MEMORY_DRIFT_CAVEAT 显式承认 stale**：prompt 里直接告诉模型记忆可能过时，要求先 grep 验证再用。
+
+## §4 · 短板
+
+1. **闭源**：所有结论基于 npm 包反编译，部分行为只能推断。
+2. **没有跨平台原生 sandbox**：依赖宿主 IDE 自己提供执行隔离。纯 CLI 模式下 sandbox 弱。
+3. **memory drift 靠 prompt 兜底**：相比 OpenClaw 的 temporal decay 加 retrieval，少了一层机制兜底。
+4. **trace 较弱**：没有 Codex 风格的 rollout-trace.jsonl 全 session 回放。
+
+## §5 · 5 件最值得借鉴的工程动作
+
+1. **skillify 4 轮 AskUserQuestion 流程**（`src/skills/bundled/skillify.ts`）：R1 收 name 和 description，R2 收 step 和 arg，R3 拆解步骤，R4 抽 trigger。把「agent 自产 skill」拆成 4 个有边界的问题。
+2. **`/security-review` 命令的 prompt 设计**（`src/commands/security-review.ts`）：senior security engineer 角色加 5 类漏洞加排除清单。
+3. **MemoryType 加 2 种 prompt mode 矩阵**（`src/memdir/`）：4 types 乘 `{COMBINED, INDIVIDUAL}` 共 8 种组合。
+4. **autoMode classifier 让 LLM 审用户规则**（`src/cli/handlers/autoMode.ts`）：规则审计也变成 LLM 任务。
+5. **17 个 bundled skill 的边界感**：`loop`、`stuck`、`remember`、`verify` 都有明确退出条件，可以直接借鉴设计模式。
+
+## §6 · 源码地图
+
+<SourceTrail
+  entries={[
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/skills/bundled/skillify.ts', desc: '4 轮蒸馏 skill 的完整 prompt' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/commands/security-review.ts', desc: '/security-review 命令实现' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/commands/insights.ts', desc: '/insights Opus jsonl 分析' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/cli/handlers/autoMode.ts', desc: 'autoMode classifier 加 LLM critique' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/memdir/', desc: '4 种 MemoryType 加 2 种 prompt mode' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/cost-tracker.ts', desc: '硬编码 modelCost 加实时计费' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/cron/', desc: '本地 cron 加 scheduler lock' },
+    { system: 'Claude Code', external: 'https://code.claude.com/', path: 'code.claude.com 官方文档', desc: '产品文档' },
+  ]}
+/>
+
+> 闭源声明：以上路径来自社区解包的 npm 包 `@anthropic-ai/claude-code@2.1.88` 的 sourcemap。所有「行为推断」结论以官方文档为准。

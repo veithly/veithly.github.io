@@ -1,0 +1,169 @@
+---
+/**
+ * <BuildRecipe /> 支持两种 schema:
+ *  A. 三段卡: minimal=[], advanced=[], avoid=[]   («最小可行 / 进阶 / 一开始别做»)
+ *  B. 步骤式: steps=[{ title, detail }]            («复刻指南，按 1/2/3... 来»)
+ */
+interface Step { title: string; detail: string; }
+
+interface Props {
+  // Schema A
+  minimal?: string[];
+  advanced?: string[];
+  avoid?: string[];
+  // Schema B
+  steps?: Step[];
+  title?: string;
+  minimalLabel?: string;
+  advancedLabel?: string;
+  avoidLabel?: string;
+}
+
+const {
+  minimal,
+  advanced,
+  avoid,
+  steps,
+  title = '复刻方案',
+  minimalLabel = '最小可行',
+  advancedLabel = '进阶',
+  avoidLabel = '一开始别做',
+} = Astro.props;
+
+const mode: 'three-col' | 'steps' = (steps && steps.length > 0) ? 'steps' : 'three-col';
+---
+
+{mode === 'three-col' && (
+  <section class="aap-recipe" aria-label={title}>
+    <h3 class="aap-recipe__title">{title}</h3>
+    <div class="aap-recipe__grid">
+      <div class="aap-recipe__col aap-recipe__col--ok">
+        <h4>{minimalLabel}</h4>
+        <ul>{(minimal ?? []).map((item) => <li>{item}</li>)}</ul>
+      </div>
+      <div class="aap-recipe__col aap-recipe__col--adv">
+        <h4>{advancedLabel}</h4>
+        <ul>{(advanced ?? []).map((item) => <li>{item}</li>)}</ul>
+      </div>
+      <div class="aap-recipe__col aap-recipe__col--bad">
+        <h4>{avoidLabel}</h4>
+        <ul>{(avoid ?? []).map((item) => <li>{item}</li>)}</ul>
+      </div>
+    </div>
+  </section>
+)}
+
+{mode === 'steps' && steps && (
+  <section class="aap-recipe-steps" aria-label={title}>
+    <h3 class="aap-recipe-steps__title">{title}</h3>
+    <ol class="aap-recipe-steps__list">
+      {steps.map((step) => (
+        <li>
+          <div class="aap-recipe-steps__head">{step.title}</div>
+          <div class="aap-recipe-steps__detail">{step.detail}</div>
+        </li>
+      ))}
+    </ol>
+  </section>
+)}
+
+<style>
+  .aap-recipe {
+    margin: var(--aap-sp-8) 0;
+  }
+  .aap-recipe__title {
+    margin-bottom: var(--aap-sp-4);
+    font-family: var(--aap-font-display);
+    font-size: var(--aap-fs-xl);
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    color: var(--aap-ink);
+  }
+  .aap-recipe__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--aap-sp-3);
+  }
+  .aap-recipe__col {
+    background: var(--aap-paper);
+    border: 1px solid var(--aap-paper-line);
+    border-top: 3px solid var(--c, var(--aap-color-tradeoff));
+    border-radius: var(--aap-radius-md);
+    padding: var(--aap-sp-4) var(--aap-sp-6);
+    box-shadow: var(--aap-shadow-soft);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .aap-recipe__col:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--aap-shadow-card);
+  }
+  .aap-recipe__col--ok { --c: var(--aap-color-shared); }
+  .aap-recipe__col--adv { --c: var(--aap-color-tradeoff); }
+  .aap-recipe__col--bad { --c: var(--aap-color-risk); }
+  .aap-recipe__col h4 {
+    margin: 0 0 var(--aap-sp-2);
+    font-size: var(--aap-fs-base);
+    font-family: var(--aap-font-display);
+    font-weight: 700;
+    color: var(--c, var(--aap-ink));
+    letter-spacing: -0.005em;
+  }
+  .aap-recipe__col ul {
+    margin: 0;
+    padding-left: 1.2rem;
+    font-size: var(--aap-fs-sm);
+    line-height: 1.65;
+    color: var(--aap-ink-soft);
+  }
+
+  .aap-recipe-steps {
+    margin: var(--aap-sp-6) 0;
+    padding: var(--aap-sp-6);
+    background: var(--aap-paper);
+    border: 1px solid var(--aap-paper-line);
+    border-radius: var(--aap-radius-md);
+    box-shadow: var(--aap-shadow-soft);
+    color: var(--aap-ink);
+  }
+  .aap-recipe-steps__title {
+    margin: 0 0 var(--aap-sp-4);
+    font-family: var(--aap-font-display);
+    font-size: var(--aap-fs-xl);
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+  .aap-recipe-steps__list {
+    margin: 0;
+    padding-left: 1.5rem;
+    counter-reset: recipe-step;
+    list-style: none;
+  }
+  .aap-recipe-steps__list li {
+    margin-bottom: var(--aap-sp-3);
+    line-height: 1.65;
+    counter-increment: recipe-step;
+    position: relative;
+  }
+  .aap-recipe-steps__list li::before {
+    content: counter(recipe-step, decimal-leading-zero);
+    position: absolute;
+    left: -1.8rem;
+    top: 0.05rem;
+    font-family: var(--aap-font-mono);
+    font-weight: 700;
+    font-size: var(--aap-fs-xs);
+    color: var(--aap-color-tradeoff);
+    letter-spacing: 0.05em;
+  }
+  .aap-recipe-steps__head {
+    font-family: var(--aap-font-display);
+    font-weight: 700;
+    font-size: var(--aap-fs-base);
+    margin-bottom: var(--aap-sp-1);
+    letter-spacing: -0.005em;
+  }
+  .aap-recipe-steps__detail {
+    font-size: var(--aap-fs-sm);
+    color: var(--aap-ink-soft);
+  }
+</style>

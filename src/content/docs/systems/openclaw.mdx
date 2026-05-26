@@ -1,0 +1,68 @@
+---
+title: OpenClaw
+description: "OpenClaw：多通道、多 sandbox、多 cron 模式的个人 agent 控制面"
+sidebar:
+  order: 3
+---
+
+import Verdict from '@components/Verdict.astro';
+import CompareTable from '@components/CompareTable.astro';
+import SourceTrail from '@components/SourceTrail.astro';
+
+<Verdict tldr="OpenClaw 把「同时处理 Discord、iMessage、ACP、Web 四种 channel」做到了教科书级。`security/` 目录 29 个文件做 30+ 项 audit，cron 子系统支持 at、every、cron 三种调度，memory 走 SQLite 加 FTS5 加 sqlite-vec 双索引加 temporal decay。四家里最复杂、最难运维、但参考价值最高的开源 codebase。" tone="insight" />
+
+## §1 · OpenClaw 是什么
+
+TypeScript、Node 写的多通道个人 agent 控制面。定位是把多个 messaging channel 和一个 agent 后端串起来。同一个用户可以同时在 Discord、iMessage、Web 客户端和 IDE 里跟同一个 agent 对话，agent 在背后做 routing、记忆、定时任务。
+
+## §2 · 按目录分层的架构栈
+
+<CompareTable
+  rows={[
+    { label: '通道', values: ['`channels/` 通道抽象层', '`discord/` Discord bot', '`imessage/` iMessage 桥（macOS AppleScript）', '`acp/` Agent Conversation Protocol（IDE、编辑器）'] },
+    { label: '后端', values: ['`agents/` agent 注册表', '`gateway/` 模型网关加限流', '`context-engine/` 上下文组装', '`coordinator/` 多 agent 协作'] },
+    { label: '记忆', values: ['`memory/` MEMORY.md 加 memory/\*.md', 'SQLite 加 FTS5（lexical）加 sqlite-vec（vector）', '`temporal-decay.ts` 半衰期 30 天衰减', 'qmd（query-driven memory directory）作用域'] },
+    { label: 'Sandbox 与 exec', values: ['`sandbox/` 跨后端 exec 抽象', 'local、docker、singularity、modal、daytona、ssh 6 后端', '`browser/` headless Chrome 沙箱', '`canvas-host/` 隔离 canvas 进程'] },
+    { label: '定时任务', values: ['`cron/` 子系统', '3 种调度（at、every、cron）加 tz 加 staggerMs', 'isolated-agent 独立 session 加 skills-snapshot', 'failure-alert（cooldownMs 加独立 destination）'] },
+    { label: '观测与计费', values: ['13 类 `DiagnosticEvent`', '全局 listener 加 recursion guard', '`cost-tracker` 按 channel、agent 聚合', '`security/audit.ts` 30+ check'] },
+  ]}
+  caption="OpenClaw 是教科书级多通道 agent 的开源实现。"
+/>
+
+## §3 · 工程亮点
+
+1. **通道齐**：4 种 channel 加一层通道抽象，让一个 agent 跨平台对话。
+2. **记忆检索是行业天花板**：FTS5 加 sqlite-vec 双索引加 temporal decay 加 qmd scope。本地单进程能跑的最完整方案。
+3. **cron 子系统完整**：at、every、cron 三种调度，加 isolated-agent 独立执行，加 failure-alert 闭环，加 13 个 issue-named regression test 锁边角。
+4. **`security/` 目录 29 文件**：`audit.ts` 30+ check，`external-content.ts` 用 12 条 SUSPICIOUS_PATTERNS 加 8 字节随机 ID 防边界伪造，`skill-scanner` 静态扫描 skill，`dangerous-tools` 默认 HTTP deny list。
+5. **6 种 exec backend**：local、docker、singularity、modal、daytona、ssh 各有独立后端。一份代码覆盖大多数 agent 部署场景。
+
+## §4 · 短板
+
+1. **复杂度高**：30+ 子目录，运维门槛远高于其他三家。
+2. **缺乏官方托管**：自托管为主，跨设备同步需要自行实现。
+3. **没有 Phase2 风格的 memory consolidation**：完全靠 retrieval，存了什么就有什么。
+4. **iMessage 桥脆**：依赖 macOS AppleScript，跨 macOS 版本兼容性要自己背。
+
+## §5 · 5 件最值得借鉴的工程动作
+
+1. **`security/audit.ts` 30+ check 模板**：把 agent 安全审计做成可枚举列表。每条 check 带 severity 加 remediation 提示。
+2. **`external-content.ts` 边界伪造防御**：12 条 SUSPICIOUS_PATTERNS 加 8 字节随机 ID 包裹外部内容。防 prompt 注入用 `]\n\n[/external_content]` 逃逸。
+3. **cron 子系统 13 个 regression test**：每个 issue 编号对应一个 test，把生产边角钉死。
+4. **`temporal-decay.ts` 半衰期公式**：`weight = base * exp(-ln(2) * age_days / halfLife)`。与 FTS5 加 vector 检索分数线性叠加。
+5. **6 种 exec backend 抽象**：`run_terminal(cmd, env_type)` 一个签名，6 种实现。local 到 daytona 全覆盖。
+
+## §6 · 源码地图
+
+<SourceTrail
+  entries={[
+    { system: 'OpenClaw', path: 'REF/openclaw/src/security/audit.ts', desc: '30+ check 的 SecurityAuditReport' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/security/external-content.ts', desc: '外部内容包裹加边界 ID' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/security/dangerous-tools.ts', desc: 'HTTP deny list 加 ACP danger list' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/cron/', desc: 'at、every、cron 三模式加 failure-alert' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/memory/temporal-decay.ts', desc: '半衰期衰减实现' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/sandbox/', desc: '跨后端 exec 抽象' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/channels/', desc: '通道抽象层' },
+    { system: 'OpenClaw', external: 'https://github.com/openclaw/openclaw', path: 'github.com/openclaw/openclaw', desc: '开源仓库' },
+  ]}
+/>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 260" role="img"
+     aria-label="Four agent systems plotted on the short-term controllability and long-term autonomy axis">
+  <defs>
+    
+    <filter id="wobble">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="7" />
+      <feDisplacementMap in="SourceGraphic" scale="2" />
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#0f172a" />
+    </marker>
+
+    <style>
+    .h     { font: 600 14px sans-serif; fill: #0f172a; }
+    .t     { font: 12px sans-serif; fill: #0f172a; }
+    .t-sub { font: 12px sans-serif; fill: #334155; }
+    .sys   { font: 700 13px sans-serif; fill: #fbfaf7; }
+    .stage { font: 600 12px sans-serif; fill: #0f172a; }
+    .num   { font: 700 16px sans-serif; fill: #ea580c; }
+</style>
+  </defs>
+
+  <text x="20" y="30" class="h">Short-term controllability &#x2194; long-term autonomy</text>
+  <text x="20" y="50" class="t-sub">Four systems on a single axis: Codex (most controlled) on the left, Hermes (most autonomous) on the right.</text>
+
+  <g filter="url(#wobble)" transform="translate(0, 0)">
+    <line x1="60" y1="140" x2="840" y2="140" stroke="#0f172a" stroke-width="2.5" marker-end="url(#arrow)" />
+    <line x1="60" y1="140" x2="60" y2="135" stroke="#0f172a" stroke-width="2.5" />
+    <text x="60" y="170" class="t-sub" text-anchor="middle">approve every step</text>
+    <text x="860" y="170" class="t-sub" text-anchor="end">cross-session memory + self-eval</text>
+
+    <circle cx="170" cy="140" r="10" fill="#1d4ed8" stroke="#0f172a" stroke-width="2" />
+    <line x1="170" y1="140" x2="170" y2="90" stroke="#1d4ed8" stroke-width="1.5" stroke-dasharray="3 2" />
+    <rect x="100" y="70" width="140" height="22" rx="4" fill="#1d4ed8" stroke="#0f172a" stroke-width="1.5" />
+    <text x="170" y="86" class="sys" text-anchor="middle">Codex</text>
+    <text x="170" y="218" class="t-sub" text-anchor="middle">execpolicy + apply_patch</text>
+    <text x="170" y="234" class="t-sub" text-anchor="middle">goals.rs convergence check</text>
+
+    <circle cx="340" cy="140" r="10" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+    <line x1="340" y1="140" x2="340" y2="90" stroke="#6d28d9" stroke-width="1.5" stroke-dasharray="3 2" />
+    <rect x="270" y="70" width="140" height="22" rx="4" fill="#6d28d9" stroke="#0f172a" stroke-width="1.5" />
+    <text x="340" y="86" class="sys" text-anchor="middle">Claude Code</text>
+    <text x="340" y="218" class="t-sub" text-anchor="middle">7 transition.reason values</text>
+    <text x="340" y="234" class="t-sub" text-anchor="middle">TOKEN_BUDGET soft exit</text>
+
+    <circle cx="520" cy="140" r="10" fill="#15803d" stroke="#0f172a" stroke-width="2" />
+    <line x1="520" y1="140" x2="520" y2="90" stroke="#15803d" stroke-width="1.5" stroke-dasharray="3 2" />
+    <rect x="450" y="70" width="140" height="22" rx="4" fill="#15803d" stroke="#0f172a" stroke-width="1.5" />
+    <text x="520" y="86" class="sys" text-anchor="middle">OpenClaw</text>
+    <text x="520" y="218" class="t-sub" text-anchor="middle">session lane + plugin</text>
+    <text x="520" y="234" class="t-sub" text-anchor="middle">tool-loop-detection</text>
+
+    <circle cx="720" cy="140" r="10" fill="#ea580c" stroke="#0f172a" stroke-width="2" />
+    <line x1="720" y1="140" x2="720" y2="90" stroke="#ea580c" stroke-width="1.5" stroke-dasharray="3 2" />
+    <rect x="650" y="70" width="140" height="22" rx="4" fill="#ea580c" stroke="#0f172a" stroke-width="1.5" />
+    <text x="720" y="86" class="sys" text-anchor="middle">Hermes</text>
+    <text x="720" y="218" class="t-sub" text-anchor="middle">IterationBudget 90/50</text>
+    <text x="720" y="234" class="t-sub" text-anchor="middle">memory.prefetch + grace</text>
+  </g>
+</svg>

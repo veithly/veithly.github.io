@@ -1,0 +1,297 @@
+---
+title: 22 · Execution State Surfaces：执行状态面
+sidebar:
+  order: 22
+description: 把 Plan、Todo、工具进度、子代理进度、MCP progress、终端状态、away summary 拆成不同执行状态面，避免一张全局计划表承担所有职责。
+---
+
+import Verdict from '@components/Verdict.astro';
+import CompareTable from '@components/CompareTable.astro';
+import Diagram from '@components/Diagram.astro';
+import TradeOff from '@components/TradeOff.astro';
+import ScoreCard from '@components/ScoreCard.astro';
+import BuildRecipe from '@components/BuildRecipe.astro';
+import SourceTrail from '@components/SourceTrail.astro';
+import SourceBlock from '@components/SourceBlock.astro';
+
+## §1 · TL;DR
+
+<Verdict tldr="Todo List 章已经把当前执行清单讲清楚了；这里补的是执行状态的路由层。成熟 harness 不会只维护一张 checklist。Codex 同时保留自然语言 progress update、`update_plan`、Plan Mode 的 `PlanDelta`、MCP 工具进度通知和 TUI terminal-title progress。Claude Code 在 `TodoWrite`、Tasks V2 之外，还暴露 `hook_progress`、`tool_progress`、`task_started`、`task_progress`、OSC 9;4 terminal progress 和 away summary。OpenClaw 走事件投影：`tool_call` / `tool_call_update`、子 session progress relay、hidden-boundary projector。Hermes 把 `tool_progress` 做成 CLI / gateway / SSE 的显示策略，支持 off / new / all / verbose。设计自己的 agent 时，应先写 execution-state router：每条状态更新标清来源、受众、生命周期、上下文回注入规则、去重规则和无进展检测。" />
+
+## §2 · 执行状态面总览
+
+<Diagram
+  src="/diagrams/22-execution-state-surfaces-base.svg"
+  alt="执行状态面：approval plan、execution todo、tool progress、task progress、terminal status、away summary 分层"
+  caption="Todo 只负责当前焦点；proposal、工具事实、后台任务和恢复提示要走不同路由。"
+  wide
+/>
+
+<CompareTable
+  rows={[
+    { label: 'Approval plan', values: ['Codex `PlanDelta` / Plan item', 'Claude Code Plan Mode / plans artifact', '不是执行进度，用户批准前只能当 proposal', '不要写入 long-term memory，也不要当 completed task'] },
+    { label: 'Execution todo', values: ['Codex `update_plan`', 'Claude Code `TodoWrite` / Hermes `todo`', '当前 turn / session 的焦点', '最多一个 `in_progress`，压缩后只保留未完成项'] },
+    { label: 'Tool progress', values: ['Codex MCP `item/mcpToolCall/progress`', 'Claude SDK `tool_progress` / Hermes `tool_progress`', '工具运行事实：开始、更新、完成、失败', '适合 UI / operator stream，不适合原样塞回 prompt'] },
+    { label: 'Task progress', values: ['Claude SDK `task_started` / `task_progress`', 'OpenClaw child session relay / Hermes delegate callback', '后台任务、子 agent、workflow 的运行态', '需要 owner、parent id、取消、终态和迟到事件处理'] },
+    { label: 'Status surface', values: ['Codex terminal-title task progress', 'Claude OSC 9;4 terminal indicator', '给人看的低成本状态提示', '必须可关闭，不能污染 transcript'] },
+    { label: 'Resume surface', values: ['Claude away summary', 'session restore / compaction summary', '用户回来时恢复认知', '只写 1-3 句下一步，不做提交总结和噪声回放'] },
+  ]}
+  caption="同一个“进度”至少有六种不同受众。合并成一张表会让审批、执行、工具事实、后台任务和恢复摘要互相污染。"
+  dimensionLabel="状态面"
+/>
+
+## §3 · 四家怎么落地
+
+### Codex · 从 prompt 纪律到协议事件再到终端标题
+
+Codex 的 base instructions 同时约束两类进度。第一类是给用户的自然语言更新：长任务需要简短说明已经做了什么、接下来做什么，写大文件前也要先说明动作。第二类是 `update_plan` 工具：它是可渲染的 checklist，不要求每个自然语言进度都变成 plan item。
+
+<SourceBlock path="REF/codex/codex-rs/protocol/src/prompts/base_instructions/default.md" lines="52-60, 173-175, 267-275" system="codex" summary="Codex 同时规定自然语言进度更新和 update_plan 状态机。">
+
+```md
+Do not repeat the full contents of the plan after an `update_plan` call
+...
+## Sharing progress updates
+...
+There should always be exactly one `in_progress` step
+```
+
+</SourceBlock>
+
+Codex 还有第三条进度通道：MCP 工具进度。app-server v2 定义 `McpToolCallProgressNotification`，包含 `thread_id`、`turn_id`、`item_id` 和 `message`，事件名映射为 `item/mcpToolCall/progress`。外部 MCP 工具因此可以报告下载、索引、查询等中间状态，不必等最终 tool result。
+
+<SourceBlock path="REF/codex/codex-rs/app-server-protocol/src/protocol/v2/mcp.rs" lines="202-207" system="codex" summary="MCP 工具进度是 app-server v2 的一等通知。">
+
+```rust
+pub struct McpToolCallProgressNotification {
+    pub thread_id: String,
+    pub turn_id: String,
+    pub item_id: String,
+    pub message: String,
+}
+```
+
+</SourceBlock>
+
+TUI 另有 terminal title / status surface。`status_surfaces.rs` 里 `TaskProgress` 会被路由到 status line、preview item 和 terminal title。这类状态只服务人的等待感知，不回写给模型。
+
+### Claude Code · SDK 事件族、终端 progress 和 away summary
+
+Claude Code 把进度拆得更细。SDK schema 里不只有 tool result，还有 `hook_progress`、`tool_progress`、`task_started`、`task_progress`。这些事件能覆盖 hook 执行、工具调用、后台任务启动、后台任务消耗与摘要。
+
+<SourceBlock path="REF/claude-code-2.1.88-expanded/src/entrypoints/sdk/coreSchemas.ts" lines="1616-1657, 1715-1762" system="claude-code" summary="Claude Code SDK 把 hook、tool、background task 的进度事件分开建模。">
+
+```ts
+subtype: z.literal('hook_progress')
+type: z.literal('tool_progress')
+subtype: z.literal('task_started')
+subtype: z.literal('task_progress')
+```
+
+</SourceBlock>
+
+远程 session path 也承认这些事件属于后台任务生命周期：`useRemoteSession.ts` 里 `task_started` 注册远程 subagent，`task_progress` 到达时可以选择跳过渲染或折叠，`print.ts` 则在命令队列前 flush / drain 这些事件，避免后台 agent 进度被最终输出吞掉。
+
+终端层另有 OSC 9;4。`useTerminalNotification.ts` 通过 OSC 9;4 上报 progress，`terminal.ts` 明确不同终端兼容性，`supportedSettings.ts` 给用户配置开关。这个状态面不应该进 transcript；它是 terminal chrome。
+
+Away summary 解决的是“回来后从哪继续”。用户离开终端 5 分钟、当前没有 turn 在跑、且最近一轮用户消息之后还没有 summary 时，Claude Code 会用最近 30 条消息生成 1-3 句提示。它用 small fast model、`querySource: 'away_summary'`，并且 `skipCacheWrite: true`；这些参数把它限定成 UI 恢复卡片，而不是长期记忆。
+
+### OpenClaw · 事件投影和 hidden boundary
+
+OpenClaw 的进度核心不是模型 todo，而是 ACP runtime event。translator 在工具开始时发 `tool_call` 且状态 `in_progress`，工具结束时发 `tool_call_update`。auto-reply projector 默认把 `tool_call` 和 `tool_call_update` 当 hidden boundary tag，必要时转成工具摘要；`tool_call_update` 允许 edit，避免同一个工具状态在聊天平台上刷屏。
+
+OpenClaw 的 child session relay 也属于 execution state surface：spawn 后会告诉父 session “正在把进度流回 parent”，之后把 child 的片段变成 `contextPrefix:progress`。这和 Todo List 不同，它是父子 session 间的事实传播。
+
+### Hermes · 显示策略是 per-platform 配置
+
+Hermes 把 `tool_progress` 做成产品级开关。CLI 里进度模式是 `off`、`new`、`all`、`verbose`；`new` 会跳过连续重复工具名，`verbose` 会展示完整参数、结果和调试日志。gateway 里 `/verbose` 命令按平台循环并保存到 `display.platforms.<platform>.tool_progress`。
+
+它还把默认值按平台分层：CLI / API 可以是 all，聊天平台可以是 new 或 off，webhook 默认 off。API server 则把 `("__tool_progress__", payload)` 推进 SSE 队列。同一条 tool progress 在不同平台上的显示密度必须分开配置。
+
+## §4 · 共同点
+
+**来源**决定可信度。模型写的 todo、工具返回的事实、后台任务生命周期、终端 chrome、恢复摘要，不属于同一种真相；混在一起后，审计和恢复都会失真。
+
+**受众**决定粒度。模型上下文只需要短、稳定、可恢复的状态；用户需要节奏；operator 可以看细节；日志要完整；终端标题只能容纳极短文本。
+
+**生命周期**决定是否持久化。Approval plan 批准后过期；execution todo 完成后清空或只留审计；tool progress 进事件流；task progress 可跨进程；away summary 下一次用户输入后失效。
+
+**无进展检测**不能省。Hermes 的 `new` 模式跳过重复工具名，OpenClaw 的 projector 可编辑同一 tool update，OpenClaw 还做 tool-loop / no-output detector。没有这层，UI 只是把卡死包装成进度。
+
+## §5 · 差异点
+
+<TradeOff
+  title="执行状态面怎么分层"
+  options={[
+    { name: 'Plan-first', pros: ['适合高风险执行前审批', '用户能先看方案', 'proposal 可流式展示'], cons: ['不能代表真实执行进度', '批准后应转入 todo 或 task', '容易和 checklist 混用'] },
+    { name: 'Todo-first', pros: ['最适合单 agent coding CLI', '模型有明确当前焦点', '压缩恢复简单'], cons: ['工具细节不完整', '后台任务语义不足', '容易过早标完成'] },
+    { name: 'Event-first', pros: ['工具和子 agent 事实最可靠', '适合 operator UI', '失败和卡死可观测'], cons: ['剩余语义工作不一定清楚', '需要聚合和去重', '不能全量塞回 prompt'] },
+    { name: 'Task-board-first', pros: ['适合 IDE / 团队 / 后台任务', 'owner、blocker、claim 可审计', '跨进程恢复强'], cons: ['复杂度高', '需要锁和迁移', '不适合替代轻量 todo'] },
+    { name: 'Status-card-first', pros: ['用户体验好', '不会污染主 transcript', '适合终端和 resume 场景'], cons: ['不是事实源', '不能承担恢复真相', '要避免总结幻觉'] },
+  ]}
+  caption="状态面按职责拆分；每一层都要写清来源、受众和失效条件。"
+/>
+
+## §6 · 我的点评
+
+<ScoreCard
+  rows={[
+    { system: 'Codex', value: '最清楚的工具边界', reason: '自然语言 progress、`update_plan`、PlanDelta、MCP progress 和 TUI status 分层明确。', risk: '`update_plan` 名字容易让读者误以为是 Plan Mode。' },
+    { system: 'Claude Code', value: '最完整的 UX 状态面', reason: 'SDK event、Tasks、TodoWrite、OSC 9;4、away summary 覆盖 IDE / CLI / SDK / 返回场景。', risk: '状态面多，文档必须解释哪些事件给模型看、哪些只给 UI 看。' },
+    { system: 'OpenClaw', value: '最适合多通道投影', reason: 'ACP projector、hidden boundary、child relay 和 no-progress detector 都围绕 operator surface 设计。', risk: '缺少统一模型 checklist 时，剩余语义任务依赖摘要质量。' },
+    { system: 'Hermes', value: '最务实的平台显示策略', reason: 'tool_progress per-platform 配置和 off/new/all/verbose 四档很适合聊天平台。', risk: '如果只做显示层、不做状态恢复，长期任务仍会丢焦点。' },
+  ]}
+  caption="自己实现时，先抄 Codex 的边界，再抄 Hermes 的显示密度配置；需要 IDE / 后台任务时再引入 Claude Code 的事件族。"
+/>
+
+## §7 · 自己实现怎么选
+
+<BuildRecipe
+  title="Execution State Router 复刻方案"
+  minimal={[
+    '定义统一事件 envelope：`source`、`surface`、`audience`、`lifetime`、`thread_id`、`turn_id`、`item_id`、`message`。',
+    '把 approval plan、execution todo、tool progress 三类事件先分开，不允许互相覆盖。',
+    'UI 侧做 projection policy：哪些显示给用户、哪些只进日志、哪些允许编辑同一条消息。',
+    '上下文恢复只注入 pending / in_progress 的 execution todo，不注入 raw tool progress。',
+    '给长任务保留自然语言 progress update 纪律，但不要把它当持久状态。'
+  ]}
+  advanced={[
+    '加 MCP progress notification，外部工具可报告中间状态。',
+    '加 background task 事件：`task_started`、`task_progress`、`task_completed`、`task_failed`。',
+    '加 terminal/status surface：标题、状态栏、OSC 9;4 或等价进度提示，并提供关闭开关。',
+    '加 away / resume summary：用户离开后只总结高层目标和下一步，跳过 commit recap。',
+    '加 no-progress detector：重复 polling、同工具同参数无变化、子 session 无输出都要报警。'
+  ]}
+  avoid={[
+    '不要把 Plan、Todo、Task、Tool event 合并成一张全局表。',
+    '不要把所有 tool progress 原样回注入模型；摘要即可。',
+    '不要让聊天平台默认显示 verbose 级别工具参数。',
+    '不要把 away summary 当 long-term memory 写入。',
+    '不要只显示进度不检测卡死；这会把故障包装成“正在努力”。'
+  ]}
+/>
+
+## §8 · 动画图解
+
+<Diagram
+  src="/diagrams/22-tradeoff.svg"
+  alt="执行状态路由矩阵：事件来源、投影面、持久化、上下文回注入策略"
+  caption="execution-state router 的价值在于精准投影：每个事件只去它该去的 surface。"
+  wide
+/>
+
+## §9 · 源码索引
+
+<SourceTrail
+  entries={[
+    { system: 'Codex', path: 'REF/codex/codex-rs/protocol/src/prompts/base_instructions/default.md', lines: '52-60, 173-175, 267-275', desc: '自然语言 progress update 与 update_plan 纪律' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/app-server-protocol/src/protocol/v2/mcp.rs', lines: '202-207', desc: 'McpToolCallProgressNotification 数据结构' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/app-server-protocol/src/protocol/common.rs', lines: '1469-1469', desc: 'MCP progress 通知名 item/mcpToolCall/progress' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/tui/src/chatwidget/status_surfaces.rs', lines: '670-881', desc: 'TaskProgress 路由到 status line、preview 和 terminal title' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/entrypoints/sdk/coreSchemas.ts', lines: '1616-1762', desc: 'hook_progress / tool_progress / task_started / task_progress SDK schema' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/hooks/useRemoteSession.ts', lines: '206-219', desc: '远程 session 处理 task_started 和 task_progress' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/cli/print.ts', lines: '2238-2372', desc: 'flush / drain background task progress events' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/ink/useTerminalNotification.ts', lines: '18-18', desc: 'OSC 9;4 terminal progress' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/hooks/useAwaySummary.ts', lines: '12-96', desc: 'blur 5 分钟后生成 away summary' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/services/awaySummary.ts', lines: '16-56', desc: '最近 30 条消息、small fast model、skipCacheWrite' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/acp/translator.ts', lines: '413-429', desc: 'tool_call / tool_call_update runtime events' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/auto-reply/reply/acp-stream-settings.ts', lines: '16-17', desc: 'tool_call 和 tool_call_update 默认隐藏' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/auto-reply/reply/acp-projector.ts', lines: '23-374', desc: 'hidden boundary 和 tool_call_update allowEdit' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/agents/acp-spawn-parent-stream.ts', lines: '197-234', desc: 'child session progress relay 到 parent' },
+    { system: 'Hermes', path: 'REF/hermes-agent/cli.py', lines: '1703-1706, 6463-6489, 6978-7006', desc: 'CLI tool_progress off/new/all/verbose 与去重显示' },
+    { system: 'Hermes', path: 'REF/hermes-agent/gateway/display_config.py', lines: '34-70', desc: 'per-platform tool_progress 默认值' },
+    { system: 'Hermes', path: 'REF/hermes-agent/gateway/run.py', lines: '6812-6876, 9121-9174', desc: '/verbose 命令和 gateway progress projection' },
+    { system: 'Hermes', path: 'REF/hermes-agent/gateway/platforms/api_server.py', lines: '733-890', desc: 'SSE 队列里的 __tool_progress__ payload' },
+    { system: 'Hermes', path: 'REF/hermes-agent/tools/delegate_tool.py', lines: '169-441', desc: '父子 delegate progress callback 传播' },
+  ]}
+/>
+
+## §10 · 小练习
+
+1. 给一个现有 agent 画出 6 个状态面：approval plan、execution todo、tool progress、task progress、terminal/status、resume summary。
+2. 写一个 projection policy 表：每种事件是否显示给用户、是否进日志、是否回注入模型、何时过期。
+3. 模拟 20 次重复 polling，确认 UI 会折叠重复进度并触发 no-progress warning。
+4. 模拟用户离开 5 分钟后返回，生成一条 1-3 句 away summary，确认不会把 raw tool log 当总结。
+5. 把一个外部 MCP 工具改成支持 progress notification，确认前端能显示中间状态但最终 prompt 只拿摘要。
+
+## §11 · 面试题：10 道带答案的高频考点
+
+<details>
+<summary>**Q1 · 概念**：Execution State Surface 和 Todo List 有什么区别？</summary>
+
+Todo List 是 execution state surface 的一种，负责当前执行焦点。Execution State Surface 是更大的集合，还包括审批计划、工具进度、后台任务进度、MCP progress、终端状态和恢复摘要。
+
+判断标准是来源和受众：Todo 通常由模型维护并回注入上下文；tool progress 来自工具事实，主要给 UI / operator 看；away summary 给用户回来时恢复认知，不是任务真相。
+</details>
+
+<details>
+<summary>**Q2 · 设计**：为什么不能把 Plan、Todo、Task 合成一张表？</summary>
+
+因为三者生命周期不同。Plan 是批准前 proposal，用户可能拒绝；Todo 是当前执行焦点，完成后应清空或只留审计；Task 是后台或团队协调，需要 owner、blocker、锁和重试。
+
+合并后最常见的错误是：把没批准的 proposal 当执行进度，把已完成 todo 重新注入上下文，或者为单人 CLI 引入过重的 task-board 复杂度。
+</details>
+
+<details>
+<summary>**Q3 · 协议**：MCP progress 和 tool result 的关系是什么？</summary>
+
+Tool result 是终态输出，MCP progress 是中间通知。Codex app-server v2 给 MCP progress 单独定义 `McpToolCallProgressNotification` 和事件名 `item/mcpToolCall/progress`。
+
+这允许慢工具在运行中报告“正在下载、正在索引、正在查询”，UI 能及时显示；模型通常不需要看到所有原始 progress，只需要最终 result 或摘要。
+</details>
+
+<details>
+<summary>**Q4 · UX**：终端 progress 为什么不应该进 transcript？</summary>
+
+终端标题、状态栏、OSC 9;4 是 chrome，不是对话内容。它们的作用是降低用户等待焦虑，而不是给模型提供事实。
+
+如果写进 transcript，压缩和 resume 会把短暂 UI 状态误当任务语义，长期会造成上下文噪声。
+</details>
+
+<details>
+<summary>**Q5 · Resume**：away summary 和 compaction summary 有什么区别？</summary>
+
+Away summary 面向用户回来时恢复认知，通常 1-3 句，强调高层目标和下一步。Compaction summary 面向模型继续执行，需要保存未完成任务、关键约束、工具结果和最近意图。
+
+Claude Code 的 away summary 用最近 30 条消息、小模型、`skipCacheWrite`；这些选择把它限制在 UI 恢复卡片这一层，不是长期记忆。
+</details>
+
+<details>
+<summary>**Q6 · Operator**：为什么多通道系统需要 per-platform progress 配置？</summary>
+
+终端和 API 可以承受更密的工具进度，聊天平台会被刷屏，webhook 往往只需要最终结果。Hermes 用 `off/new/all/verbose` 和 per-platform 默认值处理这个差异。
+
+一个通用默认值会同时伤害两边：给 CLI 太少信息，或者给聊天平台太多噪声。
+</details>
+
+<details>
+<summary>**Q7 · Subagent**：子代理进度应该走 Todo 还是 Task Progress？</summary>
+
+子代理本身的运行态应该走 task progress：started、progress、completed、failed、cancelled。父 agent 的“我还在等哪个子任务”可以反映成 execution todo。
+
+这两个层次要分开。否则子代理每个工具调用都会污染父 todo，或者父 todo 完成了但 child 迟到事件又把最终回复打乱。
+</details>
+
+<details>
+<summary>**Q8 · 故障**：为什么“显示进度”还不够？</summary>
+
+进度 UI 可能忠实显示系统卡死。例如同一个 tool 用同样参数反复 polling、子 session 没输出、工具返回完全不变。
+
+所以 progress surface 必须配 no-progress detector：重复事件折叠、长时间无输出报警、相同结果 circuit breaker。
+</details>
+
+<details>
+<summary>**Q9 · Prompt**：哪些状态可以回注入模型？</summary>
+
+最适合回注入的是当前未完成 execution todo、关键 task terminal result、经过摘要的工具事实和用户最新目标。最不适合的是 raw tool progress、终端 chrome、已完成 todo、未批准 plan。
+
+原则是：模型只需要继续执行所需的稳定状态，不需要 UI 噪声。
+</details>
+
+<details>
+<summary>**Q10 · 实现**：最小 Execution State Router 需要哪些字段？</summary>
+
+最小 envelope 至少有 `source`、`surface`、`audience`、`lifetime`、`thread_id`、`turn_id`、`item_id`、`message`、`status` 和 `parent_id?`。
+
+有了这些字段，UI 可以按 audience 投影，resume 可以按 lifetime 过滤，日志可以按 source 审计，父子任务可以按 parent id 聚合。
+</details>

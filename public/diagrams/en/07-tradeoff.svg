@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 480" role="img"
+     aria-label="Four shell systems on default safety vs daily fluency">
+  <defs>
+    <filter id="wb07"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="41" /><feDisplacementMap in="SourceGraphic" scale="2" /></filter>
+    <marker id="ar07" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .ax   { font: 600 12.5px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #64748b; }
+      .pin  { font: 700 12.5px sans-serif; fill: #fff; }
+      .note { font: italic 10.5px sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <text x="390" y="26" class="h" text-anchor="middle">Shell execution: default safety &#x00D7; daily fluency</text>
+  <text x="390" y="44" class="t-s" text-anchor="middle">Higher default safety usually means every command waits on approval; Hermes flips that &#x2014; it trades safety for fluency via isolation</text>
+
+  <g filter="url(#wb07)">
+    <rect x="100" y="80" width="280" height="160" fill="#fef3c7" opacity="0.4" />
+    <rect x="380" y="80" width="280" height="160" fill="#dcfce7" opacity="0.4" />
+    <rect x="100" y="240" width="280" height="160" fill="#fee2e2" opacity="0.4" />
+    <rect x="380" y="240" width="280" height="160" fill="#dbeafe" opacity="0.4" />
+
+    <text x="120" y="100" class="t-s">fluent + default loose (most risky)</text>
+    <text x="640" y="100" class="t-s" text-anchor="end">fluent + default strict &#x00B7; holy grail</text>
+    <text x="110" y="394" class="t-s">choppy + default loose</text>
+    <text x="650" y="394" class="t-s" text-anchor="end">choppy + default strict</text>
+
+    <line x1="100" y1="400" x2="660" y2="400" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar07)" />
+    <line x1="100" y1="400" x2="100" y2="70" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar07)" />
+    <line x1="380" y1="80" x2="380" y2="400" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="100" y1="240" x2="660" y2="240" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+
+    <text x="660" y="420" class="ax" text-anchor="end">how many dangerous commands are blocked by default &#x2192;</text>
+    <text x="110" y="68" class="ax">&#x2191; daily fluency (rarely interrupted by approvals)</text>
+
+    <circle cx="340" cy="130" r="15" fill="#ea580c" stroke="#0f172a" stroke-width="2" />
+    <text x="340" y="134" class="pin" text-anchor="middle">HM</text>
+    <text x="340" y="163" class="t" text-anchor="middle">Hermes</text>
+    <text x="340" y="178" class="t-s" text-anchor="middle">7 TERMINAL_ENV backends</text>
+    <text x="340" y="191" class="t-s" text-anchor="middle">command layer open &#x00B7; env layer blocks</text>
+
+    <circle cx="555" cy="155" r="15" fill="#1d4ed8" stroke="#0f172a" stroke-width="2" />
+    <text x="555" y="159" class="pin" text-anchor="middle">CX</text>
+    <text x="555" y="188" class="t" text-anchor="middle">Codex</text>
+    <text x="555" y="203" class="t-s" text-anchor="middle">Starlark execpolicy &#x00B7; sandbox</text>
+    <text x="555" y="216" class="t-s" text-anchor="middle">rules are git-diffable</text>
+
+    <circle cx="430" cy="310" r="15" fill="#15803d" stroke="#0f172a" stroke-width="2" />
+    <text x="430" y="314" class="pin" text-anchor="middle">OC</text>
+    <text x="430" y="343" class="t" text-anchor="middle">OpenClaw</text>
+    <text x="430" y="358" class="t-s" text-anchor="middle">3&#x00D7;3 matrix &#x00B7; safe-bin profile</text>
+
+    <circle cx="620" cy="320" r="15" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+    <text x="620" y="324" class="pin" text-anchor="middle">CC</text>
+    <text x="620" y="353" class="t" text-anchor="middle">Claude Code</text>
+    <text x="620" y="368" class="t-s" text-anchor="middle">23 ID checks &#x00B7; sandbox-default</text>
+    <text x="620" y="381" class="t-s" text-anchor="middle">tree-sitter parses every command</text>
+  </g>
+
+  <text x="20" y="465" class="t-s">CX = Codex &#x00B7; CC = Claude Code &#x00B7; OC = OpenClaw &#x00B7; HM = Hermes</text>
+</svg>

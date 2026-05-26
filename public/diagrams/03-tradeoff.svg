@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 480" role="img"
+     aria-label="四家 Context System 在装配灵活度 × cache 命中率 两条轴上的位置">
+  <defs>
+    <filter id="wb03"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="5" /><feDisplacementMap in="SourceGraphic" scale="2" /></filter>
+    <marker id="ar03" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .ax   { font: 600 12.5px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #64748b; }
+      .pin  { font: 700 12.5px sans-serif; fill: #fff; }
+      .note { font: italic 10.5px sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <text x="390" y="26" class="h" text-anchor="middle">Context System：装配灵活度 × cache 命中率</text>
+  <text x="390" y="44" class="t-s" text-anchor="middle">cache 友好和能动态拼装是天然矛盾。Claude Code 用魔法字符串切两段，Hermes 直接放弃 cache</text>
+
+  <g filter="url(#wb03)">
+    <rect x="100" y="80" width="280" height="160" fill="#dcfce7" opacity="0.4" />
+    <rect x="380" y="80" width="280" height="160" fill="#fef3c7" opacity="0.4" />
+    <rect x="100" y="240" width="280" height="160" fill="#fee2e2" opacity="0.4" />
+    <rect x="380" y="240" width="280" height="160" fill="#dbeafe" opacity="0.4" />
+
+    <text x="120" y="100" class="t-s">死板 + 高命中</text>
+    <text x="640" y="100" class="t-s" text-anchor="end">灵活 + 高命中 · 圣杯</text>
+    <text x="110" y="394" class="t-s">死板 + 低命中（最差）</text>
+    <text x="400" y="260" class="t-s">灵活 + 低命中</text>
+
+    <line x1="100" y1="400" x2="660" y2="400" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar03)" />
+    <line x1="100" y1="400" x2="100" y2="70" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar03)" />
+    <line x1="380" y1="80" x2="380" y2="400" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="100" y1="240" x2="660" y2="240" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+
+    <text x="660" y="420" class="ax" text-anchor="end">装配灵活度（运行时能动态拼多少）→</text>
+    <text x="110" y="68" class="ax">↑ cache 命中率（一份 prompt 跑多次）</text>
+
+    <!-- Claude Code: top-left-ish (high cache, mid flex) -->
+    <circle cx="310" cy="125" r="15" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+    <text x="310" y="129" class="pin" text-anchor="middle">CC</text>
+    <text x="310" y="158" class="t" text-anchor="middle">Claude Code</text>
+    <text x="310" y="173" class="t-s" text-anchor="middle">DYNAMIC_BOUNDARY 显式</text>
+    <text x="310" y="186" class="t-s" text-anchor="middle">5 优先级 · cache 天花板</text>
+
+    <!-- Codex: mid-left -->
+    <circle cx="250" cy="200" r="15" fill="#1d4ed8" stroke="#0f172a" stroke-width="2" />
+    <text x="250" y="204" class="pin" text-anchor="middle">CX</text>
+    <text x="250" y="232" class="t" text-anchor="middle">Codex</text>
+    <text x="250" y="247" class="t-s" text-anchor="middle">24 fragment · marker</text>
+    <text x="250" y="260" class="t-s" text-anchor="middle">可压缩、可 diff</text>
+
+    <!-- OpenClaw: middle -->
+    <circle cx="460" cy="240" r="15" fill="#15803d" stroke="#0f172a" stroke-width="2" />
+    <text x="460" y="244" class="pin" text-anchor="middle">OC</text>
+    <text x="460" y="272" class="t" text-anchor="middle">OpenClaw</text>
+    <text x="460" y="287" class="t-s" text-anchor="middle">buildXxxSection + 3 档</text>
+    <text x="460" y="300" class="t-s" text-anchor="middle">主子 prompt 易污染</text>
+
+    <!-- Hermes: bottom-right (high flex, low cache) -->
+    <circle cx="580" cy="335" r="15" fill="#ea580c" stroke="#0f172a" stroke-width="2" />
+    <text x="580" y="339" class="pin" text-anchor="middle">HM</text>
+    <text x="580" y="368" class="t" text-anchor="middle">Hermes</text>
+    <text x="580" y="383" class="t-s" text-anchor="middle">10 层 + skip_* 开关</text>
+    <text x="580" y="396" class="t-s" text-anchor="middle">SOUL.md 改人格 · 弃 cache</text>
+
+    <!-- annotation: right-top quadrant empty -->
+    <text x="530" y="125" class="note" text-anchor="middle">右上角无人</text>
+    <text x="530" y="142" class="note" text-anchor="middle">cache 与动态相斥</text>
+  </g>
+
+  <text x="20" y="465" class="t-s">CX = Codex · CC = Claude Code · OC = OpenClaw · HM = Hermes</text>
+</svg>

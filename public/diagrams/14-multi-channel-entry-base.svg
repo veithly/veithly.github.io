@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" width="100%" font-family="'Kalam','Comic Neue',sans-serif">
+  <defs>
+    <filter id="r14">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="29" />
+      <feDisplacementMap in="SourceGraphic" scale="1.3" />
+    </filter>
+    <style>
+      .t { font-size: 14px; fill: #0f172a; }
+      .t-sub { font-size: 12px; fill: #334155; }
+      .head { font-size: 18px; fill: #0f172a; font-weight: 700; }
+    </style>
+  </defs>
+
+  <rect width="900" height="600" fill="#fbfaf7" />
+
+  <text x="450" y="34" class="head" text-anchor="middle">多通道入口：从 5 个 binary 到 17 个 platform adapter</text>
+  <text x="450" y="54" class="t-sub" text-anchor="middle">multi-binary · commander 子命令 · channels-plugins · 17 platform adapter</text>
+
+  <g filter="url(#r14)">
+    <rect x="20" y="68" width="430" height="250" rx="12" fill="#fbfaf7" stroke="#1d4ed8" stroke-width="2.5" />
+    <text x="40" y="92" class="t" fill="#1d4ed8" font-weight="700">Codex · 多 binary + UDS 桥</text>
+    <text x="40" y="110" class="t-sub">16+ 子命令，每种入口独立升级</text>
+
+    <rect x="40" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="130" y="142" class="t" text-anchor="middle">交互型</text>
+    <text x="130" y="158" class="t-sub" text-anchor="middle">codex (TUI)</text>
+    <text x="130" y="172" class="t-sub" text-anchor="middle">codex exec / e</text>
+    <text x="130" y="186" class="t-sub" text-anchor="middle">codex review</text>
+    <text x="130" y="200" class="t-sub" text-anchor="middle">codex resume / fork</text>
+
+    <rect x="240" y="124" width="190" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="335" y="142" class="t" text-anchor="middle">服务型</text>
+    <text x="335" y="158" class="t-sub" text-anchor="middle">codex mcp-server (stdio)</text>
+    <text x="335" y="172" class="t-sub" text-anchor="middle">codex app-server (axum)</text>
+    <text x="335" y="186" class="t-sub" text-anchor="middle">codex remote-control</text>
+    <text x="335" y="200" class="t-sub" text-anchor="middle">codex exec-server</text>
+
+    <rect x="40" y="216" width="390" height="90" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="235" y="234" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">stdio-to-uds 桥</text>
+    <text x="235" y="252" class="t-sub" text-anchor="middle">IDE 启子进程走 stdio ，子进程内部走 UDS</text>
+    <text x="235" y="266" class="t-sub" text-anchor="middle">app-server 升级不需重启 IDE</text>
+    <text x="235" y="280" class="t-sub" text-anchor="middle">axum: HTTP1 + WebSocket 共存</text>
+    <text x="235" y="294" class="t-sub" text-anchor="middle">+ codex app (desktop) + codex cloud</text>
+
+    <rect x="470" y="68" width="410" height="250" rx="12" fill="#fbfaf7" stroke="#6d28d9" stroke-width="2.5" />
+    <text x="490" y="92" class="t" fill="#6d28d9" font-weight="700">Claude Code · 单 binary 多子命令</text>
+    <text x="490" y="110" class="t-sub">main.tsx 里塞所有 commander.command</text>
+
+    <rect x="490" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="580" y="142" class="t" text-anchor="middle">交互 / 脚本</text>
+    <text x="580" y="158" class="t-sub" text-anchor="middle">claude (REPL ink)</text>
+    <text x="580" y="172" class="t-sub" text-anchor="middle">claude -p / --print</text>
+    <text x="580" y="186" class="t-sub" text-anchor="middle">claude --bare</text>
+    <text x="580" y="200" class="t-sub" text-anchor="middle">claude --ide</text>
+
+    <rect x="690" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="780" y="142" class="t" text-anchor="middle">子命令组</text>
+    <text x="780" y="158" class="t-sub" text-anchor="middle">claude mcp serve / list</text>
+    <text x="780" y="172" class="t-sub" text-anchor="middle">claude server (HTTP+UDS)</text>
+    <text x="780" y="186" class="t-sub" text-anchor="middle">claude auth / plugin</text>
+    <text x="780" y="200" class="t-sub" text-anchor="middle">claude doctor / update</text>
+
+    <rect x="490" y="216" width="380" height="90" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="680" y="234" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">--bare 极简模式</text>
+    <text x="680" y="252" class="t-sub" text-anchor="middle">跳过 hooks / LSP / plugin / attribution</text>
+    <text x="680" y="266" class="t-sub" text-anchor="middle">认证只走 ANTHROPIC_API_KEY</text>
+    <text x="680" y="280" class="t-sub" text-anchor="middle">CLAUDE_CODE_SIMPLE=1</text>
+    <text x="680" y="294" class="t-sub" text-anchor="middle">给 CI / SDK 一个干净入口</text>
+
+    <rect x="20" y="328" width="430" height="252" rx="12" fill="#fbfaf7" stroke="#15803d" stroke-width="2.5" />
+    <text x="40" y="352" class="t" fill="#15803d" font-weight="700">OpenClaw · sub-CLI + channels-plugins</text>
+    <text x="40" y="370" class="t-sub">19 个 lazy-load sub-CLI + 频道即插件</text>
+
+    <rect x="40" y="384" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="130" y="402" class="t" text-anchor="middle">gateway daemon</text>
+    <text x="130" y="418" class="t-sub" text-anchor="middle">长跑 + WebSocket</text>
+    <text x="130" y="432" class="t-sub" text-anchor="middle">hold session + state</text>
+    <text x="130" y="446" class="t-sub" text-anchor="middle">RPC 服务端</text>
+    <text x="130" y="460" class="t-sub" text-anchor="middle">openclaw gateway start</text>
+
+    <rect x="240" y="384" width="190" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="335" y="402" class="t" text-anchor="middle">19 个 sub-CLI</text>
+    <text x="335" y="418" class="t-sub" text-anchor="middle">acp / gateway / daemon</text>
+    <text x="335" y="432" class="t-sub" text-anchor="middle">tui / logs / system</text>
+    <text x="335" y="446" class="t-sub" text-anchor="middle">approvals / sandbox</text>
+    <text x="335" y="460" class="t-sub" text-anchor="middle">channels / directory</text>
+
+    <rect x="40" y="476" width="390" height="98" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="235" y="494" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">channels-plugins catalog</text>
+    <text x="235" y="512" class="t-sub" text-anchor="middle">Telegram / Discord / Slack 是 npm 包</text>
+    <text x="235" y="526" class="t-sub" text-anchor="middle">openclaw plugins add @openclaw/channel-X</text>
+    <text x="235" y="540" class="t-sub" text-anchor="middle">openclaw channels add X</text>
+    <text x="235" y="554" class="t-sub" text-anchor="middle">+ ACP server (@agentclientprotocol/sdk)</text>
+    <text x="235" y="568" class="t-sub" text-anchor="middle">生态做新频道</text>
+
+    <rect x="470" y="328" width="410" height="252" rx="12" fill="#fbfaf7" stroke="#ea580c" stroke-width="2.5" />
+    <text x="490" y="352" class="t" fill="#ea580c" font-weight="700">Hermes · 17 platform adapter</text>
+    <text x="490" y="370" class="t-sub">全内置在 gateway 单进程</text>
+
+    <rect x="490" y="384" width="180" height="190" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="580" y="402" class="t" text-anchor="middle">17 platform</text>
+    <text x="580" y="418" class="t-sub" text-anchor="middle">Telegram</text>
+    <text x="580" y="432" class="t-sub" text-anchor="middle">Discord / Slack / Signal</text>
+    <text x="580" y="446" class="t-sub" text-anchor="middle">WhatsApp / Matrix</text>
+    <text x="580" y="460" class="t-sub" text-anchor="middle">Feishu / DingTalk / WeCom</text>
+    <text x="580" y="474" class="t-sub" text-anchor="middle">Weixin / Mattermost</text>
+    <text x="580" y="488" class="t-sub" text-anchor="middle">BlueBubbles / QQ</text>
+    <text x="580" y="502" class="t-sub" text-anchor="middle">Email / SMS</text>
+    <text x="580" y="516" class="t-sub" text-anchor="middle">HomeAssistant</text>
+    <text x="580" y="530" class="t-sub" text-anchor="middle">API_SERVER (HTTP)</text>
+    <text x="580" y="544" class="t-sub" text-anchor="middle">WEBHOOK (inbound)</text>
+    <text x="580" y="558" class="t-sub" text-anchor="middle">+ TUI gateway + mcp_serve.py</text>
+
+    <rect x="690" y="384" width="180" height="190" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="780" y="402" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">BasePlatformAdapter</text>
+    <text x="780" y="418" class="t-sub" text-anchor="middle">6 abstract methods</text>
+    <text x="780" y="432" class="t-sub" text-anchor="middle">connect / disconnect</text>
+    <text x="780" y="446" class="t-sub" text-anchor="middle">send / send_typing</text>
+    <text x="780" y="460" class="t-sub" text-anchor="middle">send_image / get_chat_info</text>
+    <text x="780" y="478" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">check_X_requirements()</text>
+    <text x="780" y="496" class="t-sub" text-anchor="middle">缺依赖温柔跳过</text>
+    <text x="780" y="510" class="t-sub" text-anchor="middle">警告不 fatal</text>
+    <text x="780" y="528" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">extras</text>
+    <text x="780" y="544" class="t-sub" text-anchor="middle">hermes[slack]</text>
+    <text x="780" y="558" class="t-sub" text-anchor="middle">hermes[discord]</text>
+  </g>
+</svg>

@@ -1,0 +1,867 @@
+---
+title: 13 · Sandbox and Execution Environments
+sidebar:
+  order: 13
+description: bubblewrap + seccomp + landlock vs cross-platform seatbelt + Linux landlock vs 3 ExecHost backends vs 6 TERMINAL_ENV backends.
+---
+
+import Verdict from '@components/Verdict.astro';
+import CompareTable from '@components/CompareTable.astro';
+import Diagram from '@components/Diagram.astro';
+import TradeOff from '@components/TradeOff.astro';
+import ScoreCard from '@components/ScoreCard.astro';
+import BuildRecipe from '@components/BuildRecipe.astro';
+import SourceTrail from '@components/SourceTrail.astro';
+import SourceBlock from '@components/SourceBlock.astro';
+
+## §1 · TL;DR
+
+<Verdict tldr="Sandboxing is one of the most underestimated complexities in agent engineering — it is not a single thing summed up by «security», but a stack of capabilities: restrict filesystem reads/writes, restrict outbound network, block privilege escalation, restrict syscalls, restrict what privileges child processes can inherit. If any layer fails, the whole isolation falls; so building a sandbox means either writing every layer yourself (high effort, full control) or delegating to existing isolation infrastructure (low effort, you have to trust it). The four systems make four very different trade-offs on this fundamental choice. Codex takes the heaviest «write every layer ourselves» route. On Linux it combines three independent kernel capabilities: `bubblewrap` (a userspace sandbox CLI built on Linux namespaces) for filesystem mount isolation, `seccomp` (kernel-level syscall filter) for blocking network-related syscalls, and `landlock` (a process-scoped filesystem access-control mechanism in newer Linux kernels) as a backup FS layer. On macOS it uses `seatbelt` (`sandbox-exec`) with `.sb` policy files (Scheme-syntax sandbox profiles); on Windows it ships a dedicated crate. Crucially, the isolation policy is applied to the current thread only (via `PR_SET_NO_NEW_PRIVS` bound to the calling thread rather than the whole process), so child processes inherit a precise isolation boundary without contaminating the CLI process. Claude Code treats the sandbox as a configuration surface — every sandbox dimension is a JSON schema so IT admins can configure it in `settings.json`, network and filesystem are split into two independent schemas, and the project is refreshingly honest about a few weaker-security escape hatches it deliberately offers. For example, `enableWeakerNetworkIsolation` exists so Go-ecosystem CLI tools can verify TLS through MITM proxies (primarily for local HTTPS debugging). Most strikingly, a code comment literally states «this undocumented setting was added to unblock NVIDIA enterprise rollout — they want to enable `autoAllowBashIfSandboxed` (auto-allow bash once the process is already sandboxed) on macOS only, since the Linux sandbox is newer and less battle-tested» — a level of engineering transparency that is very rare. OpenClaw treats the sandbox as an abstraction, not a technology — it splits the execution environment into 3 tiers via an `ExecHost` enum (`sandbox` runs in an isolated container, `gateway` runs in the gateway process, `node` runs in the main process node) and leaves the actual enforcement to the deployer (wire Docker, Firecracker microVMs, AWS Lambda — OpenClaw does not prescribe). The benefit is total decoupling between agent logic and isolation tech; the cost is no out-of-the-box sandbox. Hermes goes the furthest — no application-layer sandboxing at all, delegating isolation to one of 6 containerisation options via a single `TERMINAL_ENV` environment variable (`local` with no isolation, `docker`, `singularity` HPC container, `modal` serverless cloud, `daytona` dev-as-a-service, `ssh`), each with its own independent image / CPU / memory / disk / persistence config knobs. Security-critical desktop agent? Codex's three-layer stack is the floor. Enterprise IDE deployment? Claude Code's schema is the reference. SaaS? OpenClaw / Hermes outsourcing the sandbox to containers or remote infrastructure is the engineering-grade choice." />
+
+## §2 · Reference architecture
+
+<Diagram
+  src="/diagrams/13-sandbox-execution-base.svg"
+  alt="Four sandbox strategies: in-house three-layer vs cross-platform schema vs 3-backend ExecHost vs 6-backend TERMINAL_ENV"
+  caption="Same goal (stop the agent from breaking the system), four locations on the in-house-vs-outsource spectrum."
+/>
+
+How the four systems cover five sandbox-critical concerns:
+
+<CompareTable
+  rows={[
+    { label: 'Sandbox infrastructure', values: ['Linux: bubblewrap + seccomp + landlock; macOS: seatbelt; Windows: separate crate', 'macOS: seatbelt; Linux: newer (introduced for the NVIDIA enterprise rollout); optional `enabledPlatforms` restricts where sandbox starts', '`ExecHost` 3 backends: sandbox / gateway / node, with sandbox routed to an external container', '6 backends: local / docker / singularity / modal / daytona / ssh; toggled via TERMINAL_ENV'] },
+    { label: 'Filesystem isolation', values: ['`PermissionProfile.file_system`: writable_roots / read_only / full; bubblewrap actually enforces', '`SandboxFilesystemConfig`: allowWrite / denyWrite / denyRead / allowRead / allowManagedReadPathsOnly', 'Decided by the backend process (sandbox host = container isolation)', 'Container isolation naturally separates the host fs; optional `TERMINAL_DOCKER_MOUNT_CWD_TO_WORKSPACE` maps cwd to /workspace'] },
+    { label: 'Network isolation', values: ['seccomp filter blocks connect() / sendto(); managed proxy can be carved out', '`SandboxNetworkConfig`: allowedDomains / allowUnixSockets / httpProxyPort / socksProxyPort; macOS-only allowUnixSockets', 'Decided by backend / network policy', 'Container network-mode controls; ssh routes through real remote network'] },
+    { label: 'Permission model', values: ['`PR_SET_NO_NEW_PRIVS` + seccomp BPF; applied to the current thread, inherited by child', 'allowedDomains merge with permission rules; managed-only mode ignores user-layer rules', 'Per-binary `SafeBinProfile` (chapter 07 §3) + ExecHost isolation', 'Relies on backend isolation (container / VM / SSH); no app-level seccomp / landlock'] },
+    { label: 'Failure handling', values: ['Sandbox failure -> SandboxErr; upstream decides fail_open / fail_closed', '`failIfUnavailable: true` -> fail at startup; false -> warn and run unsandboxed', 'Backend spawn failure -> falls back to approval', 'Backend unavailable -> prompt user to switch TERMINAL_ENV'] },
+  ]}
+  caption="How sophisticated each system treats sandboxing"
+  dimensionLabel="Dimension"
+/>
+
+## §3 · How each system does it
+
+### Codex · On Linux, combining three independent kernel isolation capabilities, each doing what it does best
+
+Codex is the only system among the four that chooses the "write every layer yourself" route. Its reasoning: every operating system offers several distinct isolation capabilities, each focused on a different problem class (filesystem, network, syscalls), and combining them can be more precise than any single solution. The cost is having to write a separate code path for each platform (one for Linux, one for macOS, one for Windows); the payoff is a genuinely trustworthy isolation boundary.
+
+On Linux, Codex stacks three independent kernel capabilities, each doing what it does best:
+
+<SourceBlock path="REF/codex/codex-rs/linux-sandbox/src/landlock.rs" lines="1-70" system="codex" summary="Linux sandbox: bubblewrap does the FS work, seccomp blocks the network, landlock is the backup">
+
+```rust
+//! In-process Linux sandbox primitives: `no_new_privs` and seccomp.
+//!
+//! Filesystem restrictions are enforced by bubblewrap in `linux_run_main`.
+//! Landlock helpers remain available here as legacy/backup utilities.
+
+/// Apply sandbox policies inside this thread so only the child inherits
+/// them, not the entire CLI process.
+///
+/// This function is responsible for:
+/// - enabling `PR_SET_NO_NEW_PRIVS` when restrictions apply, and
+/// - installing the network seccomp filter when network access is disabled.
+///
+/// Filesystem restrictions are intentionally handled by bubblewrap.
+pub(crate) fn apply_permission_profile_to_current_thread(
+    permission_profile: &PermissionProfile,
+    cwd: &Path,
+    apply_landlock_fs: bool,
+    allow_network_for_proxy: bool,
+    proxy_routed_network: bool,
+) -> Result<()> {
+    let (file_system_sandbox_policy, network_sandbox_policy) =
+        permission_profile.to_runtime_permissions();
+    let network_seccomp_mode = network_seccomp_mode(
+        network_sandbox_policy,
+        allow_network_for_proxy,
+        proxy_routed_network,
+    );
+
+    // `PR_SET_NO_NEW_PRIVS` is required for seccomp, but it also prevents
+    // setuid privilege elevation. Many `bwrap` deployments rely on setuid, so
+    // we avoid this unless we need seccomp or we are explicitly using the
+    // legacy Landlock filesystem pipeline.
+    if network_seccomp_mode.is_some()
+        || (apply_landlock_fs && !file_system_sandbox_policy.has_full_disk_write_access())
+    {
+        set_no_new_privs()?;
+    }
+
+    if let Some(mode) = network_seccomp_mode {
+        install_network_seccomp_filter_on_current_thread(mode)?;
+    }
+    // ...
+```
+
+</SourceBlock>
+
+Each of the three layers plays a specific role:
+
+**bubblewrap (bwrap for short)** is a lightweight user-space containerization tool focused on filesystem mount isolation — it can mount a host directory read-only into the sandbox, mount another writable, mount a tmpfs (in-memory, gone after exit). This is the workhorse of Codex's Linux sandbox — almost all filesystem isolation work goes through it. The upside is it does not need special kernel support, just a normal binary; the downside is it depends on Linux namespace capabilities, so environments without namespaces (some container-in-container scenarios) cannot use it.
+
+**seccomp** is a Linux kernel facility that lets userspace register a BPF bytecode as a "system-call filter" — every time a process issues a syscall, the kernel first runs that BPF to decide "is this call allowed". Codex uses it for one very focused thing: at thread granularity, blocking network-related syscalls (`connect()`, `sendto()`) so the process is fundamentally incapable of opening any network connection. The "thread granularity" detail matters — the Codex main process itself can still hit the network (to call OpenAI), but the child processes it spawns for user tools inherit the filter and cannot reach out.
+
+**landlock** is a Linux Security Module introduced in Linux 5.13+, also for filesystem access control — a newer kernel mechanism than bubblewrap. Codex treats it as a legacy/backup layer, with the main path still on bubblewrap — mainly because bubblewrap also runs on older kernels, giving better compatibility coverage.
+
+There is a comment in the code about a trade-off that is worth reading carefully: the `PR_SET_NO_NEW_PRIVS` prctl is a hard prerequisite for enabling seccomp (the kernel requires it: "if you want to install a syscall filter, you must promise that this process and its descendants can never gain new privileges through setuid"), but that promise also defeats setuid promotion — and many bubblewrap deployments rely on setuid so unprivileged users can create namespaces. Codex handles this conservatively: it sets `PR_SET_NO_NEW_PRIVS` only when seccomp is genuinely needed or when landlock filesystem isolation is in play, and skips it otherwise so the bwrap setuid path still works. This is a textbook "security vs compatibility" engineering balance, handled with restraint.
+
+For cross-platform breakdown: Linux uses the `linux-sandbox/` crate plus the bubblewrap binary; macOS uses `sandbox-exec` (the so-called "seatbelt") with `.sb` policy files, riding on the macOS native sandboxing mechanism; Windows ships a dedicated `windows-sandbox-rs/` crate paired with setuid user management.
+
+### Claude Code · Make the sandbox a JSON schema that IT admins can configure precisely
+
+Claude Code's trade-off on sandboxing is completely different from Codex — it argues the real hard part is not the low-level tech (reuse Codex's or the OS-native capability), but enabling IT admins to configure sandbox behaviour precisely in enterprise deployments. Concretely: model the whole sandbox as a JSON schema and let admins configure it declaratively in settings.json:
+
+<SourceBlock path="REF/claude-code-2.1.88-expanded/src/entrypoints/sandboxTypes.ts" lines="90-145" system="claude" summary="SandboxSettings top-level: enabled + failIfUnavailable + platform restrictions + weaker-mode fallbacks">
+
+```ts
+export const SandboxSettingsSchema = lazySchema(() =>
+  z
+    .object({
+      enabled: z.boolean().optional(),
+      failIfUnavailable: z
+        .boolean()
+        .optional()
+        .describe(
+          'Exit with an error at startup if sandbox.enabled is true but the sandbox cannot start ' +
+            '(missing dependencies, unsupported platform, or platform not in enabledPlatforms). ' +
+            'When false (default), a warning is shown and commands run unsandboxed. ' +
+            'Intended for managed-settings deployments that require sandboxing as a hard gate.',
+        ),
+      // Note: enabledPlatforms is an undocumented setting read via .passthrough()
+      // Added to unblock NVIDIA enterprise rollout: they want to enable
+      // autoAllowBashIfSandboxed but only on macOS initially, since Linux/WSL
+      // sandbox support is newer and less battle-tested.
+      autoAllowBashIfSandboxed: z.boolean().optional(),
+      allowUnsandboxedCommands: z
+        .boolean()
+        .optional()
+        .describe(
+          'Allow commands to run outside the sandbox via the dangerouslyDisableSandbox parameter. ' +
+            'When false, the dangerouslyDisableSandbox parameter is completely ignored and all commands must run sandboxed. ' +
+            'Default: true.',
+        ),
+      network: SandboxNetworkConfigSchema(),
+      filesystem: SandboxFilesystemConfigSchema(),
+      ignoreViolations: z.record(z.string(), z.array(z.string())).optional(),
+      enableWeakerNestedSandbox: z.boolean().optional(),
+      enableWeakerNetworkIsolation: z
+        .boolean()
+        .optional()
+        .describe(
+          'macOS only: Allow access to com.apple.trustd.agent in the sandbox. ' +
+            'Needed for Go-based CLI tools (gh, gcloud, terraform, etc.) to verify TLS certificates ' +
+            'when using httpProxyPort with a MITM proxy and custom CA. ' +
+            '**Reduces security** — opens a potential data exfiltration vector through the trustd service. Default: false',
+        ),
+      // ...
+    })
+    .passthrough(),
+)
+```
+
+</SourceBlock>
+
+Two annotations in this schema deserve special attention, because they show levels of engineering transparency rare in production code:
+
+The first is the `enabledPlatforms` field, with a comment that literally states: "This setting is undocumented, read via .passthrough(), and was added to unblock NVIDIA enterprise rollout — they want to enable autoAllowBashIfSandboxed on macOS first, since the Linux/WSL sandbox is newer and less battle-tested." Translation: NVIDIA's IT team approached the Claude Code team and said "we want to roll Claude Code out to engineers, but we are only confident in the macOS sandbox right now, the Linux one is too new — give us a knob to flip macOS on first and leave Linux off". The Claude Code team did not push back with "the Linux sandbox is fine, you should trust it" — they added a config knob, but on purpose did not document it (to avoid muddying the matrix for other users). This kind of "carve a path for a specific enterprise customer's specific concern" is exactly how real enterprise software works, but very rarely does the code admit it in plain text.
+
+The second is `enableWeakerNetworkIsolation`. The comment is honest to the point of bluntness: "Allow access to com.apple.trustd.agent in the sandbox. Needed for Go tools (gh, gcloud, terraform) to verify TLS via an MITM proxy with a custom CA. Reduces security — opens a potential data exfiltration vector through the trustd service. Default: false." Translation: lots of enterprises put corporate certs into an MITM proxy so they can inspect outbound traffic, but Go's TLS stack will not trust the cert unless it can talk to macOS's trustd service. So the Claude Code team added a knob to allow it, while explicitly noting "this weakens security and opens an exfiltration vector". It does not pretend this is "safe" — it tells the user "you have made a security trade-off; make sure you know what it is".
+
+Beyond these two design highlights, Claude Code splits network and filesystem into two completely independent schemas: network has dimensions like `allowedDomains` (which domains are reachable), `allowManagedDomainsOnly` (only use the admin-set allowlist, ignore the user's), `allowUnixSockets` (whether Unix sockets are usable), `httpProxyPort` / `socksProxyPort` (proxy ports); filesystem has dimensions like `allowWrite` / `denyWrite` (writable / non-writable paths), `denyRead` / `allowRead` (readable / non-readable paths), `allowManagedReadPathsOnly` (the same admin-only attitude). These two "Managed Only" knobs carry a very stern management-plane stance: when they are on, every user-level setting is ignored, only the admin's `policySettings` count. This kind of "I, the IT admin, can rip the steering wheel out of the user's hands" capability is the floor of any enterprise deployment.
+
+### OpenClaw · Sandbox is an abstract enum, not a specific technology; the deployer decides the implementation
+
+OpenClaw's trade-off is more radical than the previous two — it directly argues the sandbox should not be the agent framework's concern at all. Reasoning: different deployment environments use wildly different isolation technologies (Docker, Firecracker, gVisor, Lambda Functions, custom container runtimes), and an agent framework hard-coding one of them constrains its deployment flexibility. So OpenClaw introduces a single enum to abstract the execution environment:
+
+```ts
+export type ExecHost = "sandbox" | "gateway" | "node";
+```
+
+These three values represent three execution tiers: `sandbox` runs commands in an isolated execution environment (the deployer decides whether that means Docker, Firecracker, or Lambda — OpenClaw does not prescribe); `gateway` runs in the gateway process itself, suitable for very lightweight operations like reading a file; `node` runs directly on the host node, suitable for fully trusted operations like reading git info.
+
+This approach has clear benefits and costs. The benefit is total decoupling between sandbox implementation and agent logic — you can deploy OpenClaw inside Docker on a developer laptop, behind Firecracker microVMs on a serverless platform, in vanilla LXC on traditional servers; the agent logic itself does not care. The cost is that OpenClaw does not ship a working sandbox — the deployer has to bring their own isolation infrastructure, otherwise that `sandbox` execution mode is just an empty enum value with no actual isolation. This is a typical "framework vs product" trade-off: OpenClaw positions itself as a framework, leaving operational details to the deployer.
+
+### Hermes · Don't sandbox at all; delegate isolation entirely to one of 6 containerization options
+
+Hermes pushes "don't write your own sandbox" further than OpenClaw — it does not even try to do application-layer sandboxing, instead delegating all isolation to one of 6 containerization options via a single environment variable, `TERMINAL_ENV`. The user picks the right backend for their deployment scenario, and Hermes adapts. The six backends cover almost every realistic deployment shape:
+
+<SourceBlock path="REF/hermes-agent/tools/terminal_tool.py" lines="765-820" system="hermes" summary="TERMINAL_ENV 6 backends + per-backend config: image / cpu / memory / disk / persistent">
+
+```python
+def _get_env_config() -> Dict[str, Any]:
+    """Get terminal environment configuration from environment variables."""
+    # Default image with Python and Node.js for maximum compatibility
+    default_image = "nikolaik/python-nodejs:python3.11-nodejs20"
+    env_type = os.getenv("TERMINAL_ENV", "local")
+    
+    mount_docker_cwd = os.getenv("TERMINAL_DOCKER_MOUNT_CWD_TO_WORKSPACE", "false").lower() in ("true", "1", "yes")
+
+    # Default cwd: local uses the host's current directory, everything
+    # else starts in the user's home (~ resolves to whatever account
+    # is running inside the container/remote).
+    if env_type == "local":
+        default_cwd = os.getcwd()
+    elif env_type == "ssh":
+        default_cwd = "~"
+    else:
+        default_cwd = "/root"
+
+    # ...
+    return {
+        "env_type": env_type,
+        "modal_mode": coerce_modal_mode(os.getenv("TERMINAL_MODAL_MODE", "auto")),
+        "docker_image": os.getenv("TERMINAL_DOCKER_IMAGE", default_image),
+        "singularity_image": os.getenv("TERMINAL_SINGULARITY_IMAGE", f"docker://{default_image}"),
+        "modal_image": os.getenv("TERMINAL_MODAL_IMAGE", default_image),
+        "daytona_image": os.getenv("TERMINAL_DAYTONA_IMAGE", default_image),
+        # ...
+        "container_cpu": _parse_env_var("TERMINAL_CONTAINER_CPU", "1", float, "number"),
+        "container_memory": _parse_env_var("TERMINAL_CONTAINER_MEMORY", "5120"),     # MB (default 5GB)
+        "container_disk": _parse_env_var("TERMINAL_CONTAINER_DISK", "51200"),        # MB (default 50GB)
+        "container_persistent": os.getenv("TERMINAL_CONTAINER_PERSISTENT", "true").lower() in ("true", "1", "yes"),
+        # ...
+    }
+```
+
+</SourceBlock>
+
+Each backend is good at something different and is the right answer for a different deployment context:
+
+**local** means no isolation at all — every command runs directly on the developer's machine, the fastest path, suitable when the developer trusts the agent fully (typically during development or experimentation). **docker** is local Docker — Hermes spins up a Docker container on the developer's machine and runs commands inside it, providing reasonable isolation (the agent cannot directly touch host files unless mounted explicitly), and reproducibility (the same image always gives the same environment), the most common deployment for production. **singularity** is the standard container format in HPC environments (research clusters) — Singularity is preferred over Docker on academic clusters because it does not require root, with most research lab settings using this backend. **modal** is Modal.com's serverless container service — Hermes spins up modal containers on demand to run commands and shuts them down after, suited for burst workloads and pay-per-use cost. **daytona** is the Daytona.io dev-environment-as-a-service — every developer gets a remote-dev environment, agents run inside it. **ssh** is the most aggressive — Hermes connects to a remote machine over SSH and executes commands there, with even the agent itself running remotely.
+
+Each backend has 5 independent config dimensions: `image` (container image, defaults to a Python+Node base — covering most agent needs), `cpu` (CPU limit, defaults to 1 core), `memory` (memory limit, defaults to 5GB), `disk` (disk limit, defaults to 50GB), `persistent` (whether to persist the container between commands). That last one deserves special attention — when `TERMINAL_CONTAINER_PERSISTENT=true` (the default), one session reuses one container across multiple commands so startup cost is paid once; when `false`, every command spins up a fresh container, far stronger isolation (commands cannot influence each other's side effects), at the cost of paying startup overhead every time.
+
+Another detail worth highlighting is `mount_docker_cwd` — defaults to off, meaning by default Hermes does not mount the host's current working directory into the container, so the agent inside the container cannot directly touch the developer's working files. Only when the user explicitly sets `TERMINAL_DOCKER_MOUNT_CWD_TO_WORKSPACE=true` does the host's `/Users/xxx/repo` get mounted at `/workspace` inside the container. This is a textbook "secure-by-default + opt-in convenience" design — the safe behaviour is the default, and the convenient behaviour requires deliberate opt-in.
+
+## §4 · What the four systems agree on
+
+Despite very different stances, there are three points all four systems agree on. These shared decisions reflect inescapable constraints of sandbox engineering — anyone trying to skip them eventually pays for it.
+
+**The first agreement is that sandboxes can fail and every system must have a fallback plan.** Codex defines a dedicated `SandboxErr` error type — when sandbox setup fails (e.g. bubblewrap missing, seccomp registration rejected by kernel), this error surfaces and the upstream caller decides whether to fail-open (run the command unsandboxed) or fail-closed (refuse the command). Claude Code introduces an explicit `failIfUnavailable` config — when true, the agent refuses to start if the sandbox cannot start (typical of strict enterprise deployments); when false (the default), it warns the user and runs commands unsandboxed (a more relaxed developer mode). OpenClaw's `ExecHost` enum lets the agent fall back to another execution tier at runtime — sandbox host unreachable? Try gateway. Hermes prompts the user to switch `TERMINAL_ENV` to another backend on backend unavailability. None of the four systems pretends "the sandbox always works"; each acknowledges in some form that "the sandbox is fallible, you need a backup".
+
+**The second agreement is that network and filesystem are independent dimensions and need separate config paths.** This is because the two attack surfaces are wildly different in nature — filesystem violations are mostly about "data theft" (the agent reads things it shouldn't) and "data destruction" (the agent writes/deletes files it shouldn't), while network violations are mostly about "data exfiltration" (the agent ships sensitive data to attacker-controlled servers) and "remote command execution" (the agent fetches malicious payloads from the network and runs them). A user might fully trust the agent to operate on the filesystem but only allow it to talk to specific domains on the network, or vice versa — these two dimensions need to be configurable separately. So Codex's `PermissionProfile` has independent `file_system` and `network` fields, Claude Code's `SandboxSettings` has independent `network` and `filesystem` schemas, OpenClaw splits decisions across `ExecHost` and network policy, and Hermes splits container network-mode and filesystem-mount as independent toggles.
+
+**The third agreement is to be honest about platform differences.** None of the four systems pretends "the same sandbox code runs everywhere" — Codex maintains three different code paths for Linux, macOS, and Windows; Claude Code introduces `enabledPlatforms` to let admins selectively enable per platform; Hermes covers different deployment shapes via 6 backends; OpenClaw delegates the platform problem to the deployer. The reason this matters: sandbox technology is deeply OS-specific (bubblewrap is Linux-only, seatbelt is macOS-only, Windows is yet another world entirely), and pretending it can be hidden behind a unified abstraction leads to "the macOS sandbox works in tests but a real Linux deployment surprises us" disasters. Confronting it head-on, with platform differences treated as first-class concerns, is far more robust.
+
+## §5 · Where the four diverge most sharply
+
+<Diagram
+  src="/diagrams/13-tradeoff.svg"
+  alt="Four sandbox approaches on in-house depth vs deployment flexibility"
+  caption="Hermes 6 backends rely on container outsourcing; OpenClaw 3 hosts hand control to deployers; Claude Code schematizes the config; Codex maintains in-house sandbox code across three platforms."
+/>
+
+While the agreements above represent the floor, the divergences show how the four read the engineering trade-offs differently. Looking at it through "what kind of agent are you building", the choices map onto four very different scenarios.
+
+**For a security-first desktop agent (e.g. an agent for developers, possibly handling local source code containing trade secrets), Codex's in-house path is the right answer.** The reasoning: in this scenario, the user runs the agent on their own machine, so the sandbox must be self-sufficient — you cannot assume Docker is installed, you cannot assume there is a remote container service. Codex's three-layer Linux + macOS seatbelt + standalone Windows crate is exactly this story — it asks nothing of the host environment, just runs. The cost is the engineering complexity (maintaining three platforms' worth of sandbox code) but for a security-first product it is worth it.
+
+**For an enterprise IDE deployment (e.g. an IT department rolling Claude Code out to thousands of engineers), Claude Code's schema-driven config is the reference.** The reasoning: in this scenario, the highest-priority concern is not "is the sandbox cool" but "can IT admins precisely control its behaviour". Claude Code's full-schema approach is exactly this — IT admins write a JSON file declaring "allowed domains, allowed paths, which platforms turn it on, which weaker modes are enabled", then push that JSON to every developer's machine via the management plane. `enabledPlatforms` and `allowManagedDomainsOnly` are both knobs designed for this scenario.
+
+**For a SaaS deployment (e.g. an agent serving thousands of users in the cloud), Hermes's 6-backend container outsourcing is the engineering-grade choice.** The reasoning: in this scenario, the agent itself runs in the cloud, the cloud has mature containerization infrastructure (Kubernetes, Docker, modal, etc.), and writing your own application-layer sandbox is reinventing the wheel — and writing it worse, since real cloud isolation depends on hypervisor and namespace mechanisms most application-layer sandboxes cannot reach. Hermes's TERMINAL_ENV with its 6 backends maps onto this directly — pick the right containerization tier for your cloud (modal for serverless, docker for traditional, ssh for hybrid).
+
+**If you are building an agent framework rather than an agent product, OpenClaw's ExecHost abstraction is worth borrowing.** The reasoning: a framework cannot prescribe the deployer's isolation infrastructure — different deployers will pick different technologies (Docker, Firecracker, Lambda, custom containers), and the framework's job is to provide a clean abstraction so all of these can plug in. OpenClaw's ExecHost is exactly this — a 3-tier enum, plug in whatever you have.
+
+## §6 · My takeaway
+
+<ScoreCard
+  rows={[
+    { system: 'Codex', value: '★★★★★', reason: 'Complete sandbox code across three platforms (Linux three-layer / macOS seatbelt / Windows separate crate); trade-off comments make the engineering explicit (PR_SET_NO_NEW_PRIVS vs setuid); thread-level apply ensures the child inherits exactly the right policy', risk: 'bubblewrap depends on the distro; landlock unavailable on older kernels; seccompiler upgrades carry compatibility risk; three-platform code is a lot to maintain' },
+    { system: 'Claude Code', value: '★★★★★', reason: 'Schematized config gives IT / managed-settings users a clear surface; real enterprise needs drive design (NVIDIA enabledPlatforms / autoAllowBashIfSandboxed); enableWeakerNetworkIsolation explicitly labels the security cost', risk: 'Linux / WSL sandbox is newer (comments admit it); enterprise still rolling out macOS-first; passthrough configs drift from the schema' },
+    { system: 'OpenClaw', value: '★★★★', reason: 'ExecHost decouples sandbox from agent; 3 backends cover typical deployments; combines with ExecSecurity/ExecAsk into the 27-cell matrix', risk: 'No turnkey sandbox; if the host does not isolate, nothing isolates; users have to wire Docker / Firecracker themselves' },
+    { system: 'Hermes', value: '★★★★', reason: '6 backends cover the common deployment surface (local / docker / singularity / modal / daytona / ssh); 5 config dimensions per backend; persistent containers default on for the right speed-vs-isolation balance; host cwd not mounted by default', risk: 'No app-level sandbox; security entirely depends on backend; SDK upgrades (modal / daytona) become ongoing work; "remote trust" boundary in ssh mode needs documentation' },
+  ]}
+  caption="Scoring criteria: real isolation + deployment flexibility + failure handling + scenario coverage"
+  headers={['System', 'Score', 'Strengths', 'Risks']}
+/>
+
+## §7 · Build recipe
+
+Below is the recipe distilled from the four systems for writing your own sandbox execution. Lay solid foundations first, then add production-grade features, finally avoid five common dead ends.
+
+<BuildRecipe
+  title="Build recipe"
+  minimal={[
+    'On Linux use bubblewrap binary for FS isolation (borrow from Codex) — read-only / writable / tmpfs three mount methods, external process enforces boundary; bubblewrap is Linux sandbox de-facto standard (no need to write namespace + chroot yourself)',
+    'Use seccomp BPF to block connect/sendto (borrow from Codex) — apply at thread level so child inherits; seccomp is lighter than iptables (no root), but requires familiarity with BPF bytecode',
+    'On macOS go with sandbox-exec + .sb config files — macOS doesn\'t support bubblewrap / seccomp but has seatbelt (sandbox) + sandbox-exec command; write .sb config (based on SchemeML) describing permission boundary',
+    'Make fail_open vs fail_closed a config (borrow from Claude Code\' failIfUnavailable) — dev defaults open (sandbox unavailable lets command run, doesn\'t interrupt dev experience), prod defaults closed (sandbox unavailable rejects command, safety first)',
+  ]}
+  advanced={[
+    'Three separate crates (borrow from Codex) — linux-sandbox (bubblewrap + seccomp) / macOS seatbelt path / windows-sandbox-rs; don\'t try to write a single cross-platform unified sandbox (each platform mechanism completely different), separate implementations are clearer',
+    'Put PR_SET_NO_NEW_PRIVS vs setuid trade-off in comments (borrow from Codex) — this flag prevents setuid escalation but also breaks sudo / mount and other tools needing setuid; not always-on, enable on demand and document trade-off',
+    'enabledPlatforms option (borrow from Claude Code) — let admins enable sandbox on macOS + pause on Linux (if Linux\'s bubblewrap still has issues), per-platform rollout safer than one-size-fits-all',
+    'allowManagedDomainsOnly / allowManagedReadPathsOnly (borrow from Claude Code) — managed-only mode ignores user-layer config (user\'s "allow github.com" ignored), only uses domain whitelist pushed down by enterprise admin; this is key to large enterprise SSO integration',
+    'enableWeakerXxx config explicitly labeled "Reduces security" (borrow from Claude Code) — let users see in schema this is a flag with safety cost (not a normal flag), naturally think twice when deciding',
+    'ExecHost abstraction (borrow from OpenClaw) — decouple sandbox from agent: agent calls ExecHost.run({argv}), deployer decides whether ExecHost is docker / firecracker / native sandbox / cloud sandbox; this is key for SaaS / multi-tenant',
+    'Six backends switching (borrow from Hermes\' TERMINAL_ENV=local/docker/singularity/modal/daytona/ssh) — covers diverse deployment needs (local with docker / cloud with modal / academic with singularity / production with daytona / remote machine with ssh)',
+    'Persistent container default on (borrow from Hermes\' TERMINAL_CONTAINER_PERSISTENT) — one session reuses container (only pay cold-start cost once, every subsequent execution is warm container); essential for frequent short-command scenarios',
+    'Don\'t mount host cwd by default (borrow from Hermes) — require explicit TERMINAL_DOCKER_MOUNT_CWD_TO_WORKSPACE to map; default isolation safest (container escape only contaminates container not host), users actively enable to mount cwd',
+  ]}
+  avoid={[
+    'Don\'t assume sandbox is always available — bubblewrap not in PATH (minimalist Linux) / docker daemon not running / seatbelt unsupported macOS version (very old) all need handling; fail_open vs fail_closed decision must be explicit',
+    'Don\'t mount user home in the sandbox — default should be cwd + ephemeral tmpfs, not ~ (mounting home equals exposing ~/.ssh / ~/.aws and other sensitive files to in-sandbox processes)',
+    'Don\'t let network pass through by default — seccomp blocking connect is default behavior; if agent needs internet should go through proxy (explicitly enable via proxy_routed_network), let traffic be proxy-audited',
+    'Don\'t ignore setuid trade-off — PR_SET_NO_NEW_PRIVS breaks tools depending on setuid (sudo / mount / ping etc.); if user\'s build flow depends on these tools use cautiously',
+    'Don\'t hard-code "secure" — enterprise deployments often need enableWeaker* flags (e.g. some team needs sandbox-internal access to git ssh but default not allowed), add to schema but label cost ("Reduces security") so users know',
+  ]}
+/>
+
+## §8 · Four sandbox approaches side by side
+
+<Diagram
+  src="/diagrams/13-sandbox-flows.svg"
+  alt="Four sandbox approaches lined up side by side"
+  caption="Codex in-house three platforms; Claude Code schema config + enabledPlatforms; OpenClaw ExecHost 3-backend outsourcing; Hermes TERMINAL_ENV 6-backend containerization."
+/>
+
+Lined up, the "who owns sandbox implementation" answer differs sharply: Codex builds it, Claude Code lets IT configure it, OpenClaw lets the host decide, Hermes ships it to containers / remote backends.
+
+## §9 · Further reading / source entry points
+
+<SourceTrail
+  title="Further reading / source entry points"
+  entries={[
+    { system: 'Codex', path: 'REF/codex/codex-rs/linux-sandbox/src/landlock.rs', lines: '1-100', desc: 'Linux seccomp + landlock + PR_SET_NO_NEW_PRIVS' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/linux-sandbox/src/linux_run_main.rs', desc: 'bubblewrap invocation entry' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/windows-sandbox-rs/src/lib.rs', desc: 'Windows sandbox crate' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/core/src/sandbox_tags.rs', desc: 'Sandbox tag / policy metadata' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/utils/cli/src/sandbox_mode_cli_arg.rs', desc: 'CLI --sandbox-mode flag' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/entrypoints/sandboxTypes.ts', desc: 'SandboxSettings full schema' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/utils/sandbox/sandbox-adapter.ts', desc: 'Runtime sandbox adapter' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/tools/BashTool/shouldUseSandbox.ts', desc: 'sandbox-by-default decision logic' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/infra/exec-host.ts', desc: 'ExecHost 3-backend dispatch' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/infra/exec-approvals.ts', lines: '10-36', desc: 'ExecHost / ExecSecurity / ExecAsk types' },
+    { system: 'Hermes', path: 'REF/hermes-agent/tools/terminal_tool.py', lines: '765-870', desc: 'TERMINAL_ENV 6-backend config loading' },
+    { system: 'Hermes', path: 'REF/hermes-agent/tools/terminal_tool.py', lines: '1840-1880', desc: 'Backend-unavailable prompts and switching' },
+  ]}
+/>
+
+## §10 · Exercises
+
+1. **Easy**: run `echo` under bubblewrap. Write a script using `bwrap --ro-bind /usr /usr --tmpfs /tmp -- echo hi` to verify basic isolation.
+2. **Medium**: block `connect()` via seccomp. Write a Python program using `python-prctl` + a seccomp filter to block `connect(2)`. Verify: `curl example.com` fails, `ls /tmp` succeeds.
+3. **Medium**: multi-backend dispatch. Implement `run_terminal(cmd, env_type)` with env_type in `{local, docker, ssh}`. docker uses `docker run`, ssh uses `ssh user@host`. Verify: when env_type=docker, `pwd` returns the container path.
+4. **Hard**: enabledPlatforms gating. Implement `should_enable_sandbox(settings)` so the sandbox is enabled only when the current platform is in `settings.enabledPlatforms`. Verify: enabledPlatforms=["macos"] returns false on Linux.
+
+## §11 · Interview drill: 10 questions with worked answers
+
+<details>
+<summary>**Q1 · Concept**: bubblewrap, seccomp, and landlock - what's each tool's boundary?</summary>
+
+Codex uses all three on Linux, with completely different purposes:
+
+**bubblewrap (bwrap)**: user-space containerization. Reassembles the root filesystem: `--ro-bind` mounts read-only, `--bind` makes writable, `--tmpfs` creates ephemeral dirs, `--proc` mounts /proc. The workhorse for FS isolation. Acts like a "mini Docker" but uses Linux user namespaces + mount namespaces - no daemon needed.
+
+**seccomp**: kernel-level BPF syscall filter. Codex uses it to block `connect()` / `sendto()` and stop network access. It filters syscall numbers, not IPs/ports (that's netfilter/iptables territory). Once enabled, seccomp is irrevocable, so it's applied at thread level for precise child inheritance.
+
+**landlock**: Linux 5.13+ LSM (Linux Security Module) for FS access control. Different mechanism from bubblewrap: bubblewrap remounts, landlock intercepts syscalls in the kernel. Codex treats it as legacy/backup; the main path is bubblewrap. Reasons: landlock missing on older kernels; bubblewrap in user space needs no kernel version support.
+
+**How they cooperate:**
+
+```
+bwrap (FS mount isolation)
+  └─ seccomp BPF (block connect/sendto)
+      └─ landlock (backup FS control, older kernel fallback)
+```
+
+Three layers stacked, each defends a different escape path. If bwrap is bypassed, seccomp still blocks network; seccomp can't manage FS, so bwrap/landlock cover that.
+
+**Follow-up**: "Why not Docker?" Docker needs a daemon + root + image management. bubblewrap is a setuid binary, no root needed, single-binary start/stop, much lighter. Codex is a CLI tool, startup overhead matters.
+
+**Source**: [`codex/codex-rs/linux-sandbox/src/landlock.rs:1-100`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/linux-sandbox/src/landlock.rs#L1-L100).
+</details>
+
+<details>
+<summary>**Q2 · Concept**: Why does Claude Code's `enableWeakerNetworkIsolation` comment literally say "Reduces security"?</summary>
+
+This is the classic "knob with a cost" design. Concrete scenario:
+
+Go tools (gh / gcloud / terraform / aws-cli) in a sandbox using MITM proxy + custom CA need `com.apple.trustd.agent` (macOS system service) to validate TLS certificates. But trustd itself can be abused for data exfiltration (forwarding malicious payloads through Apple system services).
+
+**Claude Code's choice:**
+
+1. **Block trustd** (default) → Go tools fail behind MITM proxy → enterprise users who need gh/gcloud are stuck
+2. **Allow trustd** → Go tools work → extra data exfiltration vector
+
+Neither is perfect. So it ships as `enableWeakerNetworkIsolation` config + comment that explicitly says **"Reduces security"**, telling users that enabling this drops the security tier - it's not "turn on and forget."
+
+**The essence of this design:**
+
+Doesn't pretend "one config switch fixes everything." Acknowledges trade-offs exist, lets users make the call explicitly. The comment lives in the Zod schema; when docs auto-generate, the warning syncs into settings.json hover hints in the IDE.
+
+Similar "weaker" knobs: `enableWeakerNestedSandbox` (allows nested sandboxes, bypassing some restrictions). Both prefixed with "weaker" so IDE auto-completion flags them as security-sensitive at a glance.
+
+**Follow-up**: "Should this trade-off note live in schema or docs?" In the schema. IDE auto-completion and settings.json hover hints pull from schema comments. If only in external docs, users enable the flag without reading. Put the warning closest to the trigger point.
+
+**Source**: `claude-code/src/entrypoints/sandboxTypes.ts:90-160`.
+</details>
+
+<details>
+<summary>**Q3 · Architecture**: What's the real trade-off behind Hermes's 6 backends?</summary>
+
+6 backends isn't showmanship. Each maps to a real deployment shape:
+
+| Backend | Startup cost | Isolation | Typical scenario |
+|---------|--------------|-----------|------------------|
+| local | ~0 | None | Dev machine debugging |
+| docker | 1-3s | Medium (container) | Local long runs |
+| singularity | 1-2s | Medium (container) | HPC clusters / research |
+| modal | 5-15s | Strong (remote container) | Serverless on-demand |
+| daytona | 10-30s | Strong (remote VM) | Dev-env-as-a-service |
+| ssh | 1-2s | Depends on remote | Self-owned dev VM |
+
+**Why so many?**
+
+Different deployment shapes have different trade-offs:
+
+- **Dev machine**: needs speed, no isolation → local
+- **Demo / teaching**: needs reproducibility, consistent env → docker
+- **Research**: HPC clusters only allow singularity → singularity
+- **CI / short tasks**: on-demand start + cleanup-on-finish → modal
+- **Team collaboration**: each dev gets independent dev env → daytona
+- **Enterprise internal**: existing dev VMs → ssh
+
+If only local/docker were supported, the first 2 users are happy, the other 4 abandon Hermes. The goal: "let agent adapt to your infrastructure," not "make you adapt to agent."
+
+**Each backend has 5 config dimensions (image/cpu/mem/disk/persistent):**
+
+- **image**: per-backend image config (singularity uses `docker://image` conversion, modal reads docker image directly)
+- **persistent=true**: same container reused within a session, pay startup once. Cleaned up at session end.
+- **persistent=false**: new container per command. Strongest isolation, but pays 1-3s every time.
+
+**Follow-up**: "6 backends, isn't the maintenance burden huge?" SDKs handle it: modal/daytona have official Python SDKs; docker/singularity/ssh are subprocess + shell command. Hermes-maintained code is just dispatch; actual startup / communication delegated to SDK / CLI.
+
+**Source**: [`hermes-agent/tools/terminal_tool.py:765-870`](https://github.com/NousResearch/hermes-agent/blob/2d59afd3da04812583ecbbf3be83539678a947c4/tools/terminal_tool.py#L765-L870).
+</details>
+
+<details>
+<summary>**Q4 · Concept**: Why doesn't OpenClaw provide a sandbox implementation itself?</summary>
+
+OpenClaw positions itself as "enterprise SaaS agent platform," not "desktop tool." This positioning drives the sandbox design:
+
+**Why not build their own?**
+
+1. **Enterprises already have infrastructure.** SaaS companies use Kubernetes / Firecracker / Lambda / EC2. OpenClaw provides ExecHost abstraction so customers pick existing isolation.
+2. **Multi-cloud diversity.** AWS / GCP / Azure / private cloud sandbox approaches differ. If OpenClaw built one, it'd couple to every cloud. Abstract it out, let hosts implement, zero cross-cloud code changes.
+3. **Specialists do specialist work.** Firecracker (AWS Lambda's foundation) specializes in lightweight VM isolation, way better than an agent team writing one. Delegating to infrastructure is more reliable.
+
+**Downsides:**
+
+- **Small users with no infrastructure are stuck.** A single dev installs OpenClaw without K8s/Firecracker → sandbox tier equals no sandbox. OpenClaw docs need to be clear.
+- **"Where is the sandbox" is opaque to users.** Looking at OpenClaw code, you can't see how sandbox is actually enforced. Easy to think "I thought I had sandbox, but I don't."
+
+**Why is this reasonable?**
+
+OpenClaw's customer base (enterprise SaaS) inherently has infrastructure. Positioning determines design. For desktop/personal agents, pick Codex/Claude Code patterns.
+
+**Benefit of abstraction**: sandbox becomes a swappable concern, like "which LLM" or "which frontend UI." OpenClaw extracts all 27-cell ExecHost/ExecSecurity/ExecAsk = "I provide the decision framework, you provide the implementation."
+
+**Source**: [`openclaw/src/infra/exec-host.ts`](https://github.com/openclaw/openclaw/blob/f6d0712f508b1f926ad6fc42f7d07b1a60e62730/src/infra/exec-host.ts) + `infra/exec-approvals.ts`.
+
+**Follow-up**: "If I'm starting an agent startup, should I learn this from OpenClaw?" Phase it: MVP - clone Codex with embedded bubblewrap (turnkey for users). Commercializing to enterprise - extract ExecHost abstraction. Integrate first, decouple later.
+</details>
+
+<details>
+<summary>**Q5 · Engineering**: Why does seccomp apply at thread level instead of process level?</summary>
+
+Codex uses `apply_permission_profile_to_current_thread()` instead of process-wide. Reasons:
+
+**1. Precise child inheritance on fork.** seccomp's semantics: "current thread + fork's child processes inherit." Codex's workflow:
+
+```
+agent main process
+  └─ fork a thread to prepare execution
+       └─ apply seccomp on this thread
+            └─ exec user command (child inherits thread's seccomp)
+```
+
+Other main-process threads (event loop / IPC / logging) aren't affected by seccomp. Only the thread "about to execute user command" gets the shackles.
+
+**2. PR_SET_NO_NEW_PRIVS cost.**
+
+seccomp requires `PR_SET_NO_NEW_PRIVS` to be set first, which blocks setuid escalation. But bubblewrap itself is a setuid binary (depends on escalation for user namespace mount). So Codex must let bwrap run first, then apply seccomp in bwrap's child. If seccomp applies in main process:
+
+- main process can't setuid → bwrap fails to launch → chain breaks
+- or: main process starts bwrap later but bwrap already handled prctl
+
+Thread-level apply keeps them independent: bwrap runs in fresh thread (no NO_NEW_PRIVS), seccomp applies in user command thread.
+
+**3. Easier testing / debugging.**
+
+Process-wide seccomp blocks debuggers / strace / log syscalls. Thread-level keeps other threads working.
+
+**Linux docs verbatim:**
+
+> A process can apply seccomp filters in one thread; the filter will apply to that thread and any child threads/processes created via fork()/clone().
+
+Codex exploits this semantic.
+
+**Follow-up**: "How does Python do it?" Python uses `prctl + seccomp` libs, but Python's main thread runs the GIL, so thread-level apply is meaningless. Python agent sandboxes typically fork-exec and apply in the child process. CPython's multiprocessing is another path.
+
+**Source**: [`codex/codex-rs/linux-sandbox/src/landlock.rs:60-130`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/linux-sandbox/src/landlock.rs#L60-L130).
+</details>
+
+<details>
+<summary>**Q6 · Real-world**: Adding sandbox to your agent, zero to production?</summary>
+
+Four phases: **bubblewrap → seccomp blocks network → schema config → multi-backend switching**.
+
+**Day 1 · Don't write sandbox yet, validate "no sandbox" baseline**
+
+```python
+def run_command_unsafe(cmd: list[str]) -> str:
+    return subprocess.check_output(cmd)
+```
+
+Run agent on 5-10 real scenarios, log `cmd` stats. Identify which commands need blocking:
+
+- Network access (curl / wget / pip install online)
+- FS writes (rm / mv / any -o output file)
+- Interpreter exec (python / node / bash -c)
+
+**Day 2-5 · bubblewrap FS isolation**
+
+```python
+def run_command_sandboxed(cmd: list[str], cwd: Path, writable: list[Path]) -> str:
+    bwrap_args = [
+        "bwrap",
+        "--ro-bind", "/usr", "/usr",
+        "--ro-bind", "/etc", "/etc",
+        "--tmpfs", "/tmp",
+        "--proc", "/proc",
+        "--dev", "/dev",
+    ]
+    for w in writable:
+        bwrap_args += ["--bind", str(w), str(w)]
+    bwrap_args += ["--chdir", str(cwd), "--"]
+    bwrap_args += cmd
+    return subprocess.check_output(bwrap_args)
+```
+
+Borrow Codex's bubblewrap style. FS default read-only, writable paths explicitly listed.
+
+**Day 6-7 · seccomp blocks network**
+
+```python
+import ctypes
+
+def install_network_seccomp():
+    libc = ctypes.CDLL("libc.so.6")
+    PR_SET_NO_NEW_PRIVS = 38
+    libc.prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)
+    # Install BPF filter blocking SYS_connect / SYS_sendto
+```
+
+Or simpler: `bwrap --unshare-net` directly disables network namespace, no seccomp needed.
+
+**Week 2 · Schema config**
+
+```python
+class SandboxConfig(BaseModel):
+    enabled: bool = True
+    fail_if_unavailable: bool = False
+    network_allowed_domains: list[str] = []
+    fs_writable: list[Path] = []
+    fs_read_only: list[Path] = []
+
+def run_with_config(cmd, config: SandboxConfig):
+    if not config.enabled:
+        return run_command_unsafe(cmd)
+    try:
+        return run_command_sandboxed(cmd, config)
+    except SandboxUnavailable:
+        if config.fail_if_unavailable:
+            raise
+        warn("Sandbox unavailable, running unsandboxed")
+        return run_command_unsafe(cmd)
+```
+
+Borrow Claude Code `failIfUnavailable`.
+
+**Week 3-4 · Multi-backend switching**
+
+```python
+class Backend(Enum):
+    LOCAL = "local"
+    BWRAP = "bwrap"
+    DOCKER = "docker"
+    SSH = "ssh"
+
+BACKENDS = {
+    Backend.LOCAL: run_command_unsafe,
+    Backend.BWRAP: run_with_bwrap,
+    Backend.DOCKER: run_with_docker,
+    Backend.SSH: run_with_ssh,
+}
+
+def run(cmd, backend: Backend, **opts):
+    return BACKENDS[backend](cmd, **opts)
+```
+
+Borrow Hermes TERMINAL_ENV.
+
+**Key takeaways:**
+
+1. **First week only bwrap**: covers 90% of isolation needs, don't jump to seccomp + landlock
+2. **Schema early**: user config > hardcoded values
+3. **fail_open vs fail_closed**: explicit, never default
+4. **Multi-backend only for enterprise**: self/MVP, bwrap-only works
+
+**Follow-up**: "Mac / Windows?" Mac uses `sandbox-exec` (built-in) + write .sb files. Windows uses Windows Sandbox API (Pro version required) or Docker Desktop directly. Codex's three-platform code is the reference.
+</details>
+
+<details>
+<summary>**Q7 · Concept**: Is `failIfUnavailable: false` degrading to "no sandbox + warning" an anti-pattern?</summary>
+
+No. It's deliberate "dev-friendly + prod-strict" duality.
+
+**Why dev defaults fail_open?**
+
+Dev environments vary wildly: bubblewrap not installed, sandbox-exec behavior changed in macOS Catalina, Windows Sandbox needs Pro. fail_closed makes agent startup fail with errors - very frustrating. `fail_open + warning` lets agent run, with logs telling them "you have no sandbox right now."
+
+**Why prod must fail_closed?**
+
+Prod IT knows the sandbox dependencies. If prod deploy is missing bubblewrap, must fail fast at startup, not silent degradation (otherwise "I thought I had sandbox" → security incident). `failIfUnavailable: true` makes enterprise deploys explicit.
+
+**Claude Code's comment states the intent:**
+
+> When false (default), a warning is shown and commands run unsandboxed.
+> Intended for managed-settings deployments that require sandboxing as a hard gate.
+
+"Dev-friendly + prod-strict" via one bool flip. No two codebases.
+
+**Practical advice:**
+
+```
+Default: fail_open = true (dev-friendly)
+Enterprise policy: fail_open = false + forced via policySettings (uncovertable)
+CI / automation: env var override (CI fail_open=false to prevent "no-sandbox test runs")
+```
+
+**Anti-pattern versions:**
+
+- ❌ Global fail_closed → dev pain
+- ❌ Global fail_open → prod risk
+- ❌ No warning → users don't know there's no sandbox
+- ❌ Warning in debug logs only → users miss it
+
+**Claude Code puts the warning in the STDOUT startup banner**, so on startup users see "Sandbox unavailable: bubblewrap not found."
+
+**Source**: `claude-code/src/entrypoints/sandboxTypes.ts:120-135`.
+
+**Follow-up**: "fail_open=true, why not just disable all side-effect tools?" Possible but bad UX. Devs frequently run npm install / git pull; blocking those makes agent useless. Better solution: fail_open + narrowed tool allowlist (e.g., read-only).
+</details>
+
+<details>
+<summary>**Q8 · Concept**: Decoupling sandbox from permission approval - benefits and costs?</summary>
+
+Chapter 12 covers permission approval, chapter 13 covers sandbox. These two are easy to confuse.
+
+**Their essence differs:**
+
+- **Permission approval**: "Should I let agent do this?" (human decision)
+- **Sandbox**: "Even if agent does this, how much damage can it cause?" (technical constraint)
+
+**Decoupling benefits:**
+
+1. **Independent evolution**: tweaking approval policy doesn't touch sandbox. Adding "audit mode" (log all commands without prompts) only touches approval layer, sandbox code unchanged.
+2. **Different failure dimensions**: approval pass ≠ sandbox safe. Maybe user approved `rm -rf /tmp/some_specific_file`, sandbox still has to verify `/tmp/some_specific_file` is in writable_roots.
+3. **Independently testable**: approval can be pure unit tested, sandbox needs real syscalls.
+
+**Codex's approach:**
+
+```
+agent → approval layer → permission_profile → sandbox layer → exec
+                          (writable_roots / network policy etc.)
+```
+
+permission_profile concretely expresses "what was approved," sandbox enforces. Clear separation.
+
+**Decoupling costs:**
+
+1. **Larger config surface**: users configure approval rules AND sandbox policy. Easy redundancy / drift.
+2. **Cognitive load**: "Why did sandbox block me even though I approved?" needs docs to explain.
+3. **Plumbing between the two**: approval layer outputs permission_profile, sandbox layer consumes it. Codex uses `to_runtime_permissions()` conversion functions.
+
+**OpenClaw chooses "semi-decouple"**: ExecHost is both approval dimension (host decides decisions) and sandbox dimension (decides actual execution location). One enum manages both. Simpler config, but trade-off: "sandbox implementation" is opaque to users.
+
+**Fits:**
+
+- Complex enterprise → decoupled (Codex / Claude Code)
+- Simple SaaS → semi-decoupled (OpenClaw)
+- Personal agent → integrated (Hermes treats sandbox as backend choice)
+
+**Follow-up**: "How do the two layers coordinate in real engineering?" Schema as contract: approval layer outputs `PermissionProfile`, sandbox layer consumes `PermissionProfile`. Schema is the contract, both layers evolve independently with backward compat.
+</details>
+
+<details>
+<summary>**Q9 · Engineering**: persistent container defaults on, but per-command containers are strongest isolation. Is Hermes's choice right?</summary>
+
+Yes. Reasonable balance between "right performance vs extreme security."
+
+**Two choices compared:**
+
+| Strategy | Startup cost | Isolation | State isolation |
+|----------|--------------|-----------|-----------------|
+| persistent=true (default) | Once per session | Medium | Shared within session |
+| persistent=false | Once per command | High | Fully isolated |
+
+**Why default to persistent=true?**
+
+1. **Agent workflows are continuous**: A task often runs `cd repo && npm install && npm run build && npm test`. Per-command containers pay 1-3s startup per command. A simple task becomes 30 seconds of waiting.
+2. **State sharing is a feature, not a bug**: `npm install` installs deps, next `npm test` needs them. Full isolation is wrong here.
+3. **Session boundary is itself isolation**: Hermes session ends → container cleaned up, next session starts fresh. Different tasks are naturally isolated.
+
+**Why provide persistent=false option?**
+
+1. **Audit / forensics scenarios**: Forensic analysis needs each command to run in clean env, preventing prior contamination.
+2. **CI scenarios**: Each step is an independent container, matching GitHub Actions.
+3. **Multi-tenant agents**: Strict isolation needed between users/orgs.
+
+**Real deployment experience:**
+
+- Personal dev / self-use: persistent=true default
+- Team collaboration: persistent=true, restart session per task
+- SaaS multi-tenant: persistent=false strict
+- CI / automation: persistent=false aligned with step boundaries
+
+**Follow-up**: "How can an attacker exploit persistent=true?" Suppose agent executes user A's commands without container exit; attacker poisons a file, agent switches to user B's task still in same container → cross-user contamination. So multi-tenant must persistent=false. That's also why Hermes defaults persistent=true but requires SaaS deployments to flip it.
+
+**Source**: [`hermes-agent/tools/terminal_tool.py:230-270`](https://github.com/NousResearch/hermes-agent/blob/2d59afd3da04812583ecbbf3be83539678a947c4/tools/terminal_tool.py#L230-L270) (container lifecycle).
+</details>
+
+<details>
+<summary>**Q10 · Open-ended**: Synthesize the strengths into a universal sandbox framework.</summary>
+
+6-layer API, opt-in:
+
+**Layer 1 · Backend enum (mandatory)**
+
+```ts
+enum SandboxBackend {
+  None = 'none',
+  Bwrap = 'bwrap',
+  Seatbelt = 'seatbelt',
+  WindowsSandbox = 'windows-sandbox',
+  Docker = 'docker',
+  Modal = 'modal',
+  SSH = 'ssh',
+}
+```
+
+Borrow Codex three-platform + Hermes 6 backends.
+
+**Layer 2 · Platform filtering (mandatory)**
+
+```ts
+interface SandboxConfig {
+  enabled: boolean;
+  failIfUnavailable: boolean;
+  enabledPlatforms: Platform[];
+  backend: SandboxBackend;
+}
+
+function selectBackend(config: SandboxConfig): SandboxBackend | null {
+  if (!config.enabled) return null;
+  const platform = currentPlatform();
+  if (config.enabledPlatforms.length && !config.enabledPlatforms.includes(platform)) {
+    return null;
+  }
+  return config.backend;
+}
+```
+
+**Layer 3 · Filesystem config (mandatory)**
+
+```ts
+interface SandboxFilesystemConfig {
+  allowWrite: string[];
+  denyWrite: string[];
+  allowRead: string[];
+  denyRead: string[];
+  allowManagedReadPathsOnly: boolean;  // borrow from Claude Code: ignore user-layer
+}
+```
+
+**Layer 4 · Network config (mandatory)**
+
+```ts
+interface SandboxNetworkConfig {
+  enabled: boolean;
+  allowedDomains: string[];
+  allowedPorts: number[];
+  httpProxyPort?: number;
+  enableWeakerNetworkIsolation: boolean;  // borrow from Claude Code: explicit cost label
+}
+```
+
+**Layer 5 · Backend config (optional)**
+
+```ts
+interface DockerBackendConfig {
+  image: string;
+  cpu: number;
+  memory: string;
+  disk: string;
+  persistent: boolean;            // borrow from Hermes
+  mountCwdToWorkspace: boolean;   // borrow from Hermes: default false
+}
+
+interface SSHBackendConfig {
+  host: string;
+  user: string;
+  port: number;
+  cwd: string;
+}
+```
+
+**Layer 6 · Failure handling (mandatory)**
+
+```ts
+function runSandboxed(cmd: string[], config: SandboxConfig): Result {
+  const backend = selectBackend(config);
+  if (!backend) {
+    if (config.failIfUnavailable) throw new SandboxUnavailable("backend not selected");
+    warn("Sandbox unavailable, running unsandboxed");
+    return runUnsandboxed(cmd);
+  }
+  try {
+    return BACKENDS[backend].run(cmd, config);
+  } catch (e: SandboxUnavailable) {
+    if (config.failIfUnavailable) throw e;
+    warn(`Sandbox ${backend} failed: ${e}, running unsandboxed`);
+    return runUnsandboxed(cmd);
+  }
+}
+```
+
+Borrow Claude Code `failIfUnavailable` + Codex `SandboxErr`.
+
+**Contributions per system:**
+
+- Codex: three-platform separation + thread-level apply + seccomp/landlock division
+- Claude Code: schema config + enabledPlatforms + enableWeaker* trade-off labeling
+- OpenClaw: ExecHost abstraction + decoupling from permission approval
+- Hermes: 6 backends + per-backend 5-dim config + persistent default
+
+**Engineering effort:**
+
+- Layer 1-3: 2 weeks
+- Layer 4-5: 2 weeks
+- Layer 6: 1 week
+
+5 weeks to v0.1.
+
+**Key decisions:**
+
+1. **First batch: 3 backends**: bwrap + docker + ssh cover 80% of scenarios
+2. **Schema early**: just use Zod / pydantic
+3. **fail_open default + policy override**: dev-friendly, prod-strict
+4. **persistent=true default**: perf-first, but multi-tenant must flip false
+
+**Follow-up**: "Cross-language sharing?" Schema in JSON Schema, codegen types; backend implementations per-language (Rust writes Codex bubblewrap wrapper, Python writes Hermes docker wrapper). Protocol shared across languages, implementations stay independent.
+
+**Source mosaic**: Codex `linux-sandbox/` → Claude Code `entrypoints/sandboxTypes.ts` → OpenClaw `infra/exec-host.ts` → Hermes `tools/terminal_tool.py`. Combine all four = sandbox framework v0.1.
+</details>

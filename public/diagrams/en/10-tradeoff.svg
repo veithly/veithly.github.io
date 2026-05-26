@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 480" role="img"
+     aria-label="Four subagent models plotted across abstraction depth and concurrency freedom">
+  <defs>
+    <filter id="wb10"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="73" /><feDisplacementMap in="SourceGraphic" scale="2" /></filter>
+    <marker id="ar10" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .ax   { font: 600 12.5px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #64748b; }
+      .pin  { font: 700 12.5px sans-serif; fill: #fff; }
+      .note { font: italic 10.5px sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <text x="390" y="26" class="h" text-anchor="middle">Subagent: abstraction thickness &#x00D7; concurrency freedom</text>
+  <text x="390" y="44" class="t-s" text-anchor="middle">Right = thicker abstraction; up = more concurrency freedom; the right choice depends on the business case</text>
+
+  <g filter="url(#wb10)">
+    <rect x="100" y="80" width="280" height="160" fill="#fef3c7" opacity="0.4" />
+    <rect x="380" y="80" width="280" height="160" fill="#dcfce7" opacity="0.4" />
+    <rect x="100" y="240" width="280" height="160" fill="#dbeafe" opacity="0.4" />
+    <rect x="380" y="240" width="280" height="160" fill="#fee2e2" opacity="0.4" />
+
+    <text x="120" y="100" class="t-s">lightweight &#x00B7; free concurrency</text>
+    <text x="640" y="100" class="t-s" text-anchor="end">heavy &#x00B7; free concurrency</text>
+    <text x="110" y="394" class="t-s">lightweight &#x00B7; limited concurrency</text>
+    <text x="650" y="394" class="t-s" text-anchor="end">heavy &#x00B7; limited concurrency</text>
+
+    <line x1="100" y1="400" x2="660" y2="400" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar10)" />
+    <line x1="100" y1="400" x2="100" y2="70" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar10)" />
+    <line x1="380" y1="80" x2="380" y2="400" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="100" y1="240" x2="660" y2="240" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+
+    <text x="660" y="420" class="ax" text-anchor="end">engineering depth of the subagent subsystem &#x2192;</text>
+    <text x="110" y="68" class="ax">&#x2191; concurrency freedom granted to users</text>
+
+    <circle cx="200" cy="320" r="14" fill="#ea580c" stroke="#0f172a" stroke-width="2" />
+    <text x="200" y="324" class="pin" text-anchor="middle">HM</text>
+    <text x="200" y="351" class="t" text-anchor="middle">Hermes</text>
+    <text x="200" y="366" class="t-s" text-anchor="middle">delegate_task function</text>
+    <text x="200" y="379" class="t-s" text-anchor="middle">synchronous + 5 tools hard-banned</text>
+
+    <circle cx="560" cy="175" r="14" fill="#1d4ed8" stroke="#0f172a" stroke-width="2" />
+    <text x="560" y="179" class="pin" text-anchor="middle">CX</text>
+    <text x="560" y="206" class="t" text-anchor="middle">Codex</text>
+    <text x="560" y="221" class="t-s" text-anchor="middle">5 SubAgentSource variants</text>
+    <text x="560" y="234" class="t-s" text-anchor="middle">services fully inherited from parent</text>
+
+    <circle cx="450" cy="120" r="14" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+    <text x="450" y="124" class="pin" text-anchor="middle">CC</text>
+    <text x="450" y="151" class="t" text-anchor="middle">Claude Code</text>
+    <text x="450" y="166" class="t-s" text-anchor="middle">7 Task variants + isConcurrencySafe</text>
+
+    <circle cx="610" cy="290" r="14" fill="#15803d" stroke="#0f172a" stroke-width="2" />
+    <text x="610" y="294" class="pin" text-anchor="middle">OC</text>
+    <text x="610" y="321" class="t" text-anchor="middle">OpenClaw</text>
+    <text x="610" y="336" class="t-s" text-anchor="middle">full subagent platform</text>
+    <text x="610" y="349" class="t-s" text-anchor="middle">push-based + persisted depth</text>
+  </g>
+
+  <text x="20" y="465" class="t-s">CX = Codex &#x00B7; CC = Claude Code &#x00B7; OC = OpenClaw &#x00B7; HM = Hermes</text>
+</svg>

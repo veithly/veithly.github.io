@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" width="100%" font-family="'Kalam','Comic Neue',sans-serif">
+  <defs>
+    <filter id="r17">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="51" />
+      <feDisplacementMap in="SourceGraphic" scale="1.3" />
+    </filter>
+    <style>
+      .t { font-size: 14px; fill: #0f172a; }
+      .t-sub { font-size: 12px; fill: #334155; }
+      .head { font-size: 18px; fill: #0f172a; font-weight: 700; }
+    </style>
+  </defs>
+
+  <rect width="900" height="600" fill="#fbfaf7" />
+
+  <text x="450" y="34" class="head" text-anchor="middle">Skill systems: from metadata schemas to a full supply chain</text>
+  <text x="450" y="54" class="t-sub" text-anchor="middle">8 crates + scope/policy &#x00B7; 17 bundled + skillify &#x00B7; scanner + install &#x00B7; 4 trust &#x00D7; 3 verdicts</text>
+
+  <g filter="url(#r17)">
+    <rect x="20" y="68" width="430" height="250" rx="12" fill="#fbfaf7" stroke="#1d4ed8" stroke-width="2.5" />
+    <text x="40" y="92" class="t" fill="#1d4ed8" font-weight="700">Codex &#x00B7; 8 crates, fine-grained</text>
+    <text x="40" y="110" class="t-sub">SkillMetadata + Scope + Policy + Dependencies</text>
+
+    <rect x="40" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="130" y="142" class="t" text-anchor="middle">SkillScope x 4</text>
+    <text x="130" y="158" class="t-sub" text-anchor="middle">user / project</text>
+    <text x="130" y="172" class="t-sub" text-anchor="middle">org / bundled</text>
+    <text x="130" y="186" class="t-sub" text-anchor="middle">+ SkillPolicy</text>
+    <text x="130" y="200" class="t-sub" text-anchor="middle">products gating</text>
+
+    <rect x="240" y="124" width="195" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="337" y="142" class="t" text-anchor="middle">SkillDependencies</text>
+    <text x="337" y="158" class="t-sub" text-anchor="middle">tools[]: type</text>
+    <text x="337" y="172" class="t-sub" text-anchor="middle">+ transport</text>
+    <text x="337" y="186" class="t-sub" text-anchor="middle">+ command / url</text>
+    <text x="337" y="200" class="t-sub" text-anchor="middle">env var auto-triggers RequestUserInput</text>
+
+    <rect x="40" y="216" width="390" height="90" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="235" y="234" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">implicit invocation</text>
+    <text x="235" y="252" class="t-sub" text-anchor="middle">allow_implicit_invocation defaults to true</text>
+    <text x="235" y="266" class="t-sub" text-anchor="middle">detect_implicit_skill_invocation_for_command</text>
+    <text x="235" y="280" class="t-sub" text-anchor="middle">commands match skills in reverse</text>
+    <text x="235" y="294" class="t-sub" text-anchor="middle">disabled_paths hides without deleting</text>
+
+    <rect x="470" y="68" width="410" height="250" rx="12" fill="#fbfaf7" stroke="#6d28d9" stroke-width="2.5" />
+    <text x="490" y="92" class="t" fill="#6d28d9" font-weight="700">Claude Code &#x00B7; 17 bundled + skillify</text>
+    <text x="490" y="110" class="t-sub">A meta-skill for distilling skills from sessions</text>
+
+    <rect x="490" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="580" y="142" class="t" text-anchor="middle">17 bundled</text>
+    <text x="580" y="158" class="t-sub" text-anchor="middle">loop / verify / stuck</text>
+    <text x="580" y="172" class="t-sub" text-anchor="middle">remember / debug</text>
+    <text x="580" y="186" class="t-sub" text-anchor="middle">batch / simplify</text>
+    <text x="580" y="200" class="t-sub" text-anchor="middle">skillify (distill)</text>
+
+    <rect x="690" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="780" y="142" class="t" text-anchor="middle">skillify (4 rounds)</text>
+    <text x="780" y="158" class="t-sub" text-anchor="middle">R1: name + description</text>
+    <text x="780" y="172" class="t-sub" text-anchor="middle">R2: steps + args</text>
+    <text x="780" y="186" class="t-sub" text-anchor="middle">R3: per-step breakdown</text>
+    <text x="780" y="200" class="t-sub" text-anchor="middle">R4: trigger sign-off</text>
+
+    <rect x="490" y="216" width="380" height="90" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="680" y="234" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">frontmatter conventions</text>
+    <text x="680" y="252" class="t-sub" text-anchor="middle">when_to_use: "Use when..."</text>
+    <text x="680" y="266" class="t-sub" text-anchor="middle">allowed-tools: Bash(gh:*)</text>
+    <text x="680" y="280" class="t-sub" text-anchor="middle">context: inline | fork</text>
+    <text x="680" y="294" class="t-sub" text-anchor="middle">success criteria required per step</text>
+
+    <rect x="20" y="328" width="430" height="252" rx="12" fill="#fbfaf7" stroke="#15803d" stroke-width="2.5" />
+    <text x="40" y="352" class="t" fill="#15803d" font-weight="700">OpenClaw &#x00B7; scanner + install</text>
+    <text x="40" y="370" class="t-sub">complete supply chain</text>
+
+    <rect x="40" y="384" width="180" height="100" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="130" y="402" class="t" text-anchor="middle">skill-scanner</text>
+    <text x="130" y="418" class="t-sub" text-anchor="middle">3 severities</text>
+    <text x="130" y="432" class="t-sub" text-anchor="middle">info / warn / critical</text>
+    <text x="130" y="446" class="t-sub" text-anchor="middle">8 ext: js/ts/mjs/...</text>
+    <text x="130" y="460" class="t-sub" text-anchor="middle">FILE_SCAN_CACHE 5000</text>
+    <text x="130" y="474" class="t-sub" text-anchor="middle">maxFileBytes 1MB</text>
+
+    <rect x="240" y="384" width="190" height="100" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="335" y="402" class="t" text-anchor="middle">skills-install</text>
+    <text x="335" y="418" class="t-sub" text-anchor="middle">download + tar verbose</text>
+    <text x="335" y="432" class="t-sub" text-anchor="middle">+ brew detection</text>
+    <text x="335" y="446" class="t-sub" text-anchor="middle">+ workspace skill</text>
+    <text x="335" y="460" class="t-sub" text-anchor="middle">vs bundled allowlist</text>
+    <text x="335" y="474" class="t-sub" text-anchor="middle">+ pi-embedded runtime</text>
+
+    <rect x="40" y="496" width="390" height="78" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="235" y="514" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">critical =&gt; WARNING, blocking</text>
+    <text x="235" y="532" class="t-sub" text-anchor="middle">warn =&gt; suggest audit --deep</text>
+    <text x="235" y="546" class="t-sub" text-anchor="middle">scan failure =&gt; warn but don&#x2019;t block install</text>
+    <text x="235" y="560" class="t-sub" text-anchor="middle">audit trail is queryable</text>
+
+    <rect x="470" y="328" width="410" height="252" rx="12" fill="#fbfaf7" stroke="#ea580c" stroke-width="2.5" />
+    <text x="490" y="352" class="t" fill="#ea580c" font-weight="700">Hermes &#x00B7; trust 4 &#x00D7; verdict 3</text>
+    <text x="490" y="370" class="t-sub">12-cell INSTALL_POLICY</text>
+
+    <rect x="490" y="384" width="180" height="100" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="580" y="402" class="t" text-anchor="middle">4 trust levels</text>
+    <text x="580" y="418" class="t-sub" text-anchor="middle">builtin (always)</text>
+    <text x="580" y="432" class="t-sub" text-anchor="middle">trusted (openai/anth)</text>
+    <text x="580" y="446" class="t-sub" text-anchor="middle">community</text>
+    <text x="580" y="460" class="t-sub" text-anchor="middle">agent-created</text>
+    <text x="580" y="474" class="t-sub" text-anchor="middle">=&gt; ask user</text>
+
+    <rect x="690" y="384" width="180" height="100" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="780" y="402" class="t" text-anchor="middle">progressive disclosure</text>
+    <text x="780" y="418" class="t-sub" text-anchor="middle">name &#x2264; 64</text>
+    <text x="780" y="432" class="t-sub" text-anchor="middle">description &#x2264; 1024</text>
+    <text x="780" y="446" class="t-sub" text-anchor="middle">list = metadata only</text>
+    <text x="780" y="460" class="t-sub" text-anchor="middle">view = lazy load</text>
+    <text x="780" y="474" class="t-sub" text-anchor="middle">agentskills.io compat</text>
+
+    <rect x="490" y="496" width="380" height="78" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="680" y="514" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">platforms gate OS-specific loading</text>
+    <text x="680" y="532" class="t-sub" text-anchor="middle">macos / linux / windows</text>
+    <text x="680" y="546" class="t-sub" text-anchor="middle">prerequisites.env_vars / commands</text>
+    <text x="680" y="560" class="t-sub" text-anchor="middle">~/.hermes/skills/ single root</text>
+  </g>
+</svg>

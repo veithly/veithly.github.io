@@ -1,0 +1,69 @@
+---
+title: Codex
+description: "OpenAI Codex CLI：Rust 加三平台原生 sandbox 加 50+ crate 的 coding agent 骨架"
+sidebar:
+  order: 1
+---
+
+import Verdict from '@components/Verdict.astro';
+import CompareTable from '@components/CompareTable.astro';
+import SourceTrail from '@components/SourceTrail.astro';
+
+<Verdict tldr="Codex 是四家里工程化最重的 agent，更像一个操作系统。代码按 50+ Rust crate 切分：turn loop、状态机、记忆 pipeline、apply-patch、远端 task、三平台 sandbox 各自独立编译。强项是稳定，能跑在生产 IDE、终端、云端 worker。弱项是 Rust 学习曲线陡、改动成本高。" tone="insight" />
+
+## §1 · Codex 是什么
+
+OpenAI 自家的 coding agent。本地一个 `codex` 二进制做交互式编辑（TUI 加一组 MCP），云端一个 `cloud-tasks` 二进制做远端 worker。整套系统用 Rust 写成 mono-repo，crate 之间靠 trait 加 protocol crate 解耦。
+
+## §2 · 50+ crate 分层架构
+
+<CompareTable
+  rows={[
+    { label: '入口', values: ['`cli/` 终端入口（流式 stdin）', '`tui/` ratatui 全屏 UI（带 onboarding、trust）', '`app-server/` 加 `app-server-daemon/` 走 JSON-RPC，被 IDE、插件调用', '`cloud-tasks/` 远端任务 binary（独立运行）'] },
+    { label: '核心循环', values: ['`core/` 单 turn 闭环（assemble prompt → model call → tool dispatch → apply）', '`core-api/` 对外稳定接口', '`core-plugins/` 插件挂载点', '`protocol/` 跨 crate 共享类型'] },
+    { label: '状态与记忆', values: ['`state/` SQLite 加 lease、retry、backoff', '`memories/` 两阶段 consolidation（stage1 加 global）', '`memory_citation` 引用回溯', '`agent-graph-store/` thread、branch 拓扑'] },
+    { label: '工具', values: ['`apply-patch/` V4A patch 解析器', '`exec/` shell 执行', '`builtin-mcps/` 内置 MCP 桥', '`core-skills/` 8 子 crate skill 引擎'] },
+    { label: 'Sandbox', values: ['macOS：`sandbox-macos-seatbelt/` 写 .sbpl', 'Linux：`bwrap/` 加 `landlock/` 加 `seccomp/`', 'Windows：`windows-sandbox-rs/`', '统一抽象：`sandbox/` 加 `execpolicy/`'] },
+    { label: '观测与计费', values: ['`analytics/` 20+ event type', '`codex-otel/` OpenTelemetry 桥', '`codex-rollout-trace/` 整 session 回放', '`codex-cost/` token 转 USD 估算'] },
+  ]}
+  caption="Codex 把每个工程关注点都拆成独立 crate，是 mono-repo 的极端示例。"
+/>
+
+## §3 · 工程亮点
+
+1. **Rust 类型系统兜底**：`Result` 加 `enum` 让状态机错误不可能漏处理。`Stage1JobClaimOutcome` 这种 5 路 enum 强制 `match` 走全分支。
+2. **三平台原生 sandbox**：macOS 走 seatbelt（不依赖 SIP 关闭），Linux 用 bubblewrap 加 landlock 加 seccomp（不用 root），Windows 走 windows-sandbox-rs（不用 WSL）。
+3. **记忆 consolidation 后台化**：`memory_consolidate_global` 把 LLM 重写 MEMORY.md 和 skills 推到后台 job。主 turn 没有额外开销。
+4. **rollout-trace 可重放**：整 session 落盘成 JSONL，能回放复现。排查 agent 行为漂移只有这一条路。
+5. **`apply-patch` V4A 格式**：自家 patch 格式。比 unified diff 稳，比 SEARCH、REPLACE 高效，结构化对 LLM 也更友好。
+
+## §4 · 短板
+
+1. **改动成本高**：50+ crate，任何跨 crate 的修改都要动 protocol，编译时间长。
+2. **Rust 门槛陡**：异步加 lifetimes 加 tower 风格的 trait composition，本质上是一个 Rust 项目。
+3. **没有 user-level memory**：MEMORY.md 是 cwd 级，跨项目的偏好只能塞到 AGENTS.md 个人级。
+4. **TUI 优先**：IDE 集成走 `app-server` JSON-RPC，生态没 Claude Code 的 IDE 插件成熟。
+
+## §5 · 5 件最值得借鉴的工程动作
+
+1. **Phase 2 consolidation prompt**（`codex-rs/memories/write/templates/memories/consolidation.md`）：800 行 prompt 把「什么算高信号记忆」说清楚，自带 wording-preservation 规则。可以直接复用。
+2. **三平台 sandbox 抽象**（`sandbox/` 加 `execpolicy/`）：一份抽象、三套实现，跨平台 agent 的最佳参考。
+3. **Stage1JobClaimOutcome 5 路状态机**（`state/src/model/memories.rs`）：claim 一个 job 必有 5 种结局，全在 enum 里。
+4. **rollout-trace JSONL**：整 session 落盘做回放。想做 agent 的人都该有这个。
+5. **app-server JSON-RPC 协议**：把 agent 引擎做成独立进程加 JSON-RPC 客户端。IDE 插件不用重新实现 turn loop。
+
+## §6 · 源码地图
+
+<SourceTrail
+  entries={[
+    { system: 'Codex', path: 'REF/codex/codex-rs/core/src/lib.rs', desc: 'turn loop 入口' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/state/src/model/memories.rs', desc: 'Stage1 / Phase2 状态机' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/memories/write/templates/memories/consolidation.md', desc: '800 行 Phase2 prompt' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/sandbox-macos-seatbelt/src/lib.rs', desc: 'seatbelt 策略生成' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/bwrap/src/lib.rs', desc: 'bubblewrap + seccomp 拼装' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/cloud-tasks/src/main.rs', desc: '远端 worker 入口' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/analytics/src/event.rs', desc: '20+ 事件类型定义' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/tui/src/onboarding/trust_directory.rs', desc: 'TrustLevel 目录信任' },
+    { system: 'Codex', external: 'https://developers.openai.com/codex/cli', path: 'OpenAI Codex CLI 官方文档', desc: '产品文档与下载' },
+  ]}
+/>

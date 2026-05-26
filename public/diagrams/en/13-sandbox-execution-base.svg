@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 580" width="100%" font-family="'Kalam','Comic Neue',sans-serif">
+  <defs>
+    <filter id="r13">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="23" />
+      <feDisplacementMap in="SourceGraphic" scale="1.3" />
+    </filter>
+    <style>
+      .t { font-size: 14px; fill: #0f172a; }
+      .t-sub { font-size: 12px; fill: #334155; }
+      .head { font-size: 18px; fill: #0f172a; font-weight: 700; }
+    </style>
+  </defs>
+
+  <rect width="900" height="580" fill="#fbfaf7" />
+
+  <text x="450" y="34" class="head" text-anchor="middle">Sandbox &amp; execution environment: from self-managed trio to 6 back-ends</text>
+  <text x="450" y="54" class="t-sub" text-anchor="middle">bwrap+seccomp+landlock &#x00B7; schema config &#x00B7; ExecHost x3 &#x00B7; TERMINAL_ENV x6</text>
+
+  <g filter="url(#r13)">
+    <rect x="20" y="68" width="430" height="240" rx="12" fill="#fbfaf7" stroke="#1d4ed8" stroke-width="2.5" />
+    <text x="40" y="92" class="t" fill="#1d4ed8" font-weight="700">Codex &#x00B7; three-platform self-managed</text>
+    <text x="40" y="110" class="t-sub">Linux trio / macOS seatbelt / Windows crate</text>
+
+    <rect x="40" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="130" y="142" class="t" text-anchor="middle">Linux trio</text>
+    <text x="130" y="158" class="t-sub" text-anchor="middle">bubblewrap (FS)</text>
+    <text x="130" y="172" class="t-sub" text-anchor="middle">seccomp (network)</text>
+    <text x="130" y="186" class="t-sub" text-anchor="middle">landlock (legacy)</text>
+    <text x="130" y="200" class="t-sub" text-anchor="middle">PR_SET_NO_NEW_PRIVS</text>
+
+    <rect x="240" y="124" width="190" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="335" y="142" class="t" text-anchor="middle">macOS</text>
+    <text x="335" y="158" class="t-sub" text-anchor="middle">sandbox-exec</text>
+    <text x="335" y="172" class="t-sub" text-anchor="middle">.sb config file</text>
+    <text x="335" y="186" class="t-sub" text-anchor="middle">(seatbelt)</text>
+
+    <rect x="40" y="216" width="390" height="80" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="235" y="234" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">thread-level apply</text>
+    <text x="235" y="252" class="t-sub" text-anchor="middle">only child processes inherit the sandbox</text>
+    <text x="235" y="266" class="t-sub" text-anchor="middle">PR_SET_NO_NEW_PRIVS enabled on demand</text>
+    <text x="235" y="280" class="t-sub" text-anchor="middle">setuid vs seccomp trade-off</text>
+
+    <rect x="470" y="68" width="410" height="240" rx="12" fill="#fbfaf7" stroke="#6d28d9" stroke-width="2.5" />
+    <text x="490" y="92" class="t" fill="#6d28d9" font-weight="700">Claude Code &#x00B7; schema config</text>
+    <text x="490" y="110" class="t-sub">network + filesystem: two independent schemas</text>
+
+    <rect x="490" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="580" y="142" class="t" text-anchor="middle">network config</text>
+    <text x="580" y="158" class="t-sub" text-anchor="middle">allowedDomains</text>
+    <text x="580" y="172" class="t-sub" text-anchor="middle">allowUnixSockets (mac)</text>
+    <text x="580" y="186" class="t-sub" text-anchor="middle">httpProxyPort</text>
+    <text x="580" y="200" class="t-sub" text-anchor="middle">socksProxyPort</text>
+
+    <rect x="690" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="780" y="142" class="t" text-anchor="middle">filesystem config</text>
+    <text x="780" y="158" class="t-sub" text-anchor="middle">allowWrite / denyWrite</text>
+    <text x="780" y="172" class="t-sub" text-anchor="middle">denyRead / allowRead</text>
+    <text x="780" y="186" class="t-sub" text-anchor="middle">allowManaged*Only</text>
+
+    <rect x="490" y="216" width="380" height="80" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="680" y="234" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">NVIDIA enterprise rollout</text>
+    <text x="680" y="252" class="t-sub" text-anchor="middle">enabledPlatforms: ["macos"]</text>
+    <text x="680" y="266" class="t-sub" text-anchor="middle">autoAllowBashIfSandboxed</text>
+    <text x="680" y="280" class="t-sub" text-anchor="middle">enableWeakerNetworkIsolation ("Reduces security")</text>
+
+    <rect x="20" y="320" width="430" height="240" rx="12" fill="#fbfaf7" stroke="#15803d" stroke-width="2.5" />
+    <text x="40" y="344" class="t" fill="#15803d" font-weight="700">OpenClaw &#x00B7; ExecHost x3</text>
+    <text x="40" y="362" class="t-sub">sandbox implementation delegated to the host</text>
+
+    <rect x="40" y="376" width="125" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="102" y="394" class="t" text-anchor="middle">sandbox</text>
+    <text x="102" y="412" class="t-sub" text-anchor="middle">external container</text>
+    <text x="102" y="426" class="t-sub" text-anchor="middle">Docker /</text>
+    <text x="102" y="440" class="t-sub" text-anchor="middle">Firecracker</text>
+
+    <rect x="170" y="376" width="125" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="232" y="394" class="t" text-anchor="middle">gateway</text>
+    <text x="232" y="412" class="t-sub" text-anchor="middle">gateway process</text>
+    <text x="232" y="426" class="t-sub" text-anchor="middle">lightweight</text>
+    <text x="232" y="440" class="t-sub" text-anchor="middle">fs ops</text>
+
+    <rect x="300" y="376" width="125" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="362" y="394" class="t" text-anchor="middle">node</text>
+    <text x="362" y="412" class="t-sub" text-anchor="middle">direct host</text>
+    <text x="362" y="426" class="t-sub" text-anchor="middle">trusted commands</text>
+    <text x="362" y="440" class="t-sub" text-anchor="middle">git info</text>
+
+    <rect x="40" y="468" width="390" height="80" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="235" y="486" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">no built-in sandbox impl</text>
+    <text x="235" y="504" class="t-sub" text-anchor="middle">host without sandboxing = no sandbox</text>
+    <text x="235" y="518" class="t-sub" text-anchor="middle">deployer supplies the sandbox</text>
+    <text x="235" y="532" class="t-sub" text-anchor="middle">framework supplies only the abstraction</text>
+
+    <rect x="470" y="320" width="410" height="240" rx="12" fill="#fbfaf7" stroke="#ea580c" stroke-width="2.5" />
+    <text x="490" y="344" class="t" fill="#ea580c" font-weight="700">Hermes &#x00B7; TERMINAL_ENV x6</text>
+    <text x="490" y="362" class="t-sub">outsourced to containers / remote back-ends</text>
+
+    <rect x="490" y="376" width="180" height="170" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="580" y="394" class="t" text-anchor="middle">6 back-ends</text>
+    <text x="580" y="412" class="t-sub" text-anchor="middle">local (dev)</text>
+    <text x="580" y="426" class="t-sub" text-anchor="middle">docker</text>
+    <text x="580" y="440" class="t-sub" text-anchor="middle">singularity (HPC)</text>
+    <text x="580" y="454" class="t-sub" text-anchor="middle">modal (serverless)</text>
+    <text x="580" y="468" class="t-sub" text-anchor="middle">daytona (devenv)</text>
+    <text x="580" y="482" class="t-sub" text-anchor="middle">ssh (remote VM)</text>
+
+    <rect x="690" y="376" width="180" height="170" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="780" y="394" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">5 knobs per back-end</text>
+    <text x="780" y="412" class="t-sub" text-anchor="middle">image</text>
+    <text x="780" y="426" class="t-sub" text-anchor="middle">cpu / memory / disk</text>
+    <text x="780" y="440" class="t-sub" text-anchor="middle">persistent (default on)</text>
+    <text x="780" y="454" class="t-sub" text-anchor="middle">timeout / lifetime</text>
+    <text x="780" y="468" class="t-sub" text-anchor="middle">host cwd not mounted by default</text>
+    <text x="780" y="482" class="t-sub" text-anchor="middle">MOUNT_CWD opt-in</text>
+  </g>
+</svg>

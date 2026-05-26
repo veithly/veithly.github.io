@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 580" role="img"
+     aria-label="四种 code review 模式对比">
+  <defs>
+    
+    <filter id="wobble">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="7" />
+      <feDisplacementMap in="SourceGraphic" scale="2" />
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#0f172a" />
+    </marker>
+
+    <style>
+    .h     { font: 600 14px sans-serif; fill: #0f172a; }
+    .t     { font: 12px sans-serif; fill: #0f172a; }
+    .t-sub { font: 12px sans-serif; fill: #334155; }
+    .sys   { font: 700 13px sans-serif; fill: #fbfaf7; }
+    .stage { font: 600 12px sans-serif; fill: #0f172a; }
+    .num   { font: 700 16px sans-serif; fill: #ea580c; }
+</style>
+  </defs>
+
+  <text x="20" y="28" class="h">同样是"另一个 agent 来检查"，四家包装方式不一样</text>
+  <text x="20" y="48" class="t-sub">从"受约束子 agent" 到"同上下文 prompt" 到"远程 pipeline" 到"不内建"</text>
+
+  <g filter="url(#wobble)">
+    <!-- Codex lane -->
+    <rect x="20" y="68" width="430" height="240" rx="12"
+          fill="#fbfaf7" stroke="#1d4ed8" stroke-width="2.5" />
+    <text x="40" y="92" class="t" fill="#1d4ed8" font-weight="700">Codex · 双层</text>
+    <text x="40" y="110" class="t-sub">code review sub-agent + guardian sub-agent</text>
+
+    <!-- code review sub-agent -->
+    <rect x="40" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="130" y="142" class="t" text-anchor="middle">/review 触发</text>
+    <text x="130" y="158" class="t-sub" text-anchor="middle">fork sub-agent</text>
+    <text x="130" y="172" class="t-sub" text-anchor="middle">web_search=Disabled</text>
+    <text x="130" y="186" class="t-sub" text-anchor="middle">Spawn/Collab=Disabled</text>
+    <text x="130" y="200" class="t-sub" text-anchor="middle">approval=Never</text>
+
+    <!-- 4 targets -->
+    <rect x="40" y="216" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="130" y="234" class="t" text-anchor="middle">4 种 target</text>
+    <text x="130" y="250" class="t-sub" text-anchor="middle">uncommitted</text>
+    <text x="130" y="264" class="t-sub" text-anchor="middle">base-branch</text>
+    <text x="130" y="278" class="t-sub" text-anchor="middle">commit</text>
+    <text x="130" y="292" class="t-sub" text-anchor="middle">custom</text>
+
+    <!-- guardian -->
+    <rect x="240" y="124" width="190" height="172" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="335" y="142" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">guardian/review.rs</text>
+    <text x="335" y="160" class="t-sub" text-anchor="middle">主 agent tool_call</text>
+    <text x="335" y="174" class="t-sub" text-anchor="middle">→ guardian sub-agent 审</text>
+    <text x="335" y="188" class="t-sub" text-anchor="middle">risk level + decision</text>
+    <text x="335" y="206" class="t-sub" text-anchor="middle">rejection workaround</text>
+    <text x="335" y="220" class="t-sub" text-anchor="middle">防御 + timeout</text>
+    <text x="335" y="234" class="t-sub" text-anchor="middle">circuit breaker</text>
+    <text x="335" y="258" class="t-sub" text-anchor="middle">"agent 审 agent"</text>
+
+    <!-- Claude Code lane -->
+    <rect x="470" y="68" width="410" height="240" rx="12"
+          fill="#fbfaf7" stroke="#6d28d9" stroke-width="2.5" />
+    <text x="490" y="92" class="t" fill="#6d28d9" font-weight="700">Claude Code · 本地 + 远程</text>
+    <text x="490" y="110" class="t-sub">/review prompt-as-command + /ultrareview teleport</text>
+
+    <rect x="490" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="580" y="142" class="t" text-anchor="middle">/review (本地)</text>
+    <text x="580" y="158" class="t-sub" text-anchor="middle">一段写好的 prompt</text>
+    <text x="580" y="172" class="t-sub" text-anchor="middle">塑进主 agent</text>
+    <text x="580" y="186" class="t-sub" text-anchor="middle">gh pr view / diff</text>
+    <text x="580" y="200" class="t-sub" text-anchor="middle">5 section 输出</text>
+
+    <rect x="690" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="780" y="142" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">/ultrareview</text>
+    <text x="780" y="158" class="t-sub" text-anchor="middle">teleport → CCR Web</text>
+    <text x="780" y="172" class="t-sub" text-anchor="middle">10-20 分钟</text>
+    <text x="780" y="186" class="t-sub" text-anchor="middle">quota / billing gate</text>
+    <text x="780" y="200" class="t-sub" text-anchor="middle">task-notification 回写</text>
+
+    <rect x="490" y="216" width="380" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="680" y="234" class="t" text-anchor="middle">共同点</text>
+    <text x="680" y="250" class="t-sub" text-anchor="middle">prompt 里强制 reviewer 角色</text>
+    <text x="680" y="264" class="t-sub" text-anchor="middle">/pr_comments 补助命令处理评论回写</text>
+    <text x="680" y="278" class="t-sub" text-anchor="middle">2.1.88 版本走 prompt-as-command 不开 sub-thread</text>
+
+    <!-- OpenClaw lane -->
+    <rect x="20" y="320" width="430" height="200" rx="12"
+          fill="#fbfaf7" stroke="#15803d" stroke-width="2.5" />
+    <text x="40" y="344" class="t" fill="#15803d" font-weight="700">OpenClaw · plugin hook</text>
+    <text x="40" y="362" class="t-sub">不内建，留给 tool-policy-pipeline</text>
+
+    <rect x="40" y="376" width="390" height="130" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="235" y="396" class="t" text-anchor="middle">after_tool_call hook</text>
+    <text x="235" y="416" class="t-sub" text-anchor="middle">用户 plugin 可在这里挂 reviewer middleware</text>
+    <text x="235" y="436" class="t-sub" text-anchor="middle">每次 fs.write 后跰 reviewer prompt</text>
+    <text x="235" y="456" class="t-sub" text-anchor="middle">findings 作为 system message 注入下一轮</text>
+    <text x="235" y="480" class="t-sub" text-anchor="middle">控制面定位下的正确克制</text>
+
+    <!-- Hermes lane -->
+    <rect x="470" y="320" width="410" height="200" rx="12"
+          fill="#fbfaf7" stroke="#ea580c" stroke-width="2.5" />
+    <text x="490" y="344" class="t" fill="#ea580c" font-weight="700">Hermes · 零基础设施</text>
+    <text x="490" y="362" class="t-sub">不内建，走 terminal + 用户 prompt</text>
+
+    <rect x="490" y="376" width="370" height="130" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="675" y="396" class="t" text-anchor="middle">user: "review 代码"</text>
+    <text x="675" y="416" class="t-sub" text-anchor="middle">↓</text>
+    <text x="675" y="430" class="t-sub" text-anchor="middle">terminal_tool 跑 git diff</text>
+    <text x="675" y="446" class="t-sub" text-anchor="middle">↓</text>
+    <text x="675" y="460" class="t-sub" text-anchor="middle">主对话里输出 review</text>
+    <text x="675" y="484" class="t-sub" text-anchor="middle">没 reviewer 角色隔离，容易跑偏</text>
+  </g>
+
+  <text x="450" y="558" class="t-sub" text-anchor="middle">隔离度：Codex sub-agent » /ultrareview » OpenClaw hook » /review (local) » Hermes terminal-only</text>
+</svg>

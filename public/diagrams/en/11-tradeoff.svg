@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 480" role="img"
+     aria-label="Four session models on storage depth and lifecycle granularity">
+  <defs>
+    <filter id="wb11"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="93" /><feDisplacementMap in="SourceGraphic" scale="2" /></filter>
+    <marker id="ar11" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .ax   { font: 600 12.5px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #64748b; }
+      .pin  { font: 700 12.5px sans-serif; fill: #fff; }
+      .note { font: italic 10.5px sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <text x="390" y="26" class="h" text-anchor="middle">Session lifecycle: storage engineering &#x00D7; lifecycle granularity</text>
+  <text x="390" y="44" class="t-s" text-anchor="middle">Right = heavier storage; up = finer hook granularity. The right choice depends on product positioning.</text>
+
+  <g filter="url(#wb11)">
+    <rect x="100" y="80" width="280" height="160" fill="#fef3c7" opacity="0.4" />
+    <rect x="380" y="80" width="280" height="160" fill="#dcfce7" opacity="0.4" />
+    <rect x="100" y="240" width="280" height="160" fill="#dbeafe" opacity="0.4" />
+    <rect x="380" y="240" width="280" height="160" fill="#fee2e2" opacity="0.4" />
+
+    <text x="120" y="100" class="t-s">minimal &#x00B7; fine-grained hooks</text>
+    <text x="640" y="100" class="t-s" text-anchor="end">heavy persistence &#x00B7; fine-grained hooks</text>
+    <text x="110" y="394" class="t-s">minimal &#x00B7; no hooks</text>
+    <text x="650" y="394" class="t-s" text-anchor="end">heavy persistence &#x00B7; no hooks</text>
+
+    <line x1="100" y1="400" x2="660" y2="400" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar11)" />
+    <line x1="100" y1="400" x2="100" y2="70" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar11)" />
+    <line x1="380" y1="80" x2="380" y2="400" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="100" y1="240" x2="660" y2="240" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+
+    <text x="660" y="420" class="ax" text-anchor="end">session storage / index depth &#x2192;</text>
+    <text x="110" y="68" class="ax">&#x2191; granularity of lifecycle events</text>
+
+    <circle cx="180" cy="320" r="14" fill="#15803d" stroke="#0f172a" stroke-width="2" />
+    <text x="180" y="324" class="pin" text-anchor="middle">OC</text>
+    <text x="180" y="351" class="t" text-anchor="middle">OpenClaw</text>
+    <text x="180" y="366" class="t-s" text-anchor="middle">a one-line UUID regex</text>
+    <text x="180" y="379" class="t-s" text-anchor="middle">storage left to upper layers</text>
+
+    <circle cx="600" cy="220" r="14" fill="#1d4ed8" stroke="#0f172a" stroke-width="2" />
+    <text x="600" y="224" class="pin" text-anchor="middle">CX</text>
+    <text x="600" y="251" class="t" text-anchor="middle">Codex</text>
+    <text x="600" y="266" class="t-s" text-anchor="middle">JSONL + SQLite</text>
+    <text x="600" y="279" class="t-s" text-anchor="middle">5 RolloutItem variants</text>
+
+    <circle cx="570" cy="120" r="14" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+    <text x="570" y="124" class="pin" text-anchor="middle">CC</text>
+    <text x="570" y="151" class="t" text-anchor="middle">Claude Code</text>
+    <text x="570" y="166" class="t-s" text-anchor="middle">22 tools + 4 hooks</text>
+    <text x="570" y="179" class="t-s" text-anchor="middle">startup/resume/clear/compact</text>
+
+    <circle cx="385" cy="170" r="14" fill="#ea580c" stroke="#0f172a" stroke-width="2" />
+    <text x="385" y="174" class="pin" text-anchor="middle">HM</text>
+    <text x="385" y="201" class="t" text-anchor="middle">Hermes</text>
+    <text x="385" y="216" class="t-s" text-anchor="middle">multi-platform SessionSource</text>
+    <text x="385" y="229" class="t-s" text-anchor="middle">+ 4 reset modes</text>
+  </g>
+
+  <text x="20" y="465" class="t-s">CX = Codex &#x00B7; CC = Claude Code &#x00B7; OC = OpenClaw &#x00B7; HM = Hermes</text>
+</svg>

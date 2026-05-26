@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 510" role="img"
+     aria-label="The four agents plotted across short-term controllability and long-term autonomy, with scenario annotations">
+  <defs>
+    <filter id="wb01">
+      <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="3" />
+      <feDisplacementMap in="SourceGraphic" scale="2" />
+    </filter>
+    <marker id="ar01" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#0f172a" />
+    </marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .sub  { font: 12px sans-serif; fill: #64748b; }
+      .ax   { font: 600 12.5px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #64748b; }
+      .pin  { font: 700 12.5px sans-serif; fill: #fff; }
+      .case { font: italic 11px sans-serif; fill: #475569; }
+      .quad { font: 12px sans-serif; fill: #94a3b8; }
+    </style>
+  </defs>
+
+  <text x="410" y="28" class="h" text-anchor="middle">Four agents: short-term control &#x2194; long-term autonomy</text>
+  <text x="410" y="48" class="sub" text-anchor="middle">One agent stack, four trade-off points on the diagonal &#x2014; not a ranking, a scenario fit</text>
+
+  <g filter="url(#wb01)">
+    <rect x="100" y="80" width="310" height="170" fill="#fef3c7" opacity="0.4" />
+    <rect x="410" y="80" width="310" height="170" fill="#dcfce7" opacity="0.4" />
+    <rect x="100" y="250" width="310" height="180" fill="#dbeafe" opacity="0.4" />
+    <rect x="410" y="250" width="310" height="180" fill="#fee2e2" opacity="0.4" />
+
+    <text x="115" y="100" class="quad">tight control &#x00B7; no auto-run</text>
+    <text x="705" y="100" class="quad" text-anchor="end">tight control &#x00B7; long-running OK</text>
+    <text x="115" y="270" class="quad">approve every step &#x00B7; no auto-run</text>
+    <text x="705" y="270" class="quad" text-anchor="end">let it run on its own</text>
+
+    <line x1="100" y1="430" x2="720" y2="430" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar01)" />
+    <line x1="100" y1="430" x2="100" y2="70" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar01)" />
+    <line x1="410" y1="80" x2="410" y2="430" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="100" y1="250" x2="720" y2="250" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+
+    <text x="720" y="452" class="ax" text-anchor="end">short-term controllability (how easy is per-step approval) &#x2192;</text>
+    <text x="110" y="68" class="ax">&#x2191; long-term autonomy (self-running + self-learning)</text>
+
+    <circle cx="190" cy="355" r="15" fill="#1d4ed8" stroke="#0f172a" stroke-width="2" />
+    <text x="190" y="359" class="pin" text-anchor="middle">CX</text>
+    <text x="190" y="388" class="t" text-anchor="middle">Codex</text>
+    <text x="190" y="403" class="t-s" text-anchor="middle">execpolicy per-step review + rollout recovery</text>
+    <text x="190" y="420" class="case" text-anchor="middle">&#x201C;edit one repo &#x00B7; review every step&#x201D;</text>
+
+    <circle cx="345" cy="275" r="15" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+    <text x="345" y="279" class="pin" text-anchor="middle">CC</text>
+    <text x="345" y="308" class="t" text-anchor="middle">Claude Code</text>
+    <text x="345" y="323" class="t-s" text-anchor="middle">5 priorities + 7 transition reasons</text>
+    <text x="345" y="340" class="case" text-anchor="middle">&#x201C;IDE coding &#x00B7; gradual automation&#x201D;</text>
+
+    <circle cx="510" cy="195" r="15" fill="#15803d" stroke="#0f172a" stroke-width="2" />
+    <text x="510" y="199" class="pin" text-anchor="middle">OC</text>
+    <text x="510" y="228" class="t" text-anchor="middle">OpenClaw</text>
+    <text x="510" y="243" class="t-s" text-anchor="middle">plugin-driven + lane concurrency</text>
+    <text x="510" y="260" class="case" text-anchor="middle">&#x201C;Slack bot &#x00B7; multi-user concurrent&#x201D;</text>
+
+    <circle cx="645" cy="120" r="15" fill="#ea580c" stroke="#0f172a" stroke-width="2" />
+    <text x="645" y="124" class="pin" text-anchor="middle">HM</text>
+    <text x="645" y="153" class="t" text-anchor="middle">Hermes</text>
+    <text x="645" y="168" class="t-s" text-anchor="middle">memory + self-eval</text>
+    <text x="645" y="185" class="case" text-anchor="middle">&#x201C;personal assistant &#x00B7; cross-session long-running&#x201D;</text>
+  </g>
+
+  <text x="410" y="490" class="t-s" text-anchor="middle">No &#x201C;best&#x201D; &#x2014; only &#x201C;fits the scenario&#x201D;: edit a repo? bottom-left. IDE coding? middle. Build a server? upper-middle. Long-running assistant? upper-right.</text>
+</svg>

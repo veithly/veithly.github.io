@@ -1,0 +1,169 @@
+---
+title: 面试题索引：22 章 × 10 题 = 220 道高频考点
+description: 把全书 22 章每章末尾的 §11 面试题汇总成一份索引，按主题分组，方便交叉查阅。每一题点进去都有详细答案、源码出处和追问。
+sidebar:
+  order: 99
+  label: 面试题索引
+  badge:
+    text: 220 题
+    variant: tip
+---
+
+import Verdict from '@components/Verdict.astro';
+
+## §1 · 怎么用这份索引
+
+<Verdict tldr="每章末尾的 §11 · 面试题：10 道带答案的高频考点，覆盖该章一个独立主题（agent loop、context、tool、memory、security、todo list、execution state surfaces 等）。3-5 段答案，附源码引用和追问。这份索引把 220 道题按 4 个主题组重新切片，让你横着比四家在同一个问题上的回答。备战面试按组刷，写 agent 按主题查，面试官出题按列表挑。" />
+
+四种使用姿势：
+
+1. 按章顺刷：从 §1 读到 §22，每章 10 道，越靠后题越深。
+2. 按主题切片：用下方「主题速查」表，找同一类问题在不同章节的角度。
+3. 当面试题库：表里每个题号都直链到对应章节的 §11，复制粘贴可直接当题。
+4. 当自查 checklist：写 agent 遇到设计抉择，去对应章看那 10 道题对得上吗。
+
+## §2 · 第一组 · Agent 基础设计（5 章 × 10 题 = 50 道）
+
+> 主题：harness 定义、agent loop、context、tool、verifier。读完这 50 道，等于把 agent 基础设计的术语和取舍全过了一遍。
+
+| 章节 | 主题 | 链接 |
+|------|------|------|
+| §1 | Agent Harness 定义、概念边界、四家场景选型 | [01 · 总览](/patterns/01-overview/#11--面试题10-道带答案的高频考点) |
+| §2 | Agent loop 五段（perceive / plan / act / observe / verify）、turn 数据结构、prompt 装配、context 压缩、出错恢复、工具 dispatch、verifier | [02 · Agent Loop](/patterns/02-agent-loop/#11--面试题10-道带答案的高频考点) |
+| §3 | Context 系统：四家从 markdown 到 10 层装配的全光谱；prefix cache 怎么保 | [03 · Context 系统](/patterns/03-context-system/#11--面试题10-道带答案的高频考点) |
+| §4 | Tool 系统：协议、注册、并行、安全门控 | [04 · Tool 系统](/patterns/04-tool-system/#11--面试题10-道带答案的高频考点) |
+| §5 | Verifier：硬 / 软 / 放任型三层 + 停机检测 | [05 · Verifier](/patterns/05-verifier/#11--面试题10-道带答案的高频考点) |
+
+## §3 · 第二组 · Coding Agent 工程（4 章 × 10 题 = 40 道）
+
+> 主题：coding agent 的真实工程细节，包括 patch 算法、shell 调用、git 工作流、code review 自动化。读完知道 coding agent 比聊天 agent 多哪些坑。
+
+| 章节 | 主题 | 链接 |
+|------|------|------|
+| §6 | 文件编辑 + patch 算法：apply_patch V4A 多版本 diff merge | [06 · 文件编辑 patch](/patterns/06-file-edit-patch/#11--面试题10-道带答案的高频考点) |
+| §7 | Shell 执行：execpolicy / sandbox / approval mode | [07 · Shell 执行](/patterns/07-shell-execution/#11--面试题10-道带答案的高频考点) |
+| §8 | Git 工作流：worktree / branch / commit 自动化 | [08 · Git 工作流](/patterns/08-git-workflow/#11--面试题10-道带答案的高频考点) |
+| §9 | Code review：`/security-review` + LLM-as-reviewer 模式 | [09 · Code Review](/patterns/09-code-review/#11--面试题10-道带答案的高频考点) |
+
+## §4 · 第三组 · 并发与运行时（5 章 × 10 题 = 50 道）
+
+> 主题：subagent、session 生命周期、权限、sandbox、多渠道入口。这 50 道是让 agent 跑得稳的工程基础。
+
+| 章节 | 主题 | 链接 |
+|------|------|------|
+| §10 | Subagent：fork / inline 边界、context 隔离 | [10 · Subagent](/patterns/10-subagents/#11--面试题10-道带答案的高频考点) |
+| §11 | Session 生命周期：start / resume / interrupt / persist | [11 · Session 生命周期](/patterns/11-session-lifecycle/#11--面试题10-道带答案的高频考点) |
+| §12 | 权限与审批：AskForApproval 4 档 + autoMode rule + INSTALL_POLICY 12 格 | [12 · 权限审批](/patterns/12-permissions-approvals/#11--面试题10-道带答案的高频考点) |
+| §13 | Sandbox 执行：macOS seatbelt / Linux bwrap+seccomp+landlock / Windows | [13 · Sandbox 执行](/patterns/13-sandbox-execution/#11--面试题10-道带答案的高频考点) |
+| §14 | 多渠道入口：CLI / TUI / IDE / web / cron | [14 · 多渠道入口](/patterns/14-multi-channel-entry/#11--面试题10-道带答案的高频考点) |
+
+## §5 · 第四组 · 演化与安全（8 章 × 10 题 = 80 道）
+
+> 主题：可观测性、记忆、技能、定时任务、自我改进、安全、todo list、execution state surfaces。这 80 道是让 agent 长期跑下去且不被人薅的核心。
+
+| 章节 | 主题 | 链接 |
+|------|------|------|
+| §15 | 可观测性与成本：token / latency / tool.loop 检测 | [15 · 可观测性与成本](/patterns/15-observability-cost/#11--面试题10-道带答案的高频考点) |
+| §16 | 记忆系统：4 种 MemoryType、frozen snapshot、decay、prefix cache | [16 · 记忆](/patterns/16-memory/#11--面试题10-道带答案的高频考点) |
+| §17 | 技能系统：8 crate / skillify / skill-scanner / 12 格 trust matrix | [17 · 技能](/patterns/17-skills/#11--面试题10-道带答案的高频考点) |
+| §18 | Cron 与后台任务：tick + scheduler lock + isolated-agent | [18 · Cron 后台任务](/patterns/18-cron-background/#11--面试题10-道带答案的高频考点) |
+| §19 | 自我改进：Phase1+2 / skillify / 被动索引 / turn 内显式写 | [19 · 自我改进](/patterns/19-self-improvement/#11--面试题10-道带答案的高频考点) |
+| §20 | 安全：sandbox / external-content / redact / cosign provenance | [20 · 安全](/patterns/20-security/#11--面试题10-道带答案的高频考点) |
+| §21 | Todo List：update_plan / TodoWrite / runtime progress / compaction recovery | [21 · Todo List](/patterns/21-todo-list/#11--面试题10-道带答案的高频考点) |
+| §22 | Execution State Surfaces：Plan / Todo / tool progress / task progress / terminal status / away summary 路由 | [22 · Execution State Surfaces](/patterns/22-execution-state-surfaces/#11--面试题10-道带答案的高频考点) |
+
+## §6 · 主题速查（按问题类型切片 220 道）
+
+把 220 道题按典型问题类型重新分组。同一个工程问题在不同章节会从不同角度出现，横着读最快。
+
+### 6.1 概念定义类
+
+四家术语对齐、边界划清。常见在「这两个概念有什么区别」「为什么这么分」。
+
+| 出处 | 典型问题 |
+|------|--------|
+| §1 Q1 | Agent Harness vs Agent 模型 |
+| §2 Q1 | Agent loop 的「turn」是物理还是逻辑单位 |
+| §4 Q1 | Tool / Function / Skill 三个词的边界 |
+| §10 Q1 | Subagent / fork / inline 的差异 |
+| §17 Q1 | Skill / prompt 模板 / tool / agent 的边界 |
+| §18 Q1 | Cron job / background task / long-running task 的区别 |
+| §21 Q1 | Todo list 和 Plan Mode 的边界 |
+| §22 Q1 | Execution State Surface 和 Todo List 的边界 |
+
+### 6.2 取舍类（trade-off）
+
+为什么 A 不选 B，给具体场景说服。常见在「为什么 Codex 用 X 而 Hermes 用 Y」。
+
+| 出处 | 典型问题 |
+|------|--------|
+| §2 Q4 / §3 Q6 | 何时用 prefix cache，何时直接重算 |
+| §11 Q3 | session 持久化要不要做版本号 |
+| §13 Q5 | sandbox 为什么不直接禁所有网络 |
+| §15 Q4 | observability 数据怎么不撑爆磁盘 |
+| §16 Q5 | memory 用 token 限制还是 char 限制 |
+| §18 Q3 | cron 失败 auto-disable 还是 retry |
+| §19 Q3 | OpenClaw halfLifeDays=30 怎么算 |
+| §20 Q3 | fail_open 还是 fail_closed |
+| §21 Q6 | 轻量 TodoWrite 还是 file-backed Tasks |
+| §22 Q6 | 多通道 progress 为什么要 per-platform 配置 |
+
+### 6.3 实现细节类
+
+具体 API、数据结构、源码出处。常见在「这段代码为什么这么写」「实际跑起来怎么处理 X」。
+
+| 出处 | 典型问题 |
+|------|--------|
+| §2 Q7 / §6 Q4 | apply_patch V4A 多版本 diff merge 算法 |
+| §3 Q8 | Hermes 10 层 prompt assembly 怎么排序 |
+| §4 Q6 | dispatchToolUseBlocks 并行 dispatch 实现 |
+| §5 Q5 | Codex `goals.rs` 怎么判断收敛 |
+| §12 Q4 | AskForApproval 4 档怎么映射到 UI |
+| §16 Q8 | Hermes _file_lock fcntl/msvcrt 跨平台 |
+| §17 Q6 | Hermes 12 格 INSTALL_POLICY 怎么算 |
+| §20 Q1 | OpenClaw 随机 8 字节 ID 包裹原理 |
+| §21 Q8 | todo replace vs merge API 取舍 |
+| §22 Q3 | MCP progress 和 tool result 的协议边界 |
+
+### 6.4 安全类
+
+注入 / 投毒 / 密钥 / 供应链。常见在「这个攻击怎么防」「为什么这么设计」。
+
+| 出处 | 典型问题 |
+|------|--------|
+| §12 Q9 | 用户密码不进 prompt 怎么实现 |
+| §13 Q7 | sandbox 逃逸的常见路径 |
+| §17 Q7 | OpenClaw skill-scanner 3 严重级 |
+| §19 Q5 | Hermes 拦截 invisible unicode 的理由 |
+| §19 Q10 | 6 层安全防护栈对应威胁 |
+| §20 Q1 | external-content 随机 ID 防伪造 |
+| §20 Q2 | tirith exit code 是真相源 |
+| §20 Q5 | Codex memory prompt 显式 treat as data |
+| §20 Q10 | 5 层通用安全防御栈 |
+| §21 Q9 | todo 完成前为什么要 verification nudge |
+| §22 Q8 | progress surface 为什么还需要 no-progress detector |
+
+### 6.5 工程实践类
+
+写自己的 agent 时具体怎么做。常见在「production 至少要哪些」「最小可行的实现是什么」。
+
+| 出处 | 典型问题 |
+|------|--------|
+| §1 Q9 | 什么场景不该用「重 harness」 |
+| §5 Q10 | verifier 设计的 5 条铁律 |
+| §10 Q10 | 通用 subagent 设计 checklist |
+| §15 Q10 | observability 通用框架 |
+| §16 Q10 | 通用 memory 架构 5 层 |
+| §17 Q10 | 通用 skill 系统 6 层 |
+| §18 Q10 | 通用 cron 系统 7 层 |
+| §19 Q10 | 通用自我改进防御 6 层 |
+| §20 Q10 | 通用安全防御 5 层 |
+| §21 Q10 | 通用 todo/progress surface 最小 5 层 |
+| §22 Q10 | execution-state router 最小字段 |
+
+## §7 · 怎么继续
+
+读完 220 道，下一步是把洞见沉淀成可复用的工程能力。两条路：
+
+- 照着复刻：选一个章节的「§7 · 自己实现怎么选 / 复刻方案」，按 step 落地最小可行版本。
+- 沉淀成 skill：用本站配套的 `~/.claude/skills/build-your-own-agent/` skill，把 220 道题归纳的最佳实践直接调出。详见各章末尾的 `<BuildRecipe />` 块。

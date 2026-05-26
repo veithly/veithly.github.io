@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 480" role="img"
+     aria-label="V4A 内嵌 DSL vs str_replace 调用：两条路线的取舍">
+  <defs>
+    <filter id="wb06p"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="33" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar06p" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .lane { font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .gate { font: italic 11px sans-serif; fill: #b91c1c; }
+    </style>
+  </defs>
+
+  <text x="410" y="26" class="h" text-anchor="middle">两条路线的取舍</text>
+  <text x="410" y="44" class="t-s" text-anchor="middle">两边都不让模型「盲改」——一边靠 parser 当门神，一边靠唯一匹配 + mtime 当门神</text>
+
+  <!-- Lane A: V4A -->
+  <text x="30" y="90" class="lane">Codex / Hermes · V4A 内嵌 DSL</text>
+
+  <g filter="url(#wb06p)">
+    <rect x="30" y="100" width="180" height="80" rx="10" fill="#fef3c7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="120" y="125" class="lbl" text-anchor="middle">模型一次输出</text>
+    <text x="120" y="143" class="t-s" text-anchor="middle">*** Begin Patch</text>
+    <text x="120" y="156" class="t-s" text-anchor="middle">Update / Add / Delete</text>
+    <text x="120" y="169" class="t-s" text-anchor="middle">*** End Patch</text>
+
+    <line x1="210" y1="140" x2="250" y2="140" stroke="#0f172a" stroke-width="2" marker-end="url(#ar06p)" />
+
+    <rect x="250" y="100" width="180" height="80" rx="10" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.8" />
+    <text x="340" y="125" class="lbl" text-anchor="middle">parser 一次校验</text>
+    <text x="340" y="143" class="t-s" text-anchor="middle">Lark grammar · 5 markers</text>
+    <text x="340" y="156" class="gate" text-anchor="middle">任一失败 → 整段 reject</text>
+    <text x="340" y="170" class="t-s" text-anchor="middle">seek_sequence 找锚点</text>
+
+    <line x1="430" y1="140" x2="470" y2="140" stroke="#0f172a" stroke-width="2" marker-end="url(#ar06p)" />
+
+    <rect x="470" y="100" width="180" height="80" rx="10" fill="#dcfce7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="560" y="125" class="lbl" text-anchor="middle">磁盘一次落盘</text>
+    <text x="560" y="143" class="t-s" text-anchor="middle">Update 3 files</text>
+    <text x="560" y="156" class="t-s" text-anchor="middle">Add 1 file</text>
+    <text x="560" y="170" class="t-s" text-anchor="middle">全部 atomic</text>
+
+    <line x1="650" y1="140" x2="685" y2="140" stroke="#0f172a" stroke-width="2" marker-end="url(#ar06p)" />
+    <rect x="685" y="115" width="115" height="50" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.8" />
+    <text x="742" y="135" class="lbl" text-anchor="middle">rollout 存档</text>
+    <text x="742" y="152" class="t-s" text-anchor="middle">可 replay</text>
+  </g>
+
+  <line x1="30" y1="220" x2="800" y2="220" stroke="#64748b" stroke-width="1" stroke-dasharray="4 3" />
+
+  <!-- Lane B: str_replace -->
+  <text x="30" y="250" class="lane">Claude Code · str_replace 拆原子</text>
+
+  <g filter="url(#wb06p)">
+    <rect x="30" y="260" width="180" height="80" rx="10" fill="#fef3c7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="120" y="285" class="lbl" text-anchor="middle">tool_use #1</text>
+    <text x="120" y="303" class="t-s" text-anchor="middle">old_string A</text>
+    <text x="120" y="316" class="t-s" text-anchor="middle">new_string B</text>
+    <text x="120" y="330" class="t-s" text-anchor="middle">replace_all? bool</text>
+
+    <line x1="210" y1="300" x2="250" y2="300" stroke="#0f172a" stroke-width="2" marker-end="url(#ar06p)" />
+
+    <rect x="250" y="260" width="180" height="80" rx="10" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.8" />
+    <text x="340" y="285" class="lbl" text-anchor="middle">工具校验</text>
+    <text x="340" y="303" class="t-s" text-anchor="middle">unique match</text>
+    <text x="340" y="316" class="t-s" text-anchor="middle">mtime 未变</text>
+    <text x="340" y="330" class="gate" text-anchor="middle">FILE_UNEXPECTEDLY_MODIFIED</text>
+
+    <line x1="430" y1="300" x2="470" y2="300" stroke="#0f172a" stroke-width="2" marker-end="url(#ar06p)" />
+
+    <rect x="470" y="260" width="180" height="80" rx="10" fill="#dcfce7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="560" y="285" class="lbl" text-anchor="middle">落盘 + 副作用</text>
+    <text x="560" y="303" class="t-s" text-anchor="middle">LSP diagnostics 失效</text>
+    <text x="560" y="316" class="t-s" text-anchor="middle">fileHistory 追踪</text>
+    <text x="560" y="330" class="t-s" text-anchor="middle">VS Code SDK 通知</text>
+
+    <line x1="650" y1="300" x2="685" y2="300" stroke="#0f172a" stroke-width="2" marker-end="url(#ar06p)" />
+    <rect x="685" y="275" width="115" height="50" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.8" />
+    <text x="742" y="295" class="lbl" text-anchor="middle">tool_use #2</text>
+    <text x="742" y="312" class="t-s" text-anchor="middle">重复 N 次</text>
+  </g>
+
+  <text x="30" y="400" class="t-s">关键差别：V4A 让模型一次说完所有改动，DSL parser 是门神；str_replace 让模型每次只改一处，唯一匹配 + mtime 是门神。</text>
+  <text x="30" y="420" class="t-s">V4A 适合大 patch + 多文件原子；str_replace 适合 reviewer 体验 + LSP 同步。OpenClaw 走通用 fs 工具，Hermes 复用 V4A 但当 function arg。</text>
+  <text x="30" y="450" class="t-s">不要让模型用 bash 的 sed / awk 直改文件——没有 diff 反馈，错了找不到。</text>
+</svg>

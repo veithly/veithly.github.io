@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" width="100%" font-family="'Kalam','Comic Neue',sans-serif">
+  <defs>
+    <filter id="r16">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="42" />
+      <feDisplacementMap in="SourceGraphic" scale="1.3" />
+    </filter>
+    <style>
+      .t { font-size: 14px; fill: #0f172a; }
+      .t-sub { font-size: 12px; fill: #334155; }
+      .head { font-size: 18px; fill: #0f172a; font-weight: 700; }
+    </style>
+  </defs>
+
+  <rect width="900" height="600" fill="#fbfaf7" />
+
+  <text x="450" y="34" class="head" text-anchor="middle">Memory systems: from AGENTS.md injection to dual-index + temporal decay</text>
+  <text x="450" y="54" class="t-sub" text-anchor="middle">stage1+phase2 &#x00B7; 4 types + 2 modes &#x00B7; FTS5+vec+decay &#x00B7; 2200/1375-char frozen snapshot</text>
+
+  <g filter="url(#r16)">
+    <rect x="20" y="68" width="430" height="250" rx="12" fill="#fbfaf7" stroke="#1d4ed8" stroke-width="2.5" />
+    <text x="40" y="92" class="t" fill="#1d4ed8" font-weight="700">Codex &#x00B7; AGENTS.md + two-stage background pipeline</text>
+    <text x="40" y="110" class="t-sub">Injection + LLM pipeline, side by side</text>
+
+    <rect x="40" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="130" y="142" class="t" text-anchor="middle">UserInstructions</text>
+    <text x="130" y="158" class="t-sub" text-anchor="middle">read AGENTS.md</text>
+    <text x="130" y="172" class="t-sub" text-anchor="middle">role=user</text>
+    <text x="130" y="186" class="t-sub" text-anchor="middle">START_MARKER +</text>
+    <text x="130" y="200" class="t-sub" text-anchor="middle">&lt;INSTRUCTIONS&gt;</text>
+
+    <rect x="240" y="124" width="195" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="337" y="142" class="t" text-anchor="middle">stage1_outputs</text>
+    <text x="337" y="158" class="t-sub" text-anchor="middle">thread-grained</text>
+    <text x="337" y="172" class="t-sub" text-anchor="middle">+ cwd / git_branch</text>
+    <text x="337" y="186" class="t-sub" text-anchor="middle">5 ClaimOutcomes</text>
+    <text x="337" y="200" class="t-sub" text-anchor="middle">lease + retry x3</text>
+
+    <rect x="40" y="216" width="390" height="90" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="235" y="234" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">Phase2 global consolidate</text>
+    <text x="235" y="252" class="t-sub" text-anchor="middle">global lock + input_watermark</text>
+    <text x="235" y="266" class="t-sub" text-anchor="middle">6h cooldown (PHASE2_SUCCESS_COOLDOWN_SECONDS)</text>
+    <text x="235" y="280" class="t-sub" text-anchor="middle">+ MemoryCitation back-references the thread</text>
+    <text x="235" y="294" class="t-sub" text-anchor="middle">clear_memory_data wipes both tables in one tx</text>
+
+    <rect x="470" y="68" width="410" height="250" rx="12" fill="#fbfaf7" stroke="#6d28d9" stroke-width="2.5" />
+    <text x="490" y="92" class="t" fill="#6d28d9" font-weight="700">Claude Code &#x00B7; 4 MemoryTypes + 2 modes</text>
+    <text x="490" y="110" class="t-sub">Eval-driven prompt design</text>
+
+    <rect x="490" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="580" y="142" class="t" text-anchor="middle">4 MEMORY_TYPES</text>
+    <text x="580" y="158" class="t-sub" text-anchor="middle">user (always private)</text>
+    <text x="580" y="172" class="t-sub" text-anchor="middle">feedback (private/team)</text>
+    <text x="580" y="186" class="t-sub" text-anchor="middle">project (team-biased)</text>
+    <text x="580" y="200" class="t-sub" text-anchor="middle">reference (usually team)</text>
+
+    <rect x="690" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="780" y="142" class="t" text-anchor="middle">2 prompt modes</text>
+    <text x="780" y="158" class="t-sub" text-anchor="middle">COMBINED</text>
+    <text x="780" y="172" class="t-sub" text-anchor="middle">(private + team)</text>
+    <text x="780" y="186" class="t-sub" text-anchor="middle">INDIVIDUAL</text>
+    <text x="780" y="200" class="t-sub" text-anchor="middle">(no scope)</text>
+
+    <rect x="490" y="216" width="380" height="90" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="680" y="234" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">DRIFT_CAVEAT + "Before recommending..."</text>
+    <text x="680" y="252" class="t-sub" text-anchor="middle">file path =&gt; check that it exists</text>
+    <text x="680" y="266" class="t-sub" text-anchor="middle">function/flag =&gt; grep</text>
+    <text x="680" y="280" class="t-sub" text-anchor="middle">act on it =&gt; verify first</text>
+    <text x="680" y="294" class="t-sub" text-anchor="middle">eval H1: 0/3 =&gt; 3/3 after isolating partitions</text>
+
+    <rect x="20" y="328" width="430" height="252" rx="12" fill="#fbfaf7" stroke="#15803d" stroke-width="2.5" />
+    <text x="40" y="352" class="t" fill="#15803d" font-weight="700">OpenClaw &#x00B7; dual index + temporal decay</text>
+    <text x="40" y="370" class="t-sub">Retrieval cap: MEMORY.md + qmd scope</text>
+
+    <rect x="40" y="384" width="180" height="100" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="130" y="402" class="t" text-anchor="middle">SQLite + 2 indexes</text>
+    <text x="130" y="418" class="t-sub" text-anchor="middle">files / chunks</text>
+    <text x="130" y="432" class="t-sub" text-anchor="middle">+ FTS5 virtual</text>
+    <text x="130" y="446" class="t-sub" text-anchor="middle">+ sqlite-vec</text>
+    <text x="130" y="460" class="t-sub" text-anchor="middle">+ embedding_cache</text>
+    <text x="130" y="474" class="t-sub" text-anchor="middle">source: memory/sessions</text>
+
+    <rect x="240" y="384" width="190" height="100" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="335" y="402" class="t" text-anchor="middle">temporal decay</text>
+    <text x="335" y="418" class="t-sub" text-anchor="middle">halfLifeDays=30</text>
+    <text x="335" y="432" class="t-sub" text-anchor="middle">lambda = ln2 / halfLife</text>
+    <text x="335" y="446" class="t-sub" text-anchor="middle">memory/YYYY-MM-DD.md</text>
+    <text x="335" y="460" class="t-sub" text-anchor="middle">=&gt; decay</text>
+    <text x="335" y="474" class="t-sub" text-anchor="middle">MEMORY.md =&gt; evergreen</text>
+
+    <rect x="40" y="496" width="390" height="78" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="235" y="514" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">qmd scope + hybrid retrieval</text>
+    <text x="235" y="532" class="t-sub" text-anchor="middle">query-driven memory directory</text>
+    <text x="235" y="546" class="t-sub" text-anchor="middle">semantic + lexical + MMR + decay</text>
+    <text x="235" y="560" class="t-sub" text-anchor="middle">memory_search tool: mandatory recall</text>
+
+    <rect x="470" y="328" width="410" height="252" rx="12" fill="#fbfaf7" stroke="#ea580c" stroke-width="2.5" />
+    <text x="490" y="352" class="t" fill="#ea580c" font-weight="700">Hermes &#x00B7; two files + frozen snapshot</text>
+    <text x="490" y="370" class="t-sub">2 files + 4 actions + 11 scans</text>
+
+    <rect x="490" y="384" width="180" height="100" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="580" y="402" class="t" text-anchor="middle">MEMORY.md</text>
+    <text x="580" y="418" class="t-sub" text-anchor="middle">2200 chars</text>
+    <text x="580" y="432" class="t-sub" text-anchor="middle">USER.md</text>
+    <text x="580" y="446" class="t-sub" text-anchor="middle">1375 chars</text>
+    <text x="580" y="460" class="t-sub" text-anchor="middle">delimiter: &#xA7;</text>
+    <text x="580" y="474" class="t-sub" text-anchor="middle">char != token</text>
+
+    <rect x="690" y="384" width="180" height="100" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="780" y="402" class="t" text-anchor="middle">_system_prompt</text>
+    <text x="780" y="418" class="t-sub" text-anchor="middle">_snapshot frozen</text>
+    <text x="780" y="432" class="t-sub" text-anchor="middle">at load_from_disk()</text>
+    <text x="780" y="446" class="t-sub" text-anchor="middle">mid-session writes</text>
+    <text x="780" y="460" class="t-sub" text-anchor="middle">=&gt; disk only</text>
+    <text x="780" y="474" class="t-sub" text-anchor="middle">prefix cache safe</text>
+
+    <rect x="490" y="496" width="380" height="78" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="680" y="514" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">11 _MEMORY_THREAT_PATTERNS</text>
+    <text x="680" y="532" class="t-sub" text-anchor="middle">prompt injection / role hijack / curl exfil</text>
+    <text x="680" y="546" class="t-sub" text-anchor="middle">authorized_keys / ~/.ssh / hermes_env</text>
+    <text x="680" y="560" class="t-sub" text-anchor="middle">+ 10 invisible-unicode scrubs</text>
+  </g>
+</svg>

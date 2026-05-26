@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" width="100%" font-family="'Kalam','Comic Neue',sans-serif">
+  <defs>
+    <filter id="r19">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="69" />
+      <feDisplacementMap in="SourceGraphic" scale="1.3" />
+    </filter>
+    <style>
+      .t { font-size: 14px; fill: #0f172a; }
+      .t-sub { font-size: 12px; fill: #334155; }
+      .head { font-size: 18px; fill: #0f172a; font-weight: 700; }
+    </style>
+  </defs>
+
+  <rect width="900" height="600" fill="#fbfaf7" />
+
+  <text x="450" y="34" class="head" text-anchor="middle">Self-improvement: when does the agent learn?</text>
+  <text x="450" y="54" class="t-sub" text-anchor="middle">Phase1+Phase2 &#x00B7; skillify+insights+autoMode &#x00B7; passive indexing + decay &#x00B7; in-turn + 11 threat scans</text>
+
+  <g filter="url(#r19)">
+    <rect x="20" y="68" width="430" height="250" rx="12" fill="#fbfaf7" stroke="#1d4ed8" stroke-width="2.5" />
+    <text x="40" y="92" class="t" fill="#1d4ed8" font-weight="700">Codex &#x00B7; Phase1 + Phase2</text>
+    <text x="40" y="110" class="t-sub">Out-of-turn LLM job; ~800-line prompt</text>
+
+    <rect x="40" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="130" y="142" class="t" text-anchor="middle">Phase 1 per-turn</text>
+    <text x="130" y="158" class="t-sub" text-anchor="middle">stage1_outputs</text>
+    <text x="130" y="172" class="t-sub" text-anchor="middle">thread-grained</text>
+    <text x="130" y="186" class="t-sub" text-anchor="middle">+ cwd/git_branch</text>
+    <text x="130" y="200" class="t-sub" text-anchor="middle">cheap extraction</text>
+
+    <rect x="240" y="124" width="195" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="337" y="142" class="t" text-anchor="middle">Phase 2 global</text>
+    <text x="337" y="158" class="t-sub" text-anchor="middle">global lock</text>
+    <text x="337" y="172" class="t-sub" text-anchor="middle">+ input_watermark</text>
+    <text x="337" y="186" class="t-sub" text-anchor="middle">+ 6h cooldown</text>
+    <text x="337" y="200" class="t-sub" text-anchor="middle">rewrites MEMORY/skills</text>
+
+    <rect x="40" y="216" width="390" height="90" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="235" y="234" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">consolidation prompt is explicit</text>
+    <text x="235" y="252" class="t-sub" text-anchor="middle">"improve future agents&#x2019; ability to..."</text>
+    <text x="235" y="266" class="t-sub" text-anchor="middle">high-signal: user pref / decision trigger</text>
+    <text x="235" y="280" class="t-sub" text-anchor="middle">failure shield / repo map / proven repro</text>
+    <text x="235" y="294" class="t-sub" text-anchor="middle">+ wording-preservation rule</text>
+
+    <rect x="470" y="68" width="410" height="250" rx="12" fill="#fbfaf7" stroke="#6d28d9" stroke-width="2.5" />
+    <text x="490" y="92" class="t" fill="#6d28d9" font-weight="700">Claude Code &#x00B7; user-driven, three entries</text>
+    <text x="490" y="110" class="t-sub">disableModelInvocation: avoids biased recall</text>
+
+    <rect x="490" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="580" y="142" class="t" text-anchor="middle">skillify</text>
+    <text x="580" y="158" class="t-sub" text-anchor="middle">4-round AskUserQuestion</text>
+    <text x="580" y="172" class="t-sub" text-anchor="middle">R1: name + desc</text>
+    <text x="580" y="186" class="t-sub" text-anchor="middle">R2: step + args</text>
+    <text x="580" y="200" class="t-sub" text-anchor="middle">R3: break-down R4: trigger</text>
+
+    <rect x="690" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="780" y="142" class="t" text-anchor="middle">/insights</text>
+    <text x="780" y="158" class="t-sub" text-anchor="middle">Opus runs over jsonl</text>
+    <text x="780" y="172" class="t-sub" text-anchor="middle">queryWithModel x2</text>
+    <text x="780" y="186" class="t-sub" text-anchor="middle">facet + narrative</text>
+    <text x="780" y="200" class="t-sub" text-anchor="middle">read-only, no write-back</text>
+
+    <rect x="490" y="216" width="380" height="90" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="680" y="234" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">autoMode critique</text>
+    <text x="680" y="252" class="t-sub" text-anchor="middle">LLM audits user allow / soft_deny / env</text>
+    <text x="680" y="266" class="t-sub" text-anchor="middle">clarity / completeness / conflicts</text>
+    <text x="680" y="280" class="t-sub" text-anchor="middle">rule scanning aimed at the user</text>
+    <text x="680" y="294" class="t-sub" text-anchor="middle">does not improve the agent itself</text>
+
+    <rect x="20" y="328" width="430" height="252" rx="12" fill="#fbfaf7" stroke="#15803d" stroke-width="2.5" />
+    <text x="40" y="352" class="t" fill="#15803d" font-weight="700">OpenClaw &#x00B7; passive indexing</text>
+    <text x="40" y="370" class="t-sub">Experience = indexed corpus; no explicit consolidation</text>
+
+    <rect x="40" y="384" width="180" height="100" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="130" y="402" class="t" text-anchor="middle">session disk &#x2192; auto-ingest</text>
+    <text x="130" y="418" class="t-sub" text-anchor="middle">JSONL extract text</text>
+    <text x="130" y="432" class="t-sub" text-anchor="middle">+ chunking</text>
+    <text x="130" y="446" class="t-sub" text-anchor="middle">FTS5 + sqlite-vec</text>
+    <text x="130" y="460" class="t-sub" text-anchor="middle">source: sessions</text>
+    <text x="130" y="474" class="t-sub" text-anchor="middle">redactSensitiveText</text>
+
+    <rect x="240" y="384" width="190" height="100" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="335" y="402" class="t" text-anchor="middle">temporal decay</text>
+    <text x="335" y="418" class="t-sub" text-anchor="middle">halfLifeDays = 30</text>
+    <text x="335" y="432" class="t-sub" text-anchor="middle">lambda = ln2/halfLife</text>
+    <text x="335" y="446" class="t-sub" text-anchor="middle">YYYY-MM-DD.md</text>
+    <text x="335" y="460" class="t-sub" text-anchor="middle">=&gt; decays</text>
+    <text x="335" y="474" class="t-sub" text-anchor="middle">MEMORY.md evergreen</text>
+
+    <rect x="40" y="496" width="390" height="78" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="235" y="514" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">hybrid retrieval picks up the slack</text>
+    <text x="235" y="532" class="t-sub" text-anchor="middle">semantic + lexical + MMR + decay</text>
+    <text x="235" y="546" class="t-sub" text-anchor="middle">qmd-scope is query-driven</text>
+    <text x="235" y="560" class="t-sub" text-anchor="middle">Mandatory recall: grep before acting</text>
+
+    <rect x="470" y="328" width="410" height="252" rx="12" fill="#fbfaf7" stroke="#ea580c" stroke-width="2.5" />
+    <text x="490" y="352" class="t" fill="#ea580c" font-weight="700">Hermes &#x00B7; explicit in-turn writes</text>
+    <text x="490" y="370" class="t-sub">2 files + 4 actions + 11 threat scans</text>
+
+    <rect x="490" y="384" width="180" height="100" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="580" y="402" class="t" text-anchor="middle">MEMORY.md</text>
+    <text x="580" y="418" class="t-sub" text-anchor="middle">2200 chars</text>
+    <text x="580" y="432" class="t-sub" text-anchor="middle">USER.md</text>
+    <text x="580" y="446" class="t-sub" text-anchor="middle">1375 chars</text>
+    <text x="580" y="460" class="t-sub" text-anchor="middle">delimiter: &#xA7;</text>
+    <text x="580" y="474" class="t-sub" text-anchor="middle">add/replace/remove/read</text>
+
+    <rect x="690" y="384" width="180" height="100" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="780" y="402" class="t" text-anchor="middle">frozen snapshot</text>
+    <text x="780" y="418" class="t-sub" text-anchor="middle">load_from_disk freezes</text>
+    <text x="780" y="432" class="t-sub" text-anchor="middle">mid-session writes</text>
+    <text x="780" y="446" class="t-sub" text-anchor="middle">=&gt; disk only</text>
+    <text x="780" y="460" class="t-sub" text-anchor="middle">prefix cache safe</text>
+    <text x="780" y="474" class="t-sub" text-anchor="middle">picked up next session</text>
+
+    <rect x="490" y="496" width="380" height="78" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="680" y="514" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">_MEMORY_THREAT_PATTERNS x11</text>
+    <text x="680" y="532" class="t-sub" text-anchor="middle">prompt injection / role hijack</text>
+    <text x="680" y="546" class="t-sub" text-anchor="middle">exfil_curl / read_secrets / ssh_backdoor</text>
+    <text x="680" y="560" class="t-sub" text-anchor="middle">+ 10 invisible-unicode scrubs</text>
+  </g>
+</svg>

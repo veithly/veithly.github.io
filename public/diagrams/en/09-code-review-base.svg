@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 580" role="img"
+     aria-label="Four code-review patterns compared">
+  <defs>
+    
+    <filter id="wobble">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="7" />
+      <feDisplacementMap in="SourceGraphic" scale="2" />
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#0f172a" />
+    </marker>
+
+    <style>
+    .h     { font: 600 14px sans-serif; fill: #0f172a; }
+    .t     { font: 12px sans-serif; fill: #0f172a; }
+    .t-sub { font: 12px sans-serif; fill: #334155; }
+    .sys   { font: 700 13px sans-serif; fill: #fbfaf7; }
+    .stage { font: 600 12px sans-serif; fill: #0f172a; }
+    .num   { font: 700 16px sans-serif; fill: #ea580c; }
+</style>
+  </defs>
+
+  <text x="20" y="28" class="h">&#x201C;Another agent reviews this&#x201D; takes four different shapes</text>
+  <text x="20" y="48" class="t-sub">From &#x201C;constrained sub-agent&#x201D; to &#x201C;same-context prompt&#x201D; to &#x201C;remote pipeline&#x201D; to &#x201C;not built in&#x201D;</text>
+
+  <g filter="url(#wobble)">
+    <rect x="20" y="68" width="430" height="240" rx="12"
+          fill="#fbfaf7" stroke="#1d4ed8" stroke-width="2.5" />
+    <text x="40" y="92" class="t" fill="#1d4ed8" font-weight="700">Codex &#x00B7; double layer</text>
+    <text x="40" y="110" class="t-sub">code review sub-agent + guardian sub-agent</text>
+
+    <rect x="40" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="130" y="142" class="t" text-anchor="middle">/review trigger</text>
+    <text x="130" y="158" class="t-sub" text-anchor="middle">fork sub-agent</text>
+    <text x="130" y="172" class="t-sub" text-anchor="middle">web_search=Disabled</text>
+    <text x="130" y="186" class="t-sub" text-anchor="middle">Spawn/Collab=Disabled</text>
+    <text x="130" y="200" class="t-sub" text-anchor="middle">approval=Never</text>
+
+    <rect x="40" y="216" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="130" y="234" class="t" text-anchor="middle">4 targets</text>
+    <text x="130" y="250" class="t-sub" text-anchor="middle">uncommitted</text>
+    <text x="130" y="264" class="t-sub" text-anchor="middle">base-branch</text>
+    <text x="130" y="278" class="t-sub" text-anchor="middle">commit</text>
+    <text x="130" y="292" class="t-sub" text-anchor="middle">custom</text>
+
+    <rect x="240" y="124" width="190" height="172" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="335" y="142" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">guardian/review.rs</text>
+    <text x="335" y="160" class="t-sub" text-anchor="middle">main-agent tool_call</text>
+    <text x="335" y="174" class="t-sub" text-anchor="middle">&#x2192; guardian sub-agent reviews</text>
+    <text x="335" y="188" class="t-sub" text-anchor="middle">risk level + decision</text>
+    <text x="335" y="206" class="t-sub" text-anchor="middle">rejection workaround</text>
+    <text x="335" y="220" class="t-sub" text-anchor="middle">defence + timeout</text>
+    <text x="335" y="234" class="t-sub" text-anchor="middle">circuit breaker</text>
+    <text x="335" y="258" class="t-sub" text-anchor="middle">&#x201C;agent reviewing agent&#x201D;</text>
+
+    <rect x="470" y="68" width="410" height="240" rx="12"
+          fill="#fbfaf7" stroke="#6d28d9" stroke-width="2.5" />
+    <text x="490" y="92" class="t" fill="#6d28d9" font-weight="700">Claude Code &#x00B7; local + remote</text>
+    <text x="490" y="110" class="t-sub">/review prompt-as-command + /ultrareview teleport</text>
+
+    <rect x="490" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="580" y="142" class="t" text-anchor="middle">/review (local)</text>
+    <text x="580" y="158" class="t-sub" text-anchor="middle">a pre-written prompt</text>
+    <text x="580" y="172" class="t-sub" text-anchor="middle">runs in main agent</text>
+    <text x="580" y="186" class="t-sub" text-anchor="middle">gh pr view / diff</text>
+    <text x="580" y="200" class="t-sub" text-anchor="middle">5-section output</text>
+
+    <rect x="690" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="780" y="142" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">/ultrareview</text>
+    <text x="780" y="158" class="t-sub" text-anchor="middle">teleport &#x2192; CCR Web</text>
+    <text x="780" y="172" class="t-sub" text-anchor="middle">10-20 minutes</text>
+    <text x="780" y="186" class="t-sub" text-anchor="middle">quota / billing gate</text>
+    <text x="780" y="200" class="t-sub" text-anchor="middle">task-notification reply</text>
+
+    <rect x="490" y="216" width="380" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="680" y="234" class="t" text-anchor="middle">In common</text>
+    <text x="680" y="250" class="t-sub" text-anchor="middle">prompt enforces a reviewer role</text>
+    <text x="680" y="264" class="t-sub" text-anchor="middle">/pr_comments command handles reply write-backs</text>
+    <text x="680" y="278" class="t-sub" text-anchor="middle">v2.1.88 uses prompt-as-command, no sub-thread</text>
+
+    <rect x="20" y="320" width="430" height="200" rx="12"
+          fill="#fbfaf7" stroke="#15803d" stroke-width="2.5" />
+    <text x="40" y="344" class="t" fill="#15803d" font-weight="700">OpenClaw &#x00B7; plugin hook</text>
+    <text x="40" y="362" class="t-sub">not built in; defers to the tool-policy-pipeline</text>
+
+    <rect x="40" y="376" width="390" height="130" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="235" y="396" class="t" text-anchor="middle">after_tool_call hook</text>
+    <text x="235" y="416" class="t-sub" text-anchor="middle">user plugins can attach reviewer middleware here</text>
+    <text x="235" y="436" class="t-sub" text-anchor="middle">runs reviewer prompt after each fs.write</text>
+    <text x="235" y="456" class="t-sub" text-anchor="middle">findings get injected as a system message next turn</text>
+    <text x="235" y="480" class="t-sub" text-anchor="middle">restrained choice for a control-plane agent</text>
+
+    <rect x="470" y="320" width="410" height="200" rx="12"
+          fill="#fbfaf7" stroke="#ea580c" stroke-width="2.5" />
+    <text x="490" y="344" class="t" fill="#ea580c" font-weight="700">Hermes &#x00B7; zero infrastructure</text>
+    <text x="490" y="362" class="t-sub">not built in; relies on terminal + user prompt</text>
+
+    <rect x="490" y="376" width="370" height="130" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="675" y="396" class="t" text-anchor="middle">user: "review the code"</text>
+    <text x="675" y="416" class="t-sub" text-anchor="middle">&#x2193;</text>
+    <text x="675" y="430" class="t-sub" text-anchor="middle">terminal_tool runs git diff</text>
+    <text x="675" y="446" class="t-sub" text-anchor="middle">&#x2193;</text>
+    <text x="675" y="460" class="t-sub" text-anchor="middle">review printed in main chat</text>
+    <text x="675" y="484" class="t-sub" text-anchor="middle">no reviewer role isolation, prone to drift</text>
+  </g>
+
+  <text x="450" y="558" class="t-sub" text-anchor="middle">Isolation ranking: Codex sub-agent &#x226B; /ultrareview &#x226B; OpenClaw hook &#x226B; /review (local) &#x226B; Hermes terminal-only</text>
+</svg>

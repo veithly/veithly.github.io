@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 380" role="img"
+     aria-label="Claude Code 注入流水线：splitSysPromptPrefix + DYNAMIC_BOUNDARY + appendDynamicContext">
+  <defs>
+    <filter id="wb03p"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="8" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar03p" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12.5px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .cache { font: italic 11px sans-serif; fill: #0f172a; }
+      .dyn  { font: italic 11px sans-serif; fill: #b91c1c; }
+    </style>
+  </defs>
+
+  <text x="390" y="28" class="h" text-anchor="middle">运行时一次推理的注入流水线（以 Claude Code 为例）</text>
+  <text x="390" y="46" class="t-s" text-anchor="middle">上半段全 cached、下半段全 ephemeral，分界是一根硬编码的字符串</text>
+
+  <g filter="url(#wb03p)">
+    <!-- left static block -->
+    <rect x="40" y="80" width="160" height="40" rx="6" fill="#fef3c7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="120" y="105" class="lbl" text-anchor="middle">Identity</text>
+
+    <rect x="40" y="130" width="160" height="40" rx="6" fill="#fef3c7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="120" y="155" class="lbl" text-anchor="middle">Tools</text>
+
+    <rect x="40" y="180" width="160" height="40" rx="6" fill="#fef3c7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="120" y="205" class="lbl" text-anchor="middle">Skills</text>
+
+    <!-- splitSysPromptPrefix -->
+    <rect x="240" y="125" width="180" height="50" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="2" />
+    <text x="330" y="148" class="lbl" text-anchor="middle">splitSysPromptPrefix()</text>
+    <text x="330" y="166" class="t-s" text-anchor="middle">把三层合并为可缓存前缀</text>
+
+    <line x1="200" y1="100" x2="240" y2="140" stroke="#0f172a" stroke-width="1.8" marker-end="url(#ar03p)" />
+    <line x1="200" y1="150" x2="240" y2="150" stroke="#0f172a" stroke-width="1.8" marker-end="url(#ar03p)" />
+    <line x1="200" y1="200" x2="240" y2="165" stroke="#0f172a" stroke-width="1.8" marker-end="url(#ar03p)" />
+
+    <!-- BOUNDARY divider -->
+    <line x1="430" y1="80" x2="430" y2="320" stroke="#b91c1c" stroke-width="3" stroke-dasharray="6 4" />
+    <text x="430" y="70" class="cache" text-anchor="middle" fill="#b91c1c">SYSTEM_PROMPT_DYNAMIC_BOUNDARY</text>
+    <text x="430" y="335" class="t-s" text-anchor="middle">cached ↑   ↓ ephemeral</text>
+
+    <!-- right dynamic block -->
+    <rect x="460" y="80" width="160" height="40" rx="6" fill="#fce7f3" stroke="#0f172a" stroke-width="1.8" />
+    <text x="540" y="105" class="lbl" text-anchor="middle">Env</text>
+
+    <rect x="460" y="130" width="160" height="40" rx="6" fill="#fce7f3" stroke="#0f172a" stroke-width="1.8" />
+    <text x="540" y="155" class="lbl" text-anchor="middle">Cwd</text>
+
+    <rect x="460" y="180" width="160" height="40" rx="6" fill="#fce7f3" stroke="#0f172a" stroke-width="1.8" />
+    <text x="540" y="205" class="lbl" text-anchor="middle">Memory</text>
+
+    <!-- appendDynamicContext -->
+    <rect x="640" y="125" width="120" height="50" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="2" />
+    <text x="700" y="148" class="lbl" text-anchor="middle">appendDynamic</text>
+    <text x="700" y="164" class="lbl" text-anchor="middle">Context()</text>
+
+    <line x1="620" y1="100" x2="640" y2="140" stroke="#0f172a" stroke-width="1.8" marker-end="url(#ar03p)" />
+    <line x1="620" y1="150" x2="640" y2="150" stroke="#0f172a" stroke-width="1.8" marker-end="url(#ar03p)" />
+    <line x1="620" y1="200" x2="640" y2="165" stroke="#0f172a" stroke-width="1.8" marker-end="url(#ar03p)" />
+
+    <!-- final merge to model -->
+    <rect x="280" y="260" width="220" height="50" rx="10" fill="#fbfaf7" stroke="#0f172a" stroke-width="2.5" />
+    <text x="390" y="282" class="lbl" text-anchor="middle">最终 prompt</text>
+    <text x="390" y="299" class="t-s" text-anchor="middle">发送给模型</text>
+
+    <line x1="330" y1="175" x2="380" y2="260" stroke="#0f172a" stroke-width="1.8" marker-end="url(#ar03p)" />
+    <line x1="700" y1="175" x2="410" y2="260" stroke="#0f172a" stroke-width="1.8" marker-end="url(#ar03p)" />
+  </g>
+
+  <text x="20" y="365" class="t-s">关键点：BOUNDARY 之上整段进 cache，之下每 turn 重算。Codex 没有 boundary（全 cache 或全不 cache），Hermes 用 skip_* 开关近似。</text>
+</svg>

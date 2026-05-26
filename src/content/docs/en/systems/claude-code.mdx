@@ -1,0 +1,70 @@
+---
+title: Claude Code
+description: "Anthropic Claude Code: TypeScript + skill engine + multi-channel IDE integration, the most complete dev UX of the four"
+sidebar:
+  order: 2
+---
+
+import Verdict from '@components/Verdict.astro';
+import CompareTable from '@components/CompareTable.astro';
+import SourceTrail from '@components/SourceTrail.astro';
+
+<Verdict tldr="Claude Code has the most complete developer UX. 17 bundled skills, a `skillify` meta-skill, four entry types (CLI, IDE plugin, Web, Mobile), and `/insights` plus `/security-review` plus autoMode forming the agent self-audit loop. Closed source. This site's analysis comes from public docs plus npm sourcemap reverse-engineering. Reverse-engineered claims are tagged 'behavioural inference'." tone="insight" />
+
+## §1 · What Claude Code is
+
+Anthropic's agentic coding tool, shipped as the npm package `@anthropic-ai/claude-code`. The same TypeScript codebase supports four entry types: terminal, IDE plugin, Web, and Mobile.
+
+## §2 · Architecture stack by directory
+
+<CompareTable
+  rows={[
+    { label: 'Entry', values: ['`cli/` terminal entry', '`server/` IDE backend', '`remote/` Web/Mobile client protocol', '`entrypoints/` sub-command dispatch'] },
+    { label: 'Commands & handlers', values: ['`commands/` explicit slash commands (`/memory`, `/insights`, `/security-review`, `/cron`)', '`cli/handlers/` autoMode / classifier / skillify loops', '`commands.ts` registry', '`schemas/` command argument schemas'] },
+    { label: 'Skill engine', values: ['`skills/bundled/` 17 bundled skills', '`skills/skillify.ts` 4-round AskUserQuestion to distill a skill', '`SkillTool` runs a skill', '5 frontmatter fields (name / description / allowed-tools / when_to_use / context: inline\\|fork)'] },
+    { label: 'Memory', values: ['`memdir/` 4 MemoryTypes (user / feedback / project / reference)', 'COMBINED vs INDIVIDUAL prompt modes', 'MEMORY_DRIFT_CAVEAT warns model about staleness', '"Before recommending from memory" forces a grep verify'] },
+    { label: 'Hooks & coordination', values: ['`hooks/` lifecycle hooks', '`buddy/` collaboration mode', '`coordinator/` multi-agent dispatch', '`outputStyles/` output format injection'] },
+    { label: 'Observability & cost', values: ['`cost-tracker.ts` + `costHook.ts` live cost tracking', '`commands/insights.ts` Opus over jsonl produces narrative', '`logEvent("tengu_*")` event stream', '`modelCost.ts` hardcoded price table'] },
+  ]}
+  caption="Claude Code keeps pushing every capability behind a slash command. The result: developer UX at the top of the industry."
+/>
+
+## §3 · Engineering highlights
+
+1. **Skill engine is the industry ceiling**. 17 bundled skills plus `skillify` as a meta-skill. `skillify` runs 4 rounds of AskUserQuestion to distill a session into SKILL.md. The most complete "agent produces its own skill" loop.
+2. **Four entries share one codebase**. All four entries run the same turn loop. Protocol adapters live only in `entrypoints/`.
+3. **autoMode classifier**. An LLM reviews the user-written auto allow, soft_deny, and env classifier rules for clarity, completeness, and conflicts.
+4. **`/security-review` acts as senior security engineer**. The LLM scans a PR diff against 5 vulnerability classes, with an 80% confidence floor. Actively excludes DOS and disk-secret findings.
+5. **MEMORY_DRIFT_CAVEAT admits staleness up front**. The prompt tells the model memories may be stale and forces a grep verification before acting.
+
+## §4 · Where it falls short
+
+1. **Closed source**. All conclusions come from sourcemap reverse-engineering. Some behavior is inferred.
+2. **No native cross-OS sandbox**. Relies on the host IDE for execution isolation. Sandbox is weak in pure-CLI mode.
+3. **Memory drift is prompt-mitigated, not mechanism-mitigated**. Compared to OpenClaw's temporal decay plus retrieval, the mechanism layer is thin.
+4. **Trace is weaker**. No Codex-style full-session rollout-trace.jsonl.
+
+## §5 · Five things worth stealing
+
+1. **`skillify` 4-round AskUserQuestion flow** (`src/skills/bundled/skillify.ts`). R1 captures name and description, R2 captures step and arg, R3 decomposes, R4 extracts triggers. Splits "agent produces its own skill" into four bounded questions.
+2. **`/security-review` prompt design** (`src/commands/security-review.ts`). Senior security engineer persona, 5 vulnerability classes, and an explicit exclusion list.
+3. **MemoryType × 2 prompt mode matrix** (`src/memdir/`). 4 types × `{COMBINED, INDIVIDUAL}` = 8 combinations.
+4. **autoMode classifier reviewing user rules** (`src/cli/handlers/autoMode.ts`). Rule audit is itself an LLM task.
+5. **The boundaries of the 17 bundled skills**. `loop`, `stuck`, `remember`, and `verify` each have explicit exit conditions you can lift as design patterns.
+
+## §6 · Source map
+
+<SourceTrail
+  entries={[
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/skills/bundled/skillify.ts', desc: 'Full 4-round skill distillation prompt' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/commands/security-review.ts', desc: '/security-review command' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/commands/insights.ts', desc: '/insights Opus jsonl analysis' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/cli/handlers/autoMode.ts', desc: 'autoMode classifier + LLM critique' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/memdir/', desc: '4 MemoryTypes + 2 prompt modes' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/cost-tracker.ts', desc: 'Hardcoded modelCost + live billing' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/cron/', desc: 'Local cron + scheduler lock' },
+    { system: 'Claude Code', external: 'https://code.claude.com/', path: 'code.claude.com', desc: 'Product docs' },
+  ]}
+/>
+
+> Closed-source disclosure: paths above come from community reverse-engineering of `@anthropic-ai/claude-code@2.1.88` sourcemaps. Every "behavioural inference" claim defers to official docs when in conflict.

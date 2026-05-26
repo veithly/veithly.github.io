@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 470" role="img"
+     aria-label="工具系统的 4 层">
+  <defs>
+    
+    <filter id="wobble">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="7" />
+      <feDisplacementMap in="SourceGraphic" scale="2" />
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#0f172a" />
+    </marker>
+
+    <style>
+    .h     { font: 600 14px sans-serif; fill: #0f172a; }
+    .t     { font: 12px sans-serif; fill: #0f172a; }
+    .t-sub { font: 12px sans-serif; fill: #334155; }
+    .sys   { font: 700 13px sans-serif; fill: #fbfaf7; }
+    .stage { font: 600 12px sans-serif; fill: #0f172a; }
+    .num   { font: 700 16px sans-serif; fill: #ea580c; }
+</style>
+  </defs>
+
+  <text x="20" y="30" class="h">工具系统的 4 层</text>
+  <text x="20" y="50" class="t-sub">从外到内：schema 定义 → 注册 → 调度 → 沙箱执行</text>
+
+  <g filter="url(#wobble)">
+    
+    <rect x="60" y="80" width="560" height="62" rx="8"
+          fill="#fbfaf7" stroke="#1d4ed8" stroke-width="2.5" />
+    <text x="80" y="106" class="t" fill="#1d4ed8" font-weight="700">Schema</text>
+    <text x="80" y="125" class="t">JSON schema / function signature</text>
+    <text x="80" y="138" class="t-sub">name + params + description</text>
+    <rect x="60" y="160" width="560" height="62" rx="8"
+          fill="#fbfaf7" stroke="#6d28d9" stroke-width="2.5" />
+    <text x="80" y="186" class="t" fill="#6d28d9" font-weight="700">Registry</text>
+    <text x="80" y="205" class="t">tools 注册表 + profile</text>
+    <text x="80" y="218" class="t-sub">ToolProfileId / canUseTool / per-tool check</text>
+    <rect x="60" y="240" width="560" height="62" rx="8"
+          fill="#fbfaf7" stroke="#15803d" stroke-width="2.5" />
+    <text x="80" y="266" class="t" fill="#15803d" font-weight="700">Dispatch</text>
+    <text x="80" y="285" class="t">tool_use block / parallel / pipeline</text>
+    <text x="80" y="298" class="t-sub">before/after_tool_call hook</text>
+    <rect x="60" y="320" width="560" height="62" rx="8"
+          fill="#fbfaf7" stroke="#ea580c" stroke-width="2.5" />
+    <text x="80" y="346" class="t" fill="#ea580c" font-weight="700">Sandbox</text>
+    <text x="80" y="365" class="t">execpolicy + permission + isolation</text>
+    <text x="80" y="378" class="t-sub">approval mode + workspace lane</text>
+  </g>
+
+  <!-- left arrows showing flow -->
+  <line x1="40" y1="100" x2="40" y2="420" stroke="#0f172a" stroke-width="2" marker-end="url(#arrow)" opacity="0.5" />
+  <text x="14" y="260" class="t-sub" transform="rotate(-90 14 260)">调用顺序</text>
+</svg>

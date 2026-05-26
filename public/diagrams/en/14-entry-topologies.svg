@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 600" role="img"
+     aria-label="Four entry topologies side by side">
+  <defs>
+    <filter id="wb14F"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="143" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar14F" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .col  { font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .note { font: italic 10.5px sans-serif; fill: #92400e; }
+    </style>
+  </defs>
+
+  <text x="440" y="24" class="h" text-anchor="middle">Four entry topologies side by side</text>
+  <text x="440" y="42" class="t-s" text-anchor="middle">Multi-binary (Codex) &#x00B7; one binary + subcommands (Claude Code) &#x00B7; 19 sub-CLIs + plugins (OpenClaw) &#x00B7; 17 platforms (Hermes)</text>
+
+  <g filter="url(#wb14F)">
+    <text x="120" y="70" class="col" text-anchor="middle">Codex &#x00B7; multi-binary</text>
+    <rect x="40" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="103" class="lbl" text-anchor="middle">codex (TUI, ratatui)</text>
+
+    <rect x="40" y="124" width="160" height="36" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="147" class="lbl" text-anchor="middle">codex exec (script)</text>
+
+    <rect x="40" y="168" width="160" height="36" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="191" class="lbl" text-anchor="middle">codex mcp-server</text>
+
+    <rect x="40" y="212" width="160" height="36" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="235" class="lbl" text-anchor="middle">codex app-server</text>
+    <text x="120" y="249" class="t-s" text-anchor="middle">axum HTTP1 + WS</text>
+
+    <rect x="40" y="262" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="282" class="lbl" text-anchor="middle">stdio-to-uds bridge</text>
+    <text x="120" y="298" class="t-s" text-anchor="middle">IDE stdio &#x2194; daemon UDS</text>
+
+    <rect x="40" y="316" width="160" height="36" rx="8" fill="#fce7f3" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="339" class="lbl" text-anchor="middle">codex app (desktop GUI)</text>
+
+    <rect x="40" y="358" width="160" height="36" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="381" class="lbl" text-anchor="middle">codex cloud</text>
+
+    <text x="120" y="420" class="note" text-anchor="middle">each entry is its own binary</text>
+    <text x="120" y="435" class="note" text-anchor="middle">independently upgradable / shippable</text>
+
+    <text x="330" y="70" class="col" text-anchor="middle">Claude Code &#x00B7; single binary</text>
+    <rect x="250" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="103" class="lbl" text-anchor="middle">claude (REPL via ink)</text>
+
+    <rect x="250" y="124" width="160" height="36" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="147" class="lbl" text-anchor="middle">claude -p (script)</text>
+
+    <rect x="250" y="168" width="160" height="36" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="191" class="lbl" text-anchor="middle">claude --bare</text>
+    <text x="330" y="204" class="t-s" text-anchor="middle">clean entry for CI / SDK</text>
+
+    <rect x="250" y="218" width="160" height="36" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="241" class="lbl" text-anchor="middle">claude mcp serve</text>
+
+    <rect x="250" y="262" width="160" height="36" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="285" class="lbl" text-anchor="middle">claude server (HTTP/UDS)</text>
+
+    <rect x="250" y="306" width="160" height="36" rx="8" fill="#fce7f3" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="329" class="lbl" text-anchor="middle">claude auth/plugin/doctor</text>
+
+    <text x="330" y="420" class="note" text-anchor="middle">commander.js dispatch</text>
+    <text x="330" y="435" class="note" text-anchor="middle">single mega-file main.tsx</text>
+
+    <text x="540" y="70" class="col" text-anchor="middle">OpenClaw &#x00B7; 19 sub-CLIs + plugins</text>
+    <rect x="460" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="103" class="lbl" text-anchor="middle">gateway daemon</text>
+
+    <line x1="540" y1="116" x2="540" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar14F)" />
+
+    <rect x="460" y="138" width="160" height="36" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="161" class="lbl" text-anchor="middle">RPC / WS</text>
+
+    <line x1="540" y1="174" x2="540" y2="193" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar14F)" />
+
+    <rect x="460" y="196" width="160" height="48" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="216" class="lbl" text-anchor="middle">19 sub-CLIs (lazy)</text>
+    <text x="540" y="232" class="t-s" text-anchor="middle">acp/tui/channels/sandbox</text>
+
+    <line x1="540" y1="244" x2="540" y2="263" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar14F)" />
+
+    <rect x="460" y="266" width="160" height="48" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="286" class="lbl" text-anchor="middle">ACP server</text>
+    <text x="540" y="302" class="t-s" text-anchor="middle">@agentclientprotocol/sdk</text>
+
+    <line x1="540" y1="314" x2="540" y2="333" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar14F)" />
+
+    <rect x="460" y="336" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="356" class="lbl" text-anchor="middle">channels-plugins</text>
+    <text x="540" y="372" class="t-s" text-anchor="middle">npm package catalog</text>
+
+    <text x="540" y="420" class="note" text-anchor="middle">one file per sub-CLI</text>
+    <text x="540" y="435" class="note" text-anchor="middle">imported on demand</text>
+
+    <text x="760" y="70" class="col" text-anchor="middle">Hermes &#x00B7; 17 platform adapters</text>
+    <rect x="680" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="103" class="lbl" text-anchor="middle">GatewayRunner (single process)</text>
+
+    <line x1="760" y1="116" x2="760" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar14F)" />
+
+    <rect x="680" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="158" class="lbl" text-anchor="middle">BasePlatformAdapter</text>
+    <text x="760" y="174" class="t-s" text-anchor="middle">6 abstract methods</text>
+    <text x="760" y="188" class="t-s" text-anchor="middle">connect/send/disconnect</text>
+
+    <line x1="760" y1="198" x2="760" y2="217" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar14F)" />
+
+    <rect x="680" y="220" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="240" class="lbl" text-anchor="middle">17 platform impls</text>
+    <text x="760" y="256" class="t-s" text-anchor="middle">TG/Discord/Slack/...</text>
+    <text x="760" y="270" class="t-s" text-anchor="middle">Email/SMS/HA/Matrix</text>
+
+    <line x1="760" y1="280" x2="760" y2="299" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar14F)" />
+
+    <rect x="680" y="302" width="160" height="48" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="322" class="lbl" text-anchor="middle">check_xxx_requirements</text>
+    <text x="760" y="338" class="t-s" text-anchor="middle">graceful degrade on missing deps</text>
+
+    <line x1="760" y1="350" x2="760" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar14F)" />
+
+    <rect x="680" y="372" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="392" class="lbl" text-anchor="middle">API_SERVER + WEBHOOK</text>
+    <text x="760" y="408" class="t-s" text-anchor="middle">also modeled as platforms</text>
+
+    <text x="760" y="445" class="note" text-anchor="middle">main package bundles every adapter</text>
+    <text x="760" y="460" class="note" text-anchor="middle">SDKs land only via extras</text>
+  </g>
+
+  <text x="440" y="490" class="t-s" text-anchor="middle">How do users get in? Four answers for four agent shapes.</text>
+
+  <g>
+    <rect x="40" y="505" width="800" height="80" rx="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1" />
+    <text x="60" y="525" class="lbl">Shared traits:</text>
+    <text x="60" y="543" class="t-s">&#x00B7; All expose an MCP server (Codex/Claude/Hermes) or ACP (OpenClaw).</text>
+    <text x="60" y="559" class="t-s">&#x00B7; CLI and daemon are split into two layers (most explicit in OpenClaw; Codex bridges via stdio-to-uds).</text>
+    <text x="60" y="575" class="t-s">&#x00B7; Entries probe capabilities and degrade gracefully when deps are missing.</text>
+  </g>
+</svg>

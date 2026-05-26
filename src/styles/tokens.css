@@ -1,0 +1,129 @@
+/**
+ * Agent Harness 架构设计 — Design Tokens (Swiss Modernism + Editorial)
+ *
+ * 设计哲学：
+ *   - Swiss Modernism 2.0：mathematical spacing + 单一强调色 + grid system
+ *   - Editorial typography：Playfair Display 标题 + Inter 正文（高对比 + 高可读性）
+ *   - 保留 hand-drawn SVG 作为视觉签名（图在内容里，UI 在外壳上）
+ *
+ * 颜色编码（贯穿全站）：
+ *   绿 共同点 / 模式
+ *   橙 差异点 / 取舍
+ *   紫 我的点评 / 判断
+ *   红 风险 / 不建议
+ *   蓝 源码 / 引用
+ */
+
+/* Web fonts are preconnected and loaded via astro.config head[] for faster FCP */
+
+:root {
+  /* ============================================================
+   * 1. INK + PAPER (refined hierarchy)
+   * ============================================================ */
+  --aap-ink: #0f172a;              /* slate-900 — body text */
+  --aap-ink-soft: #334155;         /* slate-700 — secondary */
+  --aap-ink-muted: #64748b;        /* slate-500 — captions */
+  --aap-paper: #fbfaf7;            /* warm white — primary bg */
+  --aap-paper-soft: #f5f4ef;       /* slight contrast layer */
+  --aap-paper-strong: #e7e5dc;     /* card / quote backdrop */
+  --aap-paper-line: #e2e8f0;       /* dividers */
+
+  /* ============================================================
+   * 2. SEMANTIC COLORS (single-vibrant-accent approach)
+   * ============================================================ */
+  --aap-color-shared: #16a34a;     /* 共同点 / 模式 */
+  --aap-color-tradeoff: #ea580c;   /* 差异 / 取舍 (deeper, more refined) */
+  --aap-color-judgment: #7c3aed;   /* 我的点评 / 判断 */
+  --aap-color-risk: #dc2626;       /* 风险 / 不建议 */
+  --aap-color-source: #2563eb;     /* 源码 / 引用 */
+  --aap-color-insight: var(--aap-ink);
+
+  /* ============================================================
+   * 3. SYSTEM ACCENTS (each ref system has a fixed identity)
+   * ============================================================ */
+  --aap-system-codex: #2563eb;
+  --aap-system-claudecode: #7c3aed;
+  --aap-system-openclaw: #16a34a;
+  --aap-system-hermes: #ea580c;
+
+  /* ============================================================
+   * 4. TYPOGRAPHY (Editorial Classic Elegant pairing)
+   * ============================================================ */
+  --aap-font-display: 'Playfair Display', 'Source Han Serif SC', 'Noto Serif SC', Georgia, serif;
+  --aap-font-body: 'Inter', 'Source Han Sans SC', 'Noto Sans SC', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --aap-font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --aap-font-hand: 'Excalifont', 'Virgil 3 YOFF', 'Comic Sans MS', var(--aap-font-display);
+
+  /* type scale (modular 1.250 — Major Third) */
+  --aap-fs-xs: 0.75rem;     /* 12px */
+  --aap-fs-sm: 0.875rem;    /* 14px */
+  --aap-fs-base: 1rem;      /* 16px */
+  --aap-fs-md: 1.125rem;    /* 18px */
+  --aap-fs-lg: 1.4rem;      /* 22.4px */
+  --aap-fs-xl: 1.75rem;     /* 28px */
+  --aap-fs-2xl: 2.2rem;     /* 35.2px */
+  --aap-fs-3xl: 2.75rem;    /* 44px */
+
+  /* ============================================================
+   * 5. SPACING (mathematical scale)
+   * ============================================================ */
+  --aap-sp-1: 0.25rem;      /* 4px */
+  --aap-sp-2: 0.5rem;       /* 8px */
+  --aap-sp-3: 0.75rem;      /* 12px */
+  --aap-sp-4: 1rem;         /* 16px */
+  --aap-sp-6: 1.5rem;       /* 24px */
+  --aap-sp-8: 2rem;         /* 32px */
+  --aap-sp-12: 3rem;        /* 48px */
+  --aap-sp-16: 4rem;        /* 64px */
+
+  /* ============================================================
+   * 6. SURFACES (shadows / borders / radius)
+   * ============================================================ */
+  --aap-radius-sm: 4px;
+  --aap-radius-md: 8px;
+  --aap-radius-lg: 12px;
+  --aap-shadow-soft: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04);
+  --aap-shadow-card: 0 4px 12px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.05);
+  --aap-shadow-pop: 2px 2px 0 0 var(--aap-ink);
+  --aap-shadow-pop-soft: 1.5px 1.5px 0 0 var(--aap-paper-line);
+
+  /* ============================================================
+   * 7. STARLIGHT OVERRIDES (apply our tokens to Starlight surfaces)
+   * ============================================================ */
+  --sl-font: var(--aap-font-body);
+  --sl-font-system-mono: var(--aap-font-mono);
+  --sl-color-text: var(--aap-ink);
+  --sl-color-text-accent: var(--aap-color-tradeoff);
+  --sl-color-bg: var(--aap-paper);
+  --sl-color-bg-nav: var(--aap-paper);
+  --sl-color-bg-sidebar: var(--aap-paper-soft);
+  --sl-color-bg-inline-code: var(--aap-paper-strong);
+  --sl-color-hairline: var(--aap-paper-line);
+  --sl-color-hairline-shade: var(--aap-paper-line);
+}
+
+/* ==============================================================
+ * DARK THEME OVERRIDES
+ * ============================================================== */
+:root[data-theme='dark'] {
+  --aap-ink: #f1f5f9;                /* slate-100 */
+  --aap-ink-soft: #cbd5e1;           /* slate-300 */
+  --aap-ink-muted: #94a3b8;          /* slate-400 */
+  --aap-paper: #0c0a09;              /* near-black warm */
+  --aap-paper-soft: #1c1917;         /* stone-900 */
+  --aap-paper-strong: #292524;       /* stone-800 */
+  --aap-paper-line: #44403c;         /* stone-700 */
+
+  --aap-color-insight: var(--aap-ink);
+  --aap-shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
+  --aap-shadow-card: 0 4px 12px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
+  --aap-shadow-pop: 2px 2px 0 0 var(--aap-paper-line);
+  --aap-shadow-pop-soft: 1.5px 1.5px 0 0 var(--aap-paper-line);
+
+  /* slight color refinement for dark */
+  --aap-color-tradeoff: #fb923c;     /* lighter for contrast */
+  --aap-color-shared: #4ade80;
+  --aap-color-judgment: #a78bfa;
+  --aap-color-source: #60a5fa;
+  --aap-color-risk: #f87171;
+}

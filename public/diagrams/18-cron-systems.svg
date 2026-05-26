@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 620" role="img"
+     aria-label="四种 cron 子系统并列对照">
+  <defs>
+    <filter id="wb18F"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="187" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar18F" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .col  { font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .note { font: italic 10.5px sans-serif; fill: #92400e; }
+    </style>
+  </defs>
+
+  <text x="440" y="24" class="h" text-anchor="middle">四种 cron 子系统并列</text>
+  <text x="440" y="42" class="t-s" text-anchor="middle">cloud-tasks（Codex）· 1s tick + scheduler lock（Claude Code）· at/every/cron + isolated-agent（OpenClaw）· croniter + jobs.json（Hermes）</text>
+
+  <g filter="url(#wb18F)">
+    <text x="120" y="70" class="col" text-anchor="middle">Codex · cloud-tasks</text>
+    <rect x="40" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="103" class="lbl" text-anchor="middle">独立 binary</text>
+
+    <line x1="120" y1="116" x2="120" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="40" y="138" width="160" height="48" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="158" class="lbl" text-anchor="middle">TaskSummary 远端</text>
+    <text x="120" y="174" class="t-s" text-anchor="middle">客户端轮询列表</text>
+
+    <line x1="120" y1="186" x2="120" y2="205" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="40" y="208" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="228" class="lbl" text-anchor="middle">EnvironmentRow</text>
+    <text x="120" y="244" class="t-s" text-anchor="middle">pinned env + repo_hints</text>
+    <text x="120" y="258" class="t-s" text-anchor="middle">每任务独立环境</text>
+
+    <line x1="120" y1="268" x2="120" y2="287" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="40" y="290" width="160" height="60" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="310" class="lbl" text-anchor="middle">BestOfModalState</text>
+    <text x="120" y="326" class="t-s" text-anchor="middle">N 并行多分支</text>
+    <text x="120" y="340" class="t-s" text-anchor="middle">UI 选最优 apply</text>
+
+    <line x1="120" y1="350" x2="120" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="40" y="372" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="392" class="lbl" text-anchor="middle">ApplyResultLevel</text>
+    <text x="120" y="408" class="t-s" text-anchor="middle">Success/Partial/Error</text>
+
+    <text x="120" y="450" class="note" text-anchor="middle">本地无 cron</text>
+    <text x="120" y="465" class="note" text-anchor="middle">长任务全推云</text>
+
+    <text x="330" y="70" class="col" text-anchor="middle">Claude Code · cron tool</text>
+    <rect x="250" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="103" class="lbl" text-anchor="middle">CronCreateTool</text>
+
+    <line x1="330" y1="116" x2="330" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="250" y="138" width="160" height="48" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="158" class="lbl" text-anchor="middle">5-field cron expr</text>
+    <text x="330" y="174" class="t-s" text-anchor="middle">本地 timezone</text>
+
+    <line x1="330" y1="186" x2="330" y2="205" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="250" y="208" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="228" class="lbl" text-anchor="middle">cronScheduler</text>
+    <text x="330" y="244" class="t-s" text-anchor="middle">1s tick + chokidar 监听</text>
+    <text x="330" y="258" class="t-s" text-anchor="middle">scheduler lock 跨进程</text>
+
+    <line x1="330" y1="268" x2="330" y2="287" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="250" y="290" width="160" height="60" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="310" class="lbl" text-anchor="middle">recurring vs one-shot</text>
+    <text x="330" y="326" class="t-s" text-anchor="middle">durable vs session-only</text>
+    <text x="330" y="340" class="t-s" text-anchor="middle">permanent flag</text>
+
+    <line x1="330" y1="350" x2="330" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="250" y="372" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="392" class="lbl" text-anchor="middle">onFire(prompt)</text>
+    <text x="330" y="408" class="t-s" text-anchor="middle">注入当前 session queue</text>
+
+    <text x="330" y="450" class="note" text-anchor="middle">IDE 风格 cron</text>
+
+    <text x="540" y="70" class="col" text-anchor="middle">OpenClaw · cron 子系统</text>
+    <rect x="460" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="103" class="lbl" text-anchor="middle">cron service</text>
+
+    <line x1="540" y1="116" x2="540" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="460" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="158" class="lbl" text-anchor="middle">CronSchedule 3 种</text>
+    <text x="540" y="174" class="t-s" text-anchor="middle">at / every / cron</text>
+    <text x="540" y="188" class="t-s" text-anchor="middle">+ tz + staggerMs</text>
+
+    <line x1="540" y1="198" x2="540" y2="217" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="460" y="220" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="240" class="lbl" text-anchor="middle">isolated-agent</text>
+    <text x="540" y="256" class="t-s" text-anchor="middle">独立 session</text>
+    <text x="540" y="270" class="t-s" text-anchor="middle">skills-snapshot 冻结</text>
+
+    <line x1="540" y1="280" x2="540" y2="299" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="460" y="302" width="160" height="60" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="322" class="lbl" text-anchor="middle">failure-alert</text>
+    <text x="540" y="338" class="t-s" text-anchor="middle">after + cooldownMs</text>
+    <text x="540" y="352" class="t-s" text-anchor="middle">独立 destination</text>
+
+    <line x1="540" y1="362" x2="540" y2="381" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="460" y="384" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="404" class="lbl" text-anchor="middle">CronDelivery 4 模式</text>
+    <text x="540" y="420" class="t-s" text-anchor="middle">none/announce/webhook</text>
+
+    <text x="540" y="450" class="note" text-anchor="middle">13 个 regression test</text>
+    <text x="540" y="465" class="note" text-anchor="middle">教科书级</text>
+
+    <text x="760" y="70" class="col" text-anchor="middle">Hermes · croniter</text>
+    <rect x="680" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="103" class="lbl" text-anchor="middle">~/.hermes/cron/jobs.json</text>
+
+    <line x1="760" y1="116" x2="760" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="680" y="138" width="160" height="48" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="158" class="lbl" text-anchor="middle">croniter 解析</text>
+    <text x="760" y="174" class="t-s" text-anchor="middle">标准 cron 语法</text>
+
+    <line x1="760" y1="186" x2="760" y2="205" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="680" y="208" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="228" class="lbl" text-anchor="middle">scheduler.py</text>
+    <text x="760" y="244" class="t-s" text-anchor="middle">asyncio 循环</text>
+    <text x="760" y="258" class="t-s" text-anchor="middle">ONESHOT_GRACE=120s</text>
+
+    <line x1="760" y1="268" x2="760" y2="287" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="680" y="290" width="160" height="60" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="310" class="lbl" text-anchor="middle">_scan_cron_prompt</text>
+    <text x="760" y="326" class="t-s" text-anchor="middle">10 critical 威胁</text>
+    <text x="760" y="340" class="t-s" text-anchor="middle">+ 10 invisible unicode</text>
+
+    <line x1="760" y1="350" x2="760" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar18F)" />
+
+    <rect x="680" y="372" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="392" class="lbl" text-anchor="middle">output md 落盘</text>
+    <text x="760" y="408" class="t-s" text-anchor="middle">{job_id}/{ts}.md</text>
+
+    <text x="760" y="450" class="note" text-anchor="middle">最克制</text>
+  </g>
+
+  <text x="440" y="490" class="t-s" text-anchor="middle">「让 agent 在你不在的时候也跑」的四种姿态</text>
+
+  <g>
+    <rect x="40" y="505" width="800" height="95" rx="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1" />
+    <text x="60" y="525" class="lbl">共同点：</text>
+    <text x="60" y="543" class="t-s">· 都需要持久化 schedule 定义（jobs.json / cron 表 / cloud-tasks 表）</text>
+    <text x="60" y="559" class="t-s">· 都需要触发循环（1s tick / asyncio / backend push）</text>
+    <text x="60" y="575" class="t-s">· 失败要有退避（OpenClaw 最显式：consecutiveErrors + scheduleErrorCount + failureAlert）</text>
+    <text x="60" y="591" class="t-s">· 长任务要隔离（cloud env / isolated-agent / subagent / fork）</text>
+  </g>
+</svg>

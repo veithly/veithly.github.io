@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img"
+     aria-label="Shell-execution interception stacks across four systems">
+  <defs>
+    
+    <filter id="wobble">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="7" />
+      <feDisplacementMap in="SourceGraphic" scale="2" />
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#0f172a" />
+    </marker>
+
+    <style>
+    .h     { font: 600 14px sans-serif; fill: #0f172a; }
+    .t     { font: 12px sans-serif; fill: #0f172a; }
+    .t-sub { font: 12px sans-serif; fill: #334155; }
+    .sys   { font: 700 13px sans-serif; fill: #fbfaf7; }
+    .stage { font: 600 12px sans-serif; fill: #0f172a; }
+    .num   { font: 700 16px sans-serif; fill: #ea580c; }
+</style>
+  </defs>
+
+  <text x="20" y="28" class="h">One `git push --force` traverses four different pipelines</text>
+  <text x="20" y="48" class="t-sub">Interception points don't overlap: DSL / parser / 2D matrix / switched execution environment</text>
+
+  <g filter="url(#wobble)">
+    <rect x="370" y="64" width="220" height="34" rx="6"
+          fill="#0f172a" stroke="#0f172a" stroke-width="2" />
+    <text x="480" y="86" class="sys" text-anchor="middle">tool_call: git push --force</text>
+
+    <line x1="160" y1="98" x2="160" y2="120" stroke="#0f172a" stroke-width="1.5" />
+    <line x1="370" y1="98" x2="370" y2="120" stroke="#0f172a" stroke-width="1.5" />
+    <line x1="590" y1="98" x2="590" y2="120" stroke="#0f172a" stroke-width="1.5" />
+    <line x1="800" y1="98" x2="800" y2="120" stroke="#0f172a" stroke-width="1.5" />
+    <line x1="160" y1="120" x2="800" y2="120" stroke="#0f172a" stroke-width="1.5" />
+    <line x1="160" y1="120" x2="160" y2="135" stroke="#0f172a" stroke-width="2" marker-end="url(#arrow)" />
+    <line x1="370" y1="120" x2="370" y2="135" stroke="#0f172a" stroke-width="2" marker-end="url(#arrow)" />
+    <line x1="590" y1="120" x2="590" y2="135" stroke="#0f172a" stroke-width="2" marker-end="url(#arrow)" />
+    <line x1="800" y1="120" x2="800" y2="135" stroke="#0f172a" stroke-width="2" marker-end="url(#arrow)" />
+
+    <rect x="60" y="140" width="200" height="370" rx="12"
+          fill="#fbfaf7" stroke="#1d4ed8" stroke-width="2.5" />
+    <text x="160" y="164" class="t" text-anchor="middle" fill="#1d4ed8" font-weight="700">Codex</text>
+    <text x="160" y="180" class="t-sub" text-anchor="middle">execpolicy + sandbox</text>
+
+    <rect x="80" y="196" width="160" height="40" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="160" y="212" class="t" text-anchor="middle">shlex tokenize</text>
+    <text x="160" y="226" class="t-sub" text-anchor="middle">[git, push, --force]</text>
+
+    <rect x="80" y="248" width="160" height="56" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="160" y="266" class="t" text-anchor="middle">prefix_rule match</text>
+    <text x="160" y="282" class="t-sub" text-anchor="middle">Starlark .codexpolicy</text>
+    <text x="160" y="296" class="t-sub" text-anchor="middle">decision: prompt</text>
+
+    <rect x="80" y="316" width="160" height="40" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="160" y="332" class="t" text-anchor="middle">TUI approval</text>
+    <text x="160" y="346" class="t-sub" text-anchor="middle">approval_policy</text>
+
+    <rect x="80" y="368" width="160" height="48" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="160" y="386" class="t" text-anchor="middle">sandbox_mode</text>
+    <text x="160" y="400" class="t-sub" text-anchor="middle">Landlock + seccomp</text>
+
+    <rect x="80" y="430" width="160" height="64" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="160" y="450" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">fork &#x2192; exec</text>
+    <text x="160" y="466" class="t-sub" text-anchor="middle">runs inside sandbox</text>
+    <text x="160" y="482" class="t-sub" text-anchor="middle">process isolation</text>
+
+    <rect x="270" y="140" width="200" height="370" rx="12"
+          fill="#fbfaf7" stroke="#6d28d9" stroke-width="2.5" />
+    <text x="370" y="164" class="t" text-anchor="middle" fill="#6d28d9" font-weight="700">Claude Code</text>
+    <text x="370" y="180" class="t-sub" text-anchor="middle">23 checks + sandbox</text>
+
+    <rect x="290" y="196" width="160" height="40" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="370" y="212" class="t" text-anchor="middle">tree-sitter parse</text>
+    <text x="370" y="226" class="t-sub" text-anchor="middle">+ shell-quote</text>
+
+    <rect x="290" y="248" width="160" height="56" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="370" y="266" class="t" text-anchor="middle">23 ID-keyed checks</text>
+    <text x="370" y="282" class="t-sub" text-anchor="middle">#5 / #8 / #19 ...</text>
+    <text x="370" y="296" class="t-sub" text-anchor="middle">ZSH_DANGEROUS?</text>
+
+    <rect x="290" y="316" width="160" height="40" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="370" y="332" class="t" text-anchor="middle">permission mode</text>
+    <text x="370" y="346" class="t-sub" text-anchor="middle">canUseTool hook</text>
+
+    <rect x="290" y="368" width="160" height="48" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="370" y="386" class="t" text-anchor="middle">SandboxManager</text>
+    <text x="370" y="400" class="t-sub" text-anchor="middle">sandbox-exec / bwrap</text>
+
+    <rect x="290" y="430" width="160" height="64" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="370" y="450" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">fork &#x2192; exec</text>
+    <text x="370" y="466" class="t-sub" text-anchor="middle">sandbox by default</text>
+    <text x="370" y="482" class="t-sub" text-anchor="middle">LSP / fileHistory integrated</text>
+
+    <rect x="480" y="140" width="220" height="370" rx="12"
+          fill="#fbfaf7" stroke="#15803d" stroke-width="2.5" />
+    <text x="590" y="164" class="t" text-anchor="middle" fill="#15803d" font-weight="700">OpenClaw</text>
+    <text x="590" y="180" class="t-sub" text-anchor="middle">security &#x00D7; ask matrix</text>
+
+    <rect x="500" y="196" width="180" height="40" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="590" y="212" class="t" text-anchor="middle">splitCommand</text>
+    <text x="590" y="226" class="t-sub" text-anchor="middle">+ obfuscation-detect</text>
+
+    <rect x="500" y="248" width="180" height="56" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="590" y="266" class="t" text-anchor="middle">security == allowlist?</text>
+    <text x="590" y="282" class="t-sub" text-anchor="middle">shell wrapper &#x2192; deny</text>
+    <text x="590" y="296" class="t-sub" text-anchor="middle">safe-bin profile?</text>
+
+    <rect x="500" y="316" width="180" height="40" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="590" y="332" class="t" text-anchor="middle">ask == on-miss?</text>
+    <text x="590" y="346" class="t-sub" text-anchor="middle">JSONL socket &#x2192; UI</text>
+
+    <rect x="500" y="368" width="180" height="48" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="590" y="386" class="t" text-anchor="middle">choose ExecHost</text>
+    <text x="590" y="400" class="t-sub" text-anchor="middle">sandbox / gateway / node</text>
+
+    <rect x="500" y="430" width="180" height="64" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="590" y="450" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">spawn</text>
+    <text x="590" y="466" class="t-sub" text-anchor="middle">sandbox / node fork</text>
+    <text x="590" y="482" class="t-sub" text-anchor="middle">event stream &#x2192; lane</text>
+
+    <rect x="720" y="140" width="200" height="370" rx="12"
+          fill="#fbfaf7" stroke="#ea580c" stroke-width="2.5" />
+    <text x="820" y="164" class="t" text-anchor="middle" fill="#ea580c" font-weight="700">Hermes</text>
+    <text x="820" y="180" class="t-sub" text-anchor="middle">switch execution env</text>
+
+    <rect x="740" y="196" width="160" height="40" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="820" y="212" class="t" text-anchor="middle">workdir allowlist</text>
+    <text x="820" y="226" class="t-sub" text-anchor="middle">_WORKDIR_SAFE_RE</text>
+
+    <rect x="740" y="248" width="160" height="56" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="820" y="266" class="t" text-anchor="middle">_check_all_guards</text>
+    <text x="820" y="282" class="t-sub" text-anchor="middle">tirith check</text>
+    <text x="820" y="296" class="t-sub" text-anchor="middle">dangerous cmd alert</text>
+
+    <rect x="740" y="316" width="160" height="40" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="820" y="332" class="t" text-anchor="middle">approval_callback</text>
+    <text x="820" y="346" class="t-sub" text-anchor="middle">once/session/always/deny</text>
+
+    <rect x="740" y="368" width="160" height="48" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="820" y="386" class="t" text-anchor="middle">TERMINAL_ENV</text>
+    <text x="820" y="400" class="t-sub" text-anchor="middle">local/docker/modal/...</text>
+
+    <rect x="740" y="430" width="160" height="64" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="820" y="450" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">spawn / docker run</text>
+    <text x="820" y="466" class="t-sub" text-anchor="middle">isolation at env layer</text>
+    <text x="820" y="482" class="t-sub" text-anchor="middle">command itself unblocked</text>
+  </g>
+
+  <text x="480" y="528" class="t-sub" text-anchor="middle">Four non-overlapping interception points: external DSL &#x00B7; exhaustive parsing &#x00B7; 2D matrix &#x00B7; switched env. Real builds usually stack 2&#x2013;3 of these layers.</text>
+</svg>

@@ -1,0 +1,211 @@
+---
+/**
+ * <SourceBlock path="REF/.../foo.ts" lines="100-150" system="claude" summary="可选副标题">
+ *   ```ts
+ *   ...code...
+ *   ```
+ * </SourceBlock>
+ *
+ * 折叠源码块。点开 <details> 才显示，避免章节被代码淹没。
+ * Codex / OpenClaw / Hermes 的 REF 路径会自动转成 GitHub blob 链接。
+ */
+import { resolveRepoLink } from '@lib/repoLinks';
+
+type System = 'codex' | 'claude' | 'openclaw' | 'hermes' | 'neutral';
+
+interface Props {
+  path: string;
+  lines?: string;
+  system?: System;
+  summary?: string;
+  open?: boolean;
+}
+
+const {
+  path,
+  lines,
+  system = 'neutral',
+  summary,
+  open = false,
+} = Astro.props;
+
+const systemLabel: Record<System, string> = {
+  codex: 'Codex',
+  claude: 'Claude Code',
+  openclaw: 'OpenClaw',
+  hermes: 'Hermes',
+  neutral: '',
+};
+
+const resolved = resolveRepoLink(path, lines);
+---
+
+<details class:list={['aap-source', `aap-source--${system}`]} open={open}>
+  <summary class="aap-source__summary">
+    {system !== 'neutral' && (
+      <span class:list={['aap-source__badge', `aap-source__badge--${system}`]}>
+        {systemLabel[system]}
+      </span>
+    )}
+    {resolved.url ? (
+      <a
+        class="aap-source__path aap-source__path--link"
+        href={resolved.url}
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Open source on GitHub"
+      ><code>{resolved.display}</code></a>
+    ) : (
+      <code class="aap-source__path">{resolved.display}</code>
+    )}
+    {summary && <span class="aap-source__hint">— {summary}</span>}
+    <span class="aap-source__chevron" aria-hidden="true">▸</span>
+  </summary>
+  <div class="aap-source__body">
+    <slot />
+  </div>
+</details>
+
+<script>
+  document.querySelectorAll<HTMLAnchorElement>('.aap-source__path--link').forEach((link) => {
+    link.addEventListener('click', (event) => {
+      event.stopPropagation();
+    });
+  });
+</script>
+
+<style>
+  .aap-source {
+    --accent: var(--aap-ink-muted);
+    border: 1px solid var(--aap-paper-line);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--aap-radius-md);
+    margin: var(--aap-sp-4) 0 var(--aap-sp-6);
+    background: var(--aap-paper);
+    box-shadow: var(--aap-shadow-soft);
+    overflow: hidden;
+    transition: box-shadow 0.15s ease;
+  }
+  .aap-source[open] { box-shadow: var(--aap-shadow-card); }
+  .aap-source--codex { --accent: var(--aap-system-codex); }
+  .aap-source--claude { --accent: var(--aap-system-claudecode); }
+  .aap-source--openclaw { --accent: var(--aap-system-openclaw); }
+  .aap-source--hermes { --accent: var(--aap-system-hermes); }
+
+  .aap-source__summary {
+    cursor: pointer;
+    list-style: none;
+    appearance: none;
+    -webkit-appearance: none;
+    padding: var(--aap-sp-3) var(--aap-sp-4);
+    background: var(--aap-paper-soft);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      'badge path arrow'
+      'hint  hint hint';
+    column-gap: var(--aap-sp-2);
+    row-gap: var(--aap-sp-1);
+    align-items: center;
+    font-family: var(--aap-font-body);
+    font-size: var(--aap-fs-sm);
+    user-select: none;
+    transition: background 0.12s ease;
+  }
+  .aap-source__summary:has(.aap-source__badge:empty),
+  .aap-source__summary:not(:has(.aap-source__badge)) {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: 'path arrow' 'hint hint';
+  }
+  a.aap-source__path--link {
+    grid-area: path;
+    text-decoration: none;
+    color: var(--accent);
+    border-bottom: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    min-width: 0;
+    transition: border-color 0.15s ease;
+  }
+  a.aap-source__path--link code {
+    color: inherit;
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+  }
+  a.aap-source__path--link:hover {
+    border-bottom-color: color-mix(in srgb, var(--accent) 65%, transparent);
+  }
+  a.aap-source__path--link:hover code {
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+  }
+  .aap-source__summary::-webkit-details-marker {
+    display: none;
+  }
+  .aap-source__summary::marker,
+  .aap-source__summary::before {
+    display: none;
+    content: '' !important;
+    font-size: 0 !important;
+  }
+  .aap-source__summary:hover {
+    background: var(--aap-paper-strong);
+  }
+
+  .aap-source__badge {
+    grid-area: badge;
+    font-family: var(--aap-font-mono);
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: white;
+    background: var(--accent);
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--aap-radius-sm);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .aap-source__path {
+    grid-area: path;
+    font-family: var(--aap-font-mono);
+    font-size: var(--aap-fs-xs);
+    background: var(--aap-paper-strong);
+    padding: 0.1rem 0.5rem;
+    border-radius: var(--aap-radius-sm);
+    color: var(--aap-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  .aap-source__hint {
+    grid-area: hint;
+    font-size: var(--aap-fs-xs);
+    color: var(--aap-ink-muted);
+    padding-left: var(--aap-sp-1);
+    line-height: 1.5;
+    font-style: italic;
+  }
+
+  .aap-source__chevron {
+    grid-area: arrow;
+    font-size: var(--aap-fs-xs);
+    color: var(--accent);
+    transition: transform 0.18s ease;
+  }
+  .aap-source[open] .aap-source__chevron { transform: rotate(90deg); }
+
+  .aap-source__body {
+    padding: var(--aap-sp-3) var(--aap-sp-4) var(--aap-sp-4);
+    border-top: 1px solid var(--aap-paper-line);
+    background: var(--aap-paper);
+  }
+
+  .aap-source__body :global(pre) {
+    margin: var(--aap-sp-2) 0 0;
+    border-radius: var(--aap-radius-md);
+    border: 1px solid var(--aap-paper-line);
+    font-size: var(--aap-fs-xs);
+    line-height: 1.5;
+    max-height: 600px;
+    overflow: auto;
+  }
+</style>

@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 560" role="img" aria-label="Agent Loop swim lanes across four systems">
+  <defs>
+    <filter id="lanes-wobble">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="7" />
+      <feDisplacementMap in="SourceGraphic" scale="2" />
+    </filter>
+    <marker id="lanes-arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#0f172a" />
+    </marker>
+    <style>
+      .h { font: 600 14px sans-serif; fill: #0f172a; }
+      .t { font: 12px sans-serif; fill: #0f172a; }
+      .t-sub { font: 12px sans-serif; fill: #334155; }
+      .sys { font: 700 13px sans-serif; fill: #fbfaf7; }
+      .sys-sub { font: 12px sans-serif; fill: #fbfaf7; }
+      .stage { font: 600 12px sans-serif; fill: #0f172a; }
+    </style>
+  </defs>
+
+  <text x="20" y="24" class="h">Agent Loop · 四个系统的泳道对比</text>
+  <text x="20" y="42" class="t-sub">同一个循环，四种工程取舍：停止条件、verifier、可重入与并发模型各不相同。</text>
+
+  <g transform="translate(0, 70)">
+    <rect x="178" y="0" width="180" height="30" rx="6" fill="#fbfaf7" stroke="#15803d" stroke-width="2" />
+    <text x="268" y="20" class="stage" text-anchor="middle" fill="#15803d">Observe / Intake</text>
+    <rect x="368" y="0" width="180" height="30" rx="6" fill="#fbfaf7" stroke="#ea580c" stroke-width="2" />
+    <text x="458" y="20" class="stage" text-anchor="middle" fill="#ea580c">Plan / Reason</text>
+    <rect x="558" y="0" width="180" height="30" rx="6" fill="#fbfaf7" stroke="#6d28d9" stroke-width="2" />
+    <text x="648" y="20" class="stage" text-anchor="middle" fill="#6d28d9">Act / Tool Call</text>
+    <rect x="748" y="0" width="210" height="30" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="853" y="20" class="stage" text-anchor="middle" fill="#b91c1c">Verify / Stop?</text>
+  </g>
+
+  <g filter="url(#lanes-wobble)" transform="translate(0, 115)">
+    <!-- Codex (blue) -->
+    <g>
+      <rect x="20" y="10" width="140" height="80" rx="10" fill="#1d4ed8" stroke="#0f172a" stroke-width="2" />
+      <text x="90" y="38" class="sys" text-anchor="middle">Codex</text>
+      <text x="90" y="58" class="sys-sub" text-anchor="middle">submit(Op)</text>
+      <text x="90" y="74" class="sys-sub" text-anchor="middle">next_event()</text>
+      <rect x="178" y="10" width="180" height="80" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="2" />
+      <text x="268" y="34" class="t" text-anchor="middle">new_default_turn()</text>
+      <text x="268" y="52" class="t-sub" text-anchor="middle">TurnContext / Goal</text>
+      <text x="268" y="74" class="t-sub" text-anchor="middle">rollout 持久化</text>
+      <rect x="368" y="10" width="180" height="80" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="2" />
+      <text x="458" y="34" class="t" text-anchor="middle">Responses API</text>
+      <text x="458" y="52" class="t-sub" text-anchor="middle">function_tool 调用</text>
+      <text x="458" y="74" class="t-sub" text-anchor="middle">codex_delegate (subagent)</text>
+      <rect x="558" y="10" width="180" height="80" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="2" />
+      <text x="648" y="34" class="t" text-anchor="middle">exec / apply_patch</text>
+      <text x="648" y="52" class="t-sub" text-anchor="middle">execpolicy 审批</text>
+      <text x="648" y="74" class="t-sub" text-anchor="middle">sandbox 隔离</text>
+      <rect x="748" y="10" width="210" height="80" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="2" />
+      <text x="853" y="34" class="t" text-anchor="middle">run tests / lint</text>
+      <text x="853" y="52" class="t-sub" text-anchor="middle">goals.rs 收敛判断</text>
+      <text x="853" y="74" class="t-sub" text-anchor="middle">flush_rollout → 可恢复</text>
+    </g>
+
+    <!-- Claude Code (purple) -->
+    <g transform="translate(0, 100)">
+      <rect x="20" y="10" width="140" height="80" rx="10" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+      <text x="90" y="34" class="sys" text-anchor="middle">Claude Code</text>
+      <text x="90" y="54" class="sys-sub" text-anchor="middle">queryLoop()</text>
+      <text x="90" y="70" class="sys-sub" text-anchor="middle">query.ts:241</text>
+      <rect x="178" y="10" width="180" height="80" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="2" />
+      <text x="268" y="34" class="t" text-anchor="middle">4 道上下文压缩</text>
+      <text x="268" y="52" class="t-sub" text-anchor="middle">snip / micro / collapse / auto</text>
+      <text x="268" y="74" class="t-sub" text-anchor="middle">using memory prefetch</text>
+      <rect x="368" y="10" width="180" height="80" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="2" />
+      <text x="458" y="34" class="t" text-anchor="middle">Anthropic API 流式</text>
+      <text x="458" y="52" class="t-sub" text-anchor="middle">transition.reason 标签</text>
+      <text x="458" y="74" class="t-sub" text-anchor="middle">skill prefetch 并行</text>
+      <rect x="558" y="10" width="180" height="80" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="2" />
+      <text x="648" y="34" class="t" text-anchor="middle">tool_use block dispatch</text>
+      <text x="648" y="52" class="t-sub" text-anchor="middle">TaskType 7 种</text>
+      <text x="648" y="74" class="t-sub" text-anchor="middle">queryTracking.depth</text>
+      <rect x="748" y="10" width="210" height="80" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="2" />
+      <text x="853" y="34" class="t" text-anchor="middle">无 tool_use 则退出</text>
+      <text x="853" y="52" class="t-sub" text-anchor="middle">stopHooks 拦截 / TOKEN_BUDGET 90%</text>
+      <text x="853" y="74" class="t-sub" text-anchor="middle">maxTurns 硬上限</text>
+    </g>
+
+    <!-- OpenClaw (green) -->
+    <g transform="translate(0, 200)">
+      <rect x="20" y="10" width="140" height="80" rx="10" fill="#15803d" stroke="#0f172a" stroke-width="2" />
+      <text x="90" y="38" class="sys" text-anchor="middle">OpenClaw</text>
+      <text x="90" y="58" class="sys-sub" text-anchor="middle">agent RPC</text>
+      <text x="90" y="74" class="sys-sub" text-anchor="middle">agent.wait</text>
+      <rect x="178" y="10" width="180" height="80" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="2" />
+      <text x="268" y="34" class="t" text-anchor="middle">session 锁 + 工作区</text>
+      <text x="268" y="52" class="t-sub" text-anchor="middle">skills 注入 prompt</text>
+      <text x="268" y="74" class="t-sub" text-anchor="middle">bootstrap files</text>
+      <rect x="368" y="10" width="180" height="80" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="2" />
+      <text x="458" y="34" class="t" text-anchor="middle">runEmbeddedPiAgent</text>
+      <text x="458" y="52" class="t-sub" text-anchor="middle">3 stream: assistant/tool/lifecycle</text>
+      <text x="458" y="74" class="t-sub" text-anchor="middle">session lane 串行化</text>
+      <rect x="558" y="10" width="180" height="80" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="2" />
+      <text x="648" y="34" class="t" text-anchor="middle">tool plugins</text>
+      <text x="648" y="52" class="t-sub" text-anchor="middle">before/after_tool_call hook</text>
+      <text x="648" y="74" class="t-sub" text-anchor="middle">sandbox 多通道</text>
+      <rect x="748" y="10" width="210" height="80" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="2" />
+      <text x="853" y="34" class="t" text-anchor="middle">lifecycle:end / error</text>
+      <text x="853" y="52" class="t-sub" text-anchor="middle">auto-compaction + retry</text>
+      <text x="853" y="74" class="t-sub" text-anchor="middle">timeout abort</text>
+    </g>
+
+    <!-- Hermes (orange) -->
+    <g transform="translate(0, 300)">
+      <rect x="20" y="10" width="140" height="80" rx="10" fill="#ea580c" stroke="#0f172a" stroke-width="2" />
+      <text x="90" y="34" class="sys" text-anchor="middle">Hermes</text>
+      <text x="90" y="54" class="sys-sub" text-anchor="middle">run_conversation</text>
+      <text x="90" y="70" class="sys-sub" text-anchor="middle">while iter &lt; 90</text>
+      <rect x="178" y="10" width="180" height="80" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="2" />
+      <text x="268" y="34" class="t" text-anchor="middle">memory.prefetch_all</text>
+      <text x="268" y="52" class="t-sub" text-anchor="middle">跨会话用户模型 + 搜索</text>
+      <text x="268" y="74" class="t-sub" text-anchor="middle">SubdirectoryHintTracker</text>
+      <rect x="368" y="10" width="180" height="80" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="2" />
+      <text x="458" y="34" class="t" text-anchor="middle">OpenAI 协议</text>
+      <text x="458" y="52" class="t-sub" text-anchor="middle">subagent (max_iter=50)</text>
+      <text x="458" y="74" class="t-sub" text-anchor="middle">trajectory 事件流</text>
+      <rect x="558" y="10" width="180" height="80" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="2" />
+      <text x="648" y="34" class="t" text-anchor="middle">tool dispatch</text>
+      <text x="648" y="52" class="t-sub" text-anchor="middle">checkpoint_mgr.new_turn</text>
+      <text x="648" y="74" class="t-sub" text-anchor="middle">interrupt 可中断</text>
+      <rect x="748" y="10" width="210" height="80" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="2" />
+      <text x="853" y="34" class="t" text-anchor="middle">IterationBudget + grace</text>
+      <text x="853" y="52" class="t-sub" text-anchor="middle">skill insights 自评</text>
+      <text x="853" y="74" class="t-sub" text-anchor="middle">memory commit → 持久化</text>
+    </g>
+
+    <!-- loop-back arrows -->
+    <path d="M 958 50 C 1010 50, 1010 -10, 178 -10 C 90 -10, 60 30, 90 50" fill="none" stroke="#0f172a" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#lanes-arrow)" opacity="0.55" />
+    <path d="M 958 150 C 1010 150, 1010 90, 178 90 C 90 90, 60 130, 90 150" fill="none" stroke="#0f172a" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#lanes-arrow)" opacity="0.55" />
+    <path d="M 958 250 C 1010 250, 1010 190, 178 190 C 90 190, 60 230, 90 250" fill="none" stroke="#0f172a" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#lanes-arrow)" opacity="0.55" />
+    <path d="M 958 350 C 1010 350, 1010 290, 178 290 C 90 290, 60 330, 90 350" fill="none" stroke="#0f172a" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#lanes-arrow)" opacity="0.55" />
+  </g>
+
+  <text x="20" y="545" class="t-sub">
+    • 共同点：每一行都走 Observe → Plan → Act → Verify  ·  • 差异点：每一格的工程取舍不同  ·  • 点评见 §6
+  </text>
+</svg>

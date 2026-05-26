@@ -1,0 +1,68 @@
+---
+title: Hermes
+description: "Hermes (Nous Research)：长期运行加双文件记忆加 tirith 安全外包加 croniter 后台"
+sidebar:
+  order: 4
+---
+
+import Verdict from '@components/Verdict.astro';
+import CompareTable from '@components/CompareTable.astro';
+import SourceTrail from '@components/SourceTrail.astro';
+
+<Verdict tldr="Hermes 是四家里工程克制最狠的：记忆是两个字符限额的 markdown 文件（MEMORY.md 2200 字，USER.md 1375 字），安全外包给独立 `tirith` 子进程（exit code 决定 verdict），cron 用 `croniter` 加一个 `jobs.json`。不追求功能完整，追求每一条线都能在受限环境跑、能审计、能 fail_open 兜底。Python agent 的最佳参考实现。" tone="insight" />
+
+## §1 · Hermes 是什么
+
+Nous Research 出品的 Python agent。定位是「长期运行、自改进、对资源约束敏感」的本地 agent。pyproject 加 flake.nix 支持 macOS、Linux、Termux（Android）多目标。
+
+## §2 · 按目录分层的架构栈
+
+<CompareTable
+  rows={[
+    { label: '入口', values: ['`hermes` 主二进制（CLI）', '`hermes_cli/` 子命令分发', '`mcp_serve.py` MCP server 入口', '`hermes_state.py` 全局状态'] },
+    { label: '核心', values: ['`agent/` turn loop 加 insights 加 memory_manager', '`gateway/` 模型网关', '`model_tools.py` 工具表', '`acp_adapter/` ACP 协议'] },
+    { label: '记忆', values: ['`tools/memory_tool.py` MEMORY.md（2200 char）加 USER.md（1375 char）', '4 actions：add、replace、remove、read', 'frozen snapshot 注入 system prompt', '`_MEMORY_THREAT_PATTERNS` 11 条扫描'] },
+    { label: '安全', values: ['`tools/tirith_security.py` 子进程扫描器', 'exit code 决定 verdict，不依赖 LLM', '`agent/redact.py` 30+ vendor 前缀脱敏', 'cosign 加 SHA-256 双重校验 tirith 二进制'] },
+    { label: '定时任务', values: ['`cron/` croniter 实现', '`~/.hermes/cron/jobs.json` 持久化', '`ONESHOT_GRACE_SECONDS = 120`', '`_CRON_THREAT_PATTERNS` 10 条威胁扫描'] },
+    { label: '观测与计费', values: ['`agent/insights.py` 灵感来自 Claude Code', '`agent/usage_pricing.py` 5 种 source 优先级', '`CanonicalUsage` 加 `PricingEntry`', '本地 markdown 报告'] },
+  ]}
+  caption="Hermes 用字符限额加子进程隔离加显式扫描，换来工程可预测性。"
+/>
+
+## §3 · 工程亮点
+
+1. **工程克制是最大特色**：2 个 markdown 文件管所有长期记忆。2200 加 1375 字符的硬约束逼着模型自己排序优先级。
+2. **frozen snapshot 保 prefix cache**：记忆在 session 加载时 snapshot 进 system prompt。mid-session 写入只落盘不重建 prompt，下次 session 才生效。prefix cache 不破。
+3. **tirith 安全外包**：内容级安全扫描放到独立 Python 二进制，主进程只看 exit code（0/1/2）。fail_open 默认开，agent 永远能跑。
+4. **30+ vendor 前缀脱敏**：`agent/redact.py` 覆盖 `sk-`、`ghp_`、`AKIA`、`xox`、`AIza`、`gAAAA` 等主流密钥前缀。import 时 snapshot 配置防被改。
+5. **跨平台到 Android**：Termux 跑 Python agent 的最完整参考。`constraints-termux.txt` 锁定可在 Android 装的依赖。
+
+## §4 · 短板
+
+1. **检索弱**：没有 FTS5、没有向量索引、没有 temporal decay。MEMORY.md 写满了，只能让模型自己排序。
+2. **没有 phase2 consolidation**：记忆全靠 turn 内 `memory` 工具的显式写入。
+3. **`tirith` 是 OOS 安装依赖**：受限环境装不上 cosign 或 tirith 时，会回退到 fail_open 等于没扫。
+4. **没有 GUI 或 TUI**：纯 CLI 加 MCP，IDE 集成完全靠用户自己接。
+
+## §5 · 5 件最值得借鉴的工程动作
+
+1. **字符限额代替 token 限额**：跨模型可预测，不依赖 tokenizer。MEMORY.md 2200 字符的设计放在任何 agent 都能直接用。
+2. **frozen snapshot 注入策略**（`tools/memory_tool.py`）：mid-session 写入只落盘，下次 session 才重载。是「记忆要新加上 prefix cache 要稳」两个需求的最简方案。
+3. **tirith 子进程加 exit code 决断**：内容级安全扫描外包给独立进程。主进程只看 0、1、2 三个 exit code。
+4. **`_MEMORY_THREAT_PATTERNS` 11 条加 10 个 invisible unicode**：写入前扫描。覆盖 prompt injection、role hijack、`exfil_curl`、`read_secrets`、`ssh_backdoor`。
+5. **`agent/redact.py` 30+ 前缀加 import-time snapshot**：脱敏配置在 import 时 snapshot，防 mid-runtime 被改。
+
+## §6 · 源码地图
+
+<SourceTrail
+  entries={[
+    { system: 'Hermes', path: 'REF/hermes-agent/tools/memory_tool.py', desc: 'MEMORY.md、USER.md 加 4 action 加 frozen snapshot' },
+    { system: 'Hermes', path: 'REF/hermes-agent/tools/tirith_security.py', desc: '独立子进程加 exit code verdict 加 cosign' },
+    { system: 'Hermes', path: 'REF/hermes-agent/agent/redact.py', desc: '30+ vendor 前缀加 import-time snapshot' },
+    { system: 'Hermes', path: 'REF/hermes-agent/agent/memory_manager.py', desc: 'sanitize_context 加 build_memory_context_block' },
+    { system: 'Hermes', path: 'REF/hermes-agent/agent/insights.py', desc: '本地 insights 报告' },
+    { system: 'Hermes', path: 'REF/hermes-agent/agent/usage_pricing.py', desc: 'CanonicalUsage 加 5 种 source 优先级' },
+    { system: 'Hermes', path: 'REF/hermes-agent/cron/', desc: 'croniter 加 jobs.json 加威胁扫描' },
+    { system: 'Hermes', external: 'https://hermes-agent.nousresearch.com/docs/', path: 'hermes-agent.nousresearch.com', desc: '官方文档' },
+  ]}
+/>

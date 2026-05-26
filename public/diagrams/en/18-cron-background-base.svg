@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" width="100%" font-family="'Kalam','Comic Neue',sans-serif">
+  <defs>
+    <filter id="r18">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="60" />
+      <feDisplacementMap in="SourceGraphic" scale="1.3" />
+    </filter>
+    <style>
+      .t { font-size: 14px; fill: #0f172a; }
+      .t-sub { font-size: 12px; fill: #334155; }
+      .head { font-size: 18px; fill: #0f172a; font-weight: 700; }
+    </style>
+  </defs>
+
+  <rect width="900" height="600" fill="#fbfaf7" />
+
+  <text x="450" y="34" class="head" text-anchor="middle">Cron &amp; background jobs: from cloud task tables to a local 1s tick</text>
+  <text x="450" y="54" class="t-sub" text-anchor="middle">cloud-tasks &#x00B7; CronCreateTool + scheduler &#x00B7; service + isolated-agent &#x00B7; croniter + jobs.json</text>
+
+  <g filter="url(#r18)">
+    <rect x="20" y="68" width="430" height="250" rx="12" fill="#fbfaf7" stroke="#1d4ed8" stroke-width="2.5" />
+    <text x="40" y="92" class="t" fill="#1d4ed8" font-weight="700">Codex &#x00B7; cloud-tasks as standalone binary</text>
+    <text x="40" y="110" class="t-sub">No local cron; cron lives in the cloud</text>
+
+    <rect x="40" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="130" y="142" class="t" text-anchor="middle">cloud-tasks</text>
+    <text x="130" y="158" class="t-sub" text-anchor="middle">TaskSummary</text>
+    <text x="130" y="172" class="t-sub" text-anchor="middle">TaskId</text>
+    <text x="130" y="186" class="t-sub" text-anchor="middle">EnvironmentRow</text>
+    <text x="130" y="200" class="t-sub" text-anchor="middle">is_pinned</text>
+
+    <rect x="240" y="124" width="195" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="337" y="142" class="t" text-anchor="middle">best-of-N</text>
+    <text x="337" y="158" class="t-sub" text-anchor="middle">BestOfModalState</text>
+    <text x="337" y="172" class="t-sub" text-anchor="middle">parallel branches</text>
+    <text x="337" y="186" class="t-sub" text-anchor="middle">UI picks best to apply</text>
+    <text x="337" y="200" class="t-sub" text-anchor="middle">ApplyResultLevel x3</text>
+
+    <rect x="40" y="216" width="390" height="90" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="235" y="234" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">design intent</text>
+    <text x="235" y="252" class="t-sub" text-anchor="middle">local = developer tool (REPL)</text>
+    <text x="235" y="266" class="t-sub" text-anchor="middle">cloud = long-running tasks + best-of-N</text>
+    <text x="235" y="280" class="t-sub" text-anchor="middle">ApplyModalState records conflict/skipped</text>
+    <text x="235" y="294" class="t-sub" text-anchor="middle">EnvironmentRow pins favourite projects</text>
+
+    <rect x="470" y="68" width="410" height="250" rx="12" fill="#fbfaf7" stroke="#6d28d9" stroke-width="2.5" />
+    <text x="490" y="92" class="t" fill="#6d28d9" font-weight="700">Claude Code &#x00B7; CronCreateTool + scheduler</text>
+    <text x="490" y="110" class="t-sub">1s tick + chokidar + scheduler lock</text>
+
+    <rect x="490" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="580" y="142" class="t" text-anchor="middle">CronTask</text>
+    <text x="580" y="158" class="t-sub" text-anchor="middle">5-field cron</text>
+    <text x="580" y="172" class="t-sub" text-anchor="middle">recurring vs one-shot</text>
+    <text x="580" y="186" class="t-sub" text-anchor="middle">durable vs session</text>
+    <text x="580" y="200" class="t-sub" text-anchor="middle">permanent lock</text>
+
+    <rect x="690" y="124" width="180" height="80" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="780" y="142" class="t" text-anchor="middle">scheduler lock</text>
+    <text x="780" y="158" class="t-sub" text-anchor="middle">cross-process mutex</text>
+    <text x="780" y="172" class="t-sub" text-anchor="middle">PROBE 5s</text>
+    <text x="780" y="186" class="t-sub" text-anchor="middle">graceful handover</text>
+    <text x="780" y="200" class="t-sub" text-anchor="middle">recurringMaxAge 30d</text>
+
+    <rect x="490" y="216" width="380" height="90" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="680" y="234" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">assistant mode invisible tasks</text>
+    <text x="680" y="252" class="t-sub" text-anchor="middle">morning-checkin / dream / catch-up</text>
+    <text x="680" y="266" class="t-sub" text-anchor="middle">permanent: true entry</text>
+    <text x="680" y="280" class="t-sub" text-anchor="middle">only install.ts can create these</text>
+    <text x="680" y="294" class="t-sub" text-anchor="middle">CronCreateTool cannot write here</text>
+
+    <rect x="20" y="328" width="430" height="252" rx="12" fill="#fbfaf7" stroke="#15803d" stroke-width="2.5" />
+    <text x="40" y="352" class="t" fill="#15803d" font-weight="700">OpenClaw &#x00B7; cron subsystem, 100+ files</text>
+    <text x="40" y="370" class="t-sub">at/every/cron 3 modes + isolated-agent</text>
+
+    <rect x="40" y="384" width="180" height="100" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="130" y="402" class="t" text-anchor="middle">CronSchedule x3</text>
+    <text x="130" y="418" class="t-sub" text-anchor="middle">at: specific instant</text>
+    <text x="130" y="432" class="t-sub" text-anchor="middle">every: ms</text>
+    <text x="130" y="446" class="t-sub" text-anchor="middle">cron: tz + staggerMs</text>
+    <text x="130" y="460" class="t-sub" text-anchor="middle">+ deterministic stagger</text>
+    <text x="130" y="474" class="t-sub" text-anchor="middle">avoids thundering herd</text>
+
+    <rect x="240" y="384" width="190" height="100" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="335" y="402" class="t" text-anchor="middle">isolated-agent</text>
+    <text x="335" y="418" class="t-sub" text-anchor="middle">dedicated session</text>
+    <text x="335" y="432" class="t-sub" text-anchor="middle">skills-snapshot frozen</text>
+    <text x="335" y="446" class="t-sub" text-anchor="middle">subagent-followup</text>
+    <text x="335" y="460" class="t-sub" text-anchor="middle">+ run.cron-model-override</text>
+    <text x="335" y="474" class="t-sub" text-anchor="middle">+ 13 issue regression tests</text>
+
+    <rect x="40" y="496" width="390" height="78" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="235" y="514" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">execution vs delivery separation</text>
+    <text x="235" y="532" class="t-sub" text-anchor="middle">lastRunStatus &#x00B7; lastDeliveryStatus</text>
+    <text x="235" y="546" class="t-sub" text-anchor="middle">consecutiveErrors backoff</text>
+    <text x="235" y="560" class="t-sub" text-anchor="middle">scheduleErrorCount auto-disables</text>
+
+    <rect x="470" y="328" width="410" height="252" rx="12" fill="#fbfaf7" stroke="#ea580c" stroke-width="2.5" />
+    <text x="490" y="352" class="t" fill="#ea580c" font-weight="700">Hermes &#x00B7; croniter + jobs.json</text>
+    <text x="490" y="370" class="t-sub">textbook approach + prompt scanning</text>
+
+    <rect x="490" y="384" width="180" height="100" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="580" y="402" class="t" text-anchor="middle">~/.hermes/cron/</text>
+    <text x="580" y="418" class="t-sub" text-anchor="middle">jobs.json (0o600)</text>
+    <text x="580" y="432" class="t-sub" text-anchor="middle">output/{job_id}/</text>
+    <text x="580" y="446" class="t-sub" text-anchor="middle">{ts}.md</text>
+    <text x="580" y="460" class="t-sub" text-anchor="middle">dir 0o700</text>
+    <text x="580" y="474" class="t-sub" text-anchor="middle">ONESHOT_GRACE 120s</text>
+
+    <rect x="690" y="384" width="180" height="100" rx="6" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.5" />
+    <text x="780" y="402" class="t" text-anchor="middle">_origin_from_env</text>
+    <text x="780" y="418" class="t-sub" text-anchor="middle">SESSION_PLATFORM</text>
+    <text x="780" y="432" class="t-sub" text-anchor="middle">SESSION_CHAT_ID</text>
+    <text x="780" y="446" class="t-sub" text-anchor="middle">SESSION_THREAD_ID</text>
+    <text x="780" y="460" class="t-sub" text-anchor="middle">remembers the trigger source</text>
+    <text x="780" y="474" class="t-sub" text-anchor="middle">decides delivery chat</text>
+
+    <rect x="490" y="496" width="380" height="78" rx="6" fill="#fbfaf7" stroke="#b91c1c" stroke-width="2" />
+    <text x="680" y="514" class="t" text-anchor="middle" fill="#b91c1c" font-weight="700">_CRON_THREAT_PATTERNS x10</text>
+    <text x="680" y="532" class="t-sub" text-anchor="middle">prompt injection / role hijack / curl exfil</text>
+    <text x="680" y="546" class="t-sub" text-anchor="middle">/etc/sudoers / rm -rf / / authorized_keys</text>
+    <text x="680" y="560" class="t-sub" text-anchor="middle">+ 10 invisible-unicode scrubs</text>
+  </g>
+</svg>

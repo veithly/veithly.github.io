@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 420" role="img"
+     aria-label="Two typical verifier-failure paths: hard verifier stuck vs soft verifier stuck">
+  <defs>
+    <filter id="wb05p"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="22" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar05p" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <marker id="ar05p-r" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#b91c1c" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .label{ font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .sig  { font: italic 11px sans-serif; fill: #b91c1c; }
+      .sig2 { font: italic 11px sans-serif; fill: #92400e; }
+    </style>
+  </defs>
+
+  <text x="410" y="26" class="h" text-anchor="middle">Two typical verifier-failure paths</text>
+  <text x="410" y="44" class="t-s" text-anchor="middle">Hard verifier stuck = task not done; soft verifier stuck = tokens spent but task still not done</text>
+
+  <text x="30" y="90" class="label">Path A &#x00B7; hard verifier stuck</text>
+  <text x="30" y="108" class="t-s">external judge raises a fail signal</text>
+
+  <g filter="url(#wb05p)">
+    <rect x="180" y="80" width="100" height="40" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="230" y="105" class="lbl" text-anchor="middle">Turn N</text>
+
+    <rect x="310" y="80" width="120" height="40" rx="8" fill="#fee2e2" stroke="#b91c1c" stroke-width="2" />
+    <text x="370" y="98" class="lbl" text-anchor="middle">tests fail</text>
+    <text x="370" y="113" class="sig" text-anchor="middle">exit != 0</text>
+
+    <rect x="460" y="80" width="140" height="40" rx="8" fill="#fee2e2" stroke="#b91c1c" stroke-width="2" />
+    <text x="530" y="98" class="lbl" text-anchor="middle">goal not converging</text>
+    <text x="530" y="113" class="sig" text-anchor="middle">GoalRuntimeEvent</text>
+
+    <rect x="630" y="80" width="140" height="40" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="700" y="98" class="lbl" text-anchor="middle">force continue</text>
+    <text x="700" y="113" class="t-s" text-anchor="middle">&#x2192; Turn N+1</text>
+
+    <line x1="280" y1="100" x2="310" y2="100" stroke="#0f172a" stroke-width="2" marker-end="url(#ar05p)" />
+    <line x1="430" y1="100" x2="460" y2="100" stroke="#b91c1c" stroke-width="2" marker-end="url(#ar05p-r)" />
+    <line x1="600" y1="100" x2="630" y2="100" stroke="#0f172a" stroke-width="2" marker-end="url(#ar05p)" />
+
+    <line x1="30" y1="180" x2="790" y2="180" stroke="#64748b" stroke-width="1" stroke-dasharray="4 3" />
+  </g>
+
+  <text x="30" y="220" class="label">Path B &#x00B7; soft verifier stuck</text>
+  <text x="30" y="238" class="t-s">budget exhausted + convergence slowing</text>
+
+  <g filter="url(#wb05p)">
+    <rect x="180" y="210" width="100" height="40" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="230" y="235" class="lbl" text-anchor="middle">Turn N</text>
+
+    <rect x="310" y="210" width="160" height="40" rx="8" fill="#fed7aa" stroke="#92400e" stroke-width="2" />
+    <text x="390" y="228" class="lbl" text-anchor="middle">token &#x2265; 90% budget</text>
+    <text x="390" y="243" class="sig2" text-anchor="middle">COMPLETION_THRESHOLD</text>
+
+    <rect x="500" y="210" width="180" height="40" rx="8" fill="#fed7aa" stroke="#92400e" stroke-width="2" />
+    <text x="590" y="228" class="lbl" text-anchor="middle">3 turns &lt; 500 tokens</text>
+    <text x="590" y="243" class="sig2" text-anchor="middle">DIMINISHING_THRESHOLD</text>
+
+    <line x1="280" y1="230" x2="310" y2="230" stroke="#0f172a" stroke-width="2" marker-end="url(#ar05p)" />
+    <line x1="470" y1="230" x2="500" y2="230" stroke="#92400e" stroke-width="2" marker-end="url(#ar05p)" />
+
+    <rect x="280" y="290" width="320" height="50" rx="10" fill="#fef3c7" stroke="#0f172a" stroke-width="2.2" />
+    <text x="440" y="312" class="label" text-anchor="middle">verdict: diminishing returns</text>
+    <text x="440" y="329" class="t-s" text-anchor="middle">force stop + surface transition.reason</text>
+
+    <path d="M590,250 Q590,275 440,290" stroke="#92400e" stroke-width="2" fill="none" marker-end="url(#ar05p)" />
+  </g>
+
+  <text x="30" y="380" class="t-s">Key insight: the three verifier layers must stay separate. Collapsing them into one boolean loses the difference between &#x201C;working&#x201D;, &#x201C;spinning&#x201D;, and &#x201C;time to stop&#x201D;.</text>
+  <text x="30" y="398" class="t-s">Hard verifier looks at external artifacts &#x00B7; soft verifier looks at budgets and heuristics &#x00B7; lazy verifier is just a fallback, never the main driver.</text>
+</svg>

@@ -1,0 +1,961 @@
+---
+title: 12 · 权限与审批
+sidebar:
+  order: 12
+description: 5 种 AskForApproval 加 5 类 Granular、5 种 PermissionMode 加 3 行为、3 乘 3 ExecHost、Security、Ask 矩阵、tirith 子进程 加 exit-code verdict
+---
+
+import Verdict from '@components/Verdict.astro';
+import CompareTable from '@components/CompareTable.astro';
+import Diagram from '@components/Diagram.astro';
+import TradeOff from '@components/TradeOff.astro';
+import ScoreCard from '@components/ScoreCard.astro';
+import BuildRecipe from '@components/BuildRecipe.astro';
+import SourceTrail from '@components/SourceTrail.astro';
+import SourceBlock from '@components/SourceBlock.astro';
+
+## §1 · TL;DR
+
+<Verdict tldr="权限和审批是 agent 跟用户之间拉扯最厉害的一个战场：agent 要替用户做事，但用户又不想被 agent 替自己做错事。这件事的核心问题至少有四个：什么时候应该弹窗问用户（每个操作都问会让人不堪其扰，永远不问会出大事故）、问什么（是问要不要跑这个命令，还是问要不要给这个工具一次性放行）、答完之后这个答复能保留多久（一次有效？整个会话？永久？）、当 agent 想要的权限超出当前授权时怎么优雅地升级（重新问？直接拒？提议改规则？）。四家系统在这件事上的工程复杂度差了整整一个数量级。Codex 走的是类型化最深路线：所有的策略、操作、用户答案都被定义成强类型枚举（Rust 的代数数据类型 enum，每个变体都是编译期可穷举的、传错会编译失败）。5 种顶层审批模式（永远不问的 UnlessTrusted、永远只问的 OnRequest、模型自己决定问不问的 OnFailure、按 5 个独立旋钮细粒度调的 Granular、出错才问的 Never），5 种细粒度旋钮（sandbox 沙箱违规要不要问、rules 规则触发要不要问、skill 调用 skill 要不要问、request_permissions 文件权限申请要不要问、mcp_elicitations MCP 主动弹出参数表单要不要问），最关键的是把可审批的操作也归纳成 6 种强类型变体（shell 命令、execve 直接 exec 系统调用、apply_patch 应用补丁、网络访问、MCP 工具调用、文件权限请求），每种变体携带各自需要的字段，用户答复也是 5 种枚举（Approved 同意一次、ApprovedExecpolicyAmendment 同意并修改 execpolicy 永久放行、ApprovedForSession 同意整个会话、NetworkPolicyAmendment 同意并修改网络策略、Abort 否决），而且最妙的是它有一个根据请求上下文动态推断该展示哪几个按钮的函数：同样一个审批弹窗在不同上下文下按钮组合不同。Claude Code 走 IDE 配置系统风格：5 种 PermissionMode 权限模式（acceptEdits 接受所有编辑、bypassPermissions 跳过所有权限、default 默认、dontAsk 永不询问、plan 规划模式），3 种 PermissionBehavior 行为（allow 允许、deny 拒绝、ask 询问）。最特别的是定义了 8 种规则来源（userSettings 用户全局设置、projectSettings 项目设置、localSettings 本地未提交设置、flagSettings 启动 flag、policySettings 企业策略、cliArg CLI 参数、command 命令内联、session 会话临时），让这条规则是从哪儿来的成为一等公民，方便排错时一眼看出这是项目设置里的不是个人配的。OpenClaw 用了一个 3 维矩阵：执行宿主（ExecHost 决定命令在哪跑：sandbox、gateway、node）乘安全级别（ExecSecurity 决定按什么强度过滤：deny、allowlist、full）乘询问策略（ExecAsk 决定何时弹用户：off、on-miss、always）等于 27 种组合（4 乘 3 真实组合），并且用一个 5 元组 SystemRunApprovalBinding（命令字符串 argv、cwd 当前工作目录、agent ID、session key、环境哈希）作为审批的唯一标识，让同一个命令在不同的目录、不同的 agent、不同的会话里走不同的审批路径。Hermes 走最克制的路线：它本身不做内容级权限检查，所有这条命令、这个 prompt、这个文件路径是否安全的判断都委托给一个叫 tirith 的独立子进程（Hermes 自带的安全扫描器，作为外挂跑在 agent 主进程之外）去做，整个权限系统的 verdict 来源只有一个：tirith 进程退出时的 exit code（0 等于允许、1 等于阻止、2 等于警告），并且配一个 fail_open 配置兜底（tirith 自己崩了或超时时默认是放行还是默认拒绝由用户决定）。结论：要做严肃的 agent，前两家的 enum 化是底线。要做生产部署，OpenClaw 的 27 矩阵给运维人员留了真实可调的旋钮。要把权限做成可独立审计、可独立升级的子系统，参考 Hermes 的子进程 verdict 思路。" />
+
+## §2 · 权限 4 档对照
+
+<Diagram
+  src="/diagrams/12-permissions-approvals-base.svg"
+  alt="四系统的权限模型：枚举化决策、IDE 风格规则、三维矩阵、子进程 verdict"
+  caption="同一个「用户什么时候被问」，四家给出 5 种、5 种、27 种、0 种用户选项。"
+/>
+
+四家在 5 件权限相关的事情上的覆盖：
+
+<CompareTable
+  rows={[
+    { label: '审批模式（粗粒度）', values: ['`AskForApproval` 5 种：UnlessTrusted、OnFailure、OnRequest、Granular、Never', '`PermissionMode` 5 种：acceptEdits、bypassPermissions、default、dontAsk、plan', '`ExecAsk` 3 种：off、on-miss、always', '由 tirith fail_open 配置兜底，没有专门「模式」概念'] },
+    { label: '细粒度控制', values: ['`GranularApprovalConfig` 5 类：sandbox、rules、skill、request_permissions、mcp_elicitations', '`PermissionBehavior` 3 种：allow、deny、ask。每条规则带 toolName 加 ruleContent', '`ExecSecurity` 3 档乘 `ExecHost` 3 种等于 9 种加 ExecAsk 3 种等于 27 组合', '靠 tirith findings JSON 给详细 reason，但 verdict 仍是 exit code'] },
+    { label: '可审批的操作类型', values: ['`GuardianAssessmentAction` 6 类：Command、Execve、ApplyPatch、NetworkAccess、McpToolCall、RequestPermissions', '通过 canUseTool 回调统一调度。每个 tool 自己定义 isConcurrencySafe、shouldDefer', '6 种典型操作：safe-bin、shell、fs、network、mcp、plugin（每种走不同 ExecHost）', '由 tirith 在内容上分类（homograph URL、pipe-to-interpreter、terminal injection 等）'] },
+    { label: '决策来源叠加', values: ['每个 turn 一个 `Constrained<AskForApproval>` 给上限。session 配置加 per-command 升级', '8 种 `PermissionRuleSource`：userSettings、projectSettings、localSettings、flagSettings、policySettings、cliArg、command、session', '由 SystemRunApprovalBinding(argv+cwd+agentId+sessionKey+envHash) 唯一标识。session 缓存', '统一只看 tirith verdict 加 fail_open 兜底，规则不分层'] },
+    { label: '用户答案颗粒度', values: ['`ReviewDecision` 5 种：Approved、ApprovedExecpolicyAmendment、ApprovedForSession、NetworkPolicyAmendment、Abort', '`PermissionBehavior` 3 种 加 per-rule 持久化 destination（5 种）', '通过 jsonl-socket 实时请求用户答案。缓存 binding 复用', '没有用户介入：tirith 自动决策，agent 把 reason 转给用户'] },
+  ]}
+  caption="权限这件事的工程化程度"
+  dimensionLabel="维度"
+/>
+
+## §3 · 四家怎么实现权限和审批
+
+### Codex · 把「权限」这件事彻底分解成五组互相正交的强类型枚举
+
+Codex 在权限这件事上的工程态度很彻底：它认为权限不是一个一维的东西（不是「严格、宽松」这种连续滑杆），而是几个相互独立、可以自由组合的维度。它的解法是把这几个维度都定义成强类型枚举，让代码里任何「权限相关的判断」都必须显式说出来「我在判断的是哪一维」，编译器会逼着你处理每一种可能。
+
+整个系统的最外层是 5 种审批模式：这一层回答的是「agent 默认应该多容易问用户」：
+
+<SourceBlock path="REF/codex/codex-rs/protocol/src/protocol.rs" lines="889-920" system="codex" summary="AskForApproval 5 种加 Granular 给细粒度旋钮">
+
+```rust
+pub enum AskForApproval {
+    /// Under this policy, only "known safe" commands—as determined by
+    /// `is_safe_command()`—that **only read files** are auto-approved.
+    /// Everything else will ask the user to approve.
+    #[serde(rename = "untrusted")]
+    UnlessTrusted,
+
+    /// DEPRECATED: *All* commands are auto-approved, but they are expected to
+    /// run inside a sandbox where network access is disabled and writes are
+    /// confined to a specific set of paths.
+    OnFailure,
+
+    /// The model decides when to ask the user for approval.
+    #[default]
+    OnRequest,
+
+    /// Fine-grained controls for individual approval flows.
+    #[strum(serialize = "granular")]
+    Granular(GranularApprovalConfig),
+
+    /// Never ask the user to approve commands.
+    Never,
+}
+```
+
+</SourceBlock>
+
+这 5 种模式的含义各自很具体：UnlessTrusted（也叫「untrusted」模式）只自动放行那些被静态判定为「绝对安全」的只读命令（比如 `ls`、`cat` 这种），其他一律问。OnFailure 是一个已经被标记为废弃的模式（理论上是「全部自动放行，靠沙箱兜底」，但沙箱不是万能的，所以现在不推荐用）。OnRequest 是默认模式，让模型自己判断什么时候该问用户。Granular 是把决策权进一步切碎成 5 个独立旋钮交给用户配（下面会讲）。Never 顾名思义就是永远不问，适合 CI 等明确希望自动化的场景。
+
+Granular 这一档是真正展现 Codex 工程态度的地方：它让用户可以分别配置「哪类操作要问」。具体来说有 5 个独立的旋钮：要不要审批沙箱外的操作、要不要审批被规则系统命中的命令、要不要审批 skill 的调用、要不要审批文件权限请求、要不要审批 MCP 服务的弹出式询问。每个旋钮都是独立的布尔值，所以用户可以拼出「shell 命令要问、但规则触发的不用问、MCP 自动拒」这种很具体的组合。这种细粒度的解耦背后是一个很务实的判断：不同类型操作的风险等级、误报率、用户的容忍度都不一样，强行用一个统一的「严格度」滑杆没法表达这种差异。
+
+被审批的「操作」本身也是强类型枚举：这是 Codex 权限系统最有特色的一点。它把所有可能被审批的操作归纳成 6 种变体，每种变体携带各自需要的字段：
+
+<SourceBlock path="REF/codex/codex-rs/protocol/src/approvals.rs" lines="134-170" system="codex" summary="GuardianAssessmentAction 6 种典型操作，每种带不同上下文">
+
+```rust
+pub enum GuardianAssessmentAction {
+    Command {
+        source: GuardianCommandSource,
+        command: String,
+        cwd: AbsolutePathBuf,
+    },
+    Execve {
+        source: GuardianCommandSource,
+        program: String,
+        argv: Vec<String>,
+        cwd: AbsolutePathBuf,
+    },
+    ApplyPatch {
+        cwd: AbsolutePathBuf,
+        files: Vec<AbsolutePathBuf>,
+    },
+    NetworkAccess {
+        target: String,
+        host: String,
+        protocol: NetworkApprovalProtocol,
+        port: u16,
+    },
+    McpToolCall {
+        server: String,
+        tool_name: String,
+        connector_id: Option<String>,
+        connector_name: Option<String>,
+        tool_title: Option<String>,
+    },
+    RequestPermissions {
+        reason: Option<String>,
+        permissions: RequestPermissionProfile,
+    },
+}
+```
+
+</SourceBlock>
+
+6 种操作类型对应 6 种结构上有差异的审批请求：
+
+- **Command** 用于 shell 字符串命令（比如 `git push origin main`）：审批弹窗需要展示原始命令字符串和工作目录。
+- **Execve** 用于直接的可执行文件调用（不经过 shell 解释）：比 Command 更精确（不会被 shell 元字符干扰），弹窗展示程序名、参数列表、工作目录。
+- **ApplyPatch** 用于文件编辑：审批弹窗展示要修改的文件列表，让用户在动手之前看清楚 agent 想改哪些文件。
+- **NetworkAccess** 用于网络请求：审批弹窗展示目标主机、协议、端口，让用户判断是否允许这次外联。
+- **McpToolCall** 用于调用某个 MCP 服务的某个工具：展示 MCP server 名、工具名、可选的 connector 标识。
+- **RequestPermissions** 用于 agent 主动声明「我需要更高的权限范围」：展示申请理由和要扩张到的权限配置。
+
+把审批操作做成强类型变体的好处是：每种审批的 UI、风险等级、记忆策略可以各自单独优化，而不需要塞到一个 `{ type: string, details: object }` 这种弱类型容器里去。
+
+用户在审批弹窗里能给出什么答案？答案同样是枚举，有 5 种：同意一次、同意并提议改 execpolicy 规则（让以后类似的命令自动放行）、同意整个会话（这次会话里类似的不再问）、同意并提议改网络策略、否决。最后两种「同意并提议改规则」是聪明的设计：它给了用户一个「我审批通过，并且不希望以后被同样的问题打扰」的快捷选项，让审批本身成为权限系统自我进化的一种渠道。
+
+最妙的是一个叫 `default_available_decisions` 的函数：它根据当前审批请求的上下文（这次审批是不是涉及网络、是不是带了 execpolicy 修改提案、是不是涉及额外的文件权限请求）动态推断「这次弹窗该展示哪几个按钮」：
+
+<SourceBlock path="REF/codex/codex-rs/protocol/src/approvals.rs" lines="288-322" system="codex" summary="按上下文推断按钮：network 请求 + 提案 → 多按钮；纯命令 → Approved + Abort">
+
+```rust
+pub fn default_available_decisions(
+    network_approval_context: Option<&NetworkApprovalContext>,
+    proposed_execpolicy_amendment: Option<&ExecPolicyAmendment>,
+    proposed_network_policy_amendments: Option<&[NetworkPolicyAmendment]>,
+    additional_permissions: Option<&AdditionalPermissionProfile>,
+) -> Vec<ReviewDecision> {
+    if network_approval_context.is_some() {
+        let mut decisions = vec![ReviewDecision::Approved, ReviewDecision::ApprovedForSession];
+        if let Some(amendment) = proposed_network_policy_amendments.and_then(|amendments| {
+            amendments.iter().find(|a| a.action == NetworkPolicyRuleAction::Allow)
+        }) {
+            decisions.push(ReviewDecision::NetworkPolicyAmendment { /* ... */ });
+        }
+        decisions.push(ReviewDecision::Abort);
+        return decisions;
+    }
+
+    if additional_permissions.is_some() {
+        return vec![ReviewDecision::Approved, ReviewDecision::Abort];
+    }
+
+    let mut decisions = vec![ReviewDecision::Approved];
+    if let Some(prefix) = proposed_execpolicy_amendment {
+        decisions.push(ReviewDecision::ApprovedExecpolicyAmendment { /* ... */ });
+    }
+    decisions.push(ReviewDecision::Abort);
+    decisions
+}
+```
+
+</SourceBlock>
+
+这段逻辑读起来就像一个产品设计规约：它在用代码定义「在网络场景下展示这些按钮、在文件权限场景下展示这些按钮、纯命令场景下展示这些按钮」。这种「按上下文推按钮列表」的写法是 Codex 权限系统的精髓：审批弹窗的 UI 不是写死成「永远 3 个按钮」，而是看请求里带了哪些字段动态推导：带 network_approval_context 就显示「批准加批准会话加（可选）修改网络策略加拒绝」，带 additional_permissions 就只显示「批准加拒绝」，纯命令就显示「批准加（可选）修改 execpolicy 加拒绝」。
+
+### Claude Code 把权限按 IDE 配置系统的逻辑组织：三层「来源」决定优先级，规则可以分级覆盖
+
+Claude Code 的取舍很 IDE 化：它把权限系统建模成跟 VSCode 的「用户设置、工作区设置、文件夹设置」完全同构的概念。它的思路是：用户在一个项目里、一个团队的策略下、一台机器上、一个命令行参数下、一个 session 内的权限规则可能来自完全不同的地方，必须能清晰地表达「这条规则是从哪一层来的」，否则用户排错时根本弄不清为何某个操作被允许了或者被拒绝了。
+
+<SourceBlock path="REF/claude-code-2.1.88-expanded/src/types/permissions.ts" lines="14-80" system="claude" summary="5 种 PermissionMode + 3 种 Behavior + 8 种 Source + per-tool ruleContent">
+
+```ts
+// ============================================================================
+// Permission Modes
+// ============================================================================
+
+export const EXTERNAL_PERMISSION_MODES = [
+  'acceptEdits',
+  'bypassPermissions',
+  'default',
+  'dontAsk',
+  'plan',
+] as const
+
+// Exhaustive mode union for typechecking.
+export type InternalPermissionMode = ExternalPermissionMode | 'auto' | 'bubble'
+
+// ============================================================================
+// Permission Behaviors
+// ============================================================================
+
+export type PermissionBehavior = 'allow' | 'deny' | 'ask'
+
+// ============================================================================
+// Permission Rules
+// ============================================================================
+
+/**
+ * Where a permission rule originated from.
+ */
+export type PermissionRuleSource =
+  | 'userSettings'
+  | 'projectSettings'
+  | 'localSettings'
+  | 'flagSettings'
+  | 'policySettings'
+  | 'cliArg'
+  | 'command'
+  | 'session'
+
+export type PermissionRuleValue = {
+  toolName: string
+  ruleContent?: string
+}
+
+export type PermissionRule = {
+  source: PermissionRuleSource
+  ruleBehavior: PermissionBehavior
+  ruleValue: PermissionRuleValue
+}
+```
+
+</SourceBlock>
+
+5 种 PermissionMode：
+
+5 种权限模式对应 5 种实际工作流：
+
+- **default**：标准模式，按规则系统决策。这是大多数交互场景的默认。
+- **acceptEdits**：自动批准所有文件编辑。这是为 IDE 里的 pair-programming 场景设计的：开发者跟 agent 来回拉扯一段代码，每次都问「要不要写文件」会打断节奏，干脆默认放行所有编辑。
+- **bypassPermissions**：跳过所有审批的"YOLO 模式"，文档明确写了只能在 CI 或者受控环境用。
+- **dontAsk**：让模型自己决定，不弹窗。跟 default 的差别是 default 会触发规则审批，dontAsk 完全不管。
+- **plan**：规划模式，所有副作用工具（文件写、命令执行、网络访问）都被禁用，agent 只能在思考层面规划，不能动手。这是为"我要先看 agent 准备怎么做"场景设计的。
+
+内部还有 `auto`（feature flag 后的智能分类）和 `bubble`（让父 turn 决策）两种模式，主要是给嵌套 agent 调用场景用。
+
+最有特色的是 8 种规则来源：它直接映射到 IDE 配置系统的真实结构：
+
+- **userSettings**（`~/.claude/settings.json`）：用户全局偏好。
+- **projectSettings**（`.claude/settings.json`）：项目共享，会被 commit 到 git 仓库，团队成员都看到。
+- **localSettings**（`.claude/settings.local.json`）：项目本地，被 gitignore，只在你这一台机器上生效。
+- **flagSettings**：通过 CLI 启动 flag 传入的规则。
+- **policySettings**：企业 IT 部门的强制策略，优先级最高，不能被任何用户配置覆盖。
+- **cliArg**：单次 CLI 参数（比如 `--allow-bash`），本次启动有效。
+- **command**：通过 slash command 临时注入。
+- **session**：用户在会话中临时授权（点了"批准这次"按钮）。
+
+为什么需要这么多层？因为这些层在实际用户工作流里都有清晰场景：用户偏好不能被项目配置覆盖（否则 ssh 到不同机器还要重新配），项目共享配置不能被个人偏好覆盖（否则 git pull 之后规则不生效），企业策略不能被任何低层覆盖（合规要求）。每条规则携带自己的 `source` 字段意味着用户排错时能一眼看出"哦这条 Bash 拒绝规则来自 policy 不是我设的"。
+
+`PermissionRule` 还把 `toolName` 和 `ruleContent` 分开存：这意味着规则的颗粒度可以精确到子命令级别，比如「允许 `Bash(git diff)` 但禁 `Bash(rm)`」，比那种「要么全允许某个工具要么全禁某个工具」的二元粗粒度有用得多。
+
+### OpenClaw · 用执行宿主 × 安全级别 × 询问策略三维矩阵给运维一个可调的权限旋钮盘
+
+OpenClaw 的取舍跟前两家又不一样：它面向的不是终端用户的个人偏好，而是平台管理员、运维的实际部署需求。在企业部署 agent 时，运维要回答的问题是：「这个 agent 在哪个执行环境里跑、沙箱里还是 host 上、默认安全策略是全禁、白名单、还是全放行、什么时候需要打扰用户。」这三个问题在不同部署形态下的答案完全不同，硬塞到一个「严格度」滑杆里完全没法表达。
+
+OpenClaw 的解法是把这三个独立维度都建模成独立的枚举类型：
+
+<SourceBlock path="REF/openclaw/src/infra/exec-approvals.ts" lines="10-36" system="openclaw" summary="3 个独立维度，3 x 3 x 3 = 27 种执行环境组合">
+
+```ts
+export type ExecHost = "sandbox" | "gateway" | "node";
+export type ExecSecurity = "deny" | "allowlist" | "full";
+export type ExecAsk = "off" | "on-miss" | "always";
+
+export function normalizeExecHost(value?: string | null): ExecHost | null {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "sandbox" || normalized === "gateway" || normalized === "node") {
+    return normalized;
+  }
+  return null;
+}
+
+export function normalizeExecSecurity(value?: string | null): ExecSecurity | null {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "deny" || normalized === "allowlist" || normalized === "full") {
+    return normalized;
+  }
+  return null;
+}
+
+export function normalizeExecAsk(value?: string | null): ExecAsk | null {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "off" || normalized === "on-miss" || normalized === "always") {
+    return normalized;
+  }
+  return null;
+}
+```
+
+</SourceBlock>
+
+这 3 个维度的语义各自很具体：
+
+**ExecHost** 回答「命令在哪个进程上下文里跑」：选 `sandbox` 表示在隔离的容器、沙箱里执行（最安全，但启动有开销）、选 `gateway` 表示在 gateway 进程内执行（中等，复用进程资源）、选 `node` 表示直接在宿主 Node.js 进程里执行（最快，但完全没有隔离）。
+
+**ExecSecurity** 回答「这个执行环境的默认安全策略是什么」：选 `deny` 表示默认禁止一切（必须显式 allowlist 才能跑）、选 `allowlist` 表示只允许 allowlist 里的命令、选 `full` 表示默认放行一切（除非显式 denylist）。
+
+**ExecAsk** 回答「什么时候打扰用户」：选 `off` 表示从不问、选 `on-miss` 表示只有「想跑但 allowlist 不允许」时才问、选 `always` 表示每次执行都问。
+
+三个维度独立组合理论上有 27 种可能（3 乘 3 乘 3），实际有意义的组合大约 4 到 5 个。比如 `host=sandbox / security=allowlist / ask=on-miss` 是一个典型的生产配置：「在沙箱里跑，白名单内的命令直接放行，没命中白名单就弹窗问用户」。再比如 `host=node / security=deny / ask=off` 是一个很严格的封锁模式：「直接在宿主跑，但默认全禁不打扰，让 agent 完全无法执行任何命令」，适合「只让 agent 思考不让动手」的纯规划场景。
+
+把这三维拆开的最大工程价值是：**运维改其中一维不会影响另外两维**。比如生产环境从 `sandbox` 切到 `node`（沙箱出问题暂时降级）不需要重新决定「默认安全策略要不要变」，后两维不动。
+
+权限决策一旦给出，OpenClaw 不会让用户每次都重新审批同一个命令。它用一个 5 元组作为审批的唯一标识来做缓存：
+
+```ts
+export type SystemRunApprovalBinding = {
+  argv: string[];
+  cwd: string | null;
+  agentId: string | null;
+  sessionKey: string | null;
+  envHash: string | null;
+};
+```
+
+这 5 个字段一起决定「两次执行是不是同一个审批」。其中 `envHash` 这一项是特别值得讲的：它把环境变量的哈希值也纳入审批 key 的一部分，这是为了防一种微妙的攻击：用户在某个 PATH 配置下批准了 `python script.py`（这时 `python` 指的是系统 Python），攻击者悄悄改了 PATH 让 `python` 指向恶意脚本，下次 agent 跑同一个命令，如果不考虑环境变量，缓存命中后直接放行恶意脚本就执行了。把 envHash 纳入 binding 后，环境变量一变缓存自动 miss，必须重新审批，攻击就被堵住了。
+
+这种「5 元组 binding」也意味着同一个命令在不同的目录、不同的 agent、不同的 session、不同的环境下走的是不同的审批路径：它不是简单的全局白名单，而是细粒度到具体上下文。
+
+### Hermes · 不自己做权限判断，全部委托给一个叫 tirith 的独立子进程，靠 exit code 通信
+
+Hermes 在权限这件事上的取舍很工程化：它认为「判断一段命令、一个文件路径、一段 prompt 是否安全」是一个完全独立的能力，应该做成可以独立审计、独立升级、跨多个 agent 共享的子系统，而不是塞到 Hermes 自己的代码里去。具体的做法是把所有内容级权限检查都委托给一个叫 tirith 的独立子进程，整个权限系统的 verdict 来源只有一个：tirith 子进程退出时的 exit code。
+
+<SourceBlock path="REF/hermes-agent/tools/tirith_security.py" lines="1-25" system="hermes" summary="tirith 是独立 Go 二进制，exit code 是唯一 verdict source-of-truth">
+
+```python
+"""Tirith pre-exec security scanning wrapper.
+
+Runs the tirith binary as a subprocess to scan commands for content-level
+threats (homograph URLs, pipe-to-interpreter, terminal injection, etc.).
+
+Exit code is the verdict source of truth:
+  0 = allow, 1 = block, 2 = warn
+
+JSON stdout enriches findings/summary but never overrides the verdict.
+Operational failures (spawn error, timeout, unknown exit code) respect
+the fail_open config setting. Programming errors propagate.
+
+Auto-install: if tirith is not found on PATH or at the configured path,
+it is automatically downloaded from GitHub releases to $HERMES_HOME/bin/tirith.
+The download always verifies SHA-256 checksums.  When cosign is available on
+PATH, provenance verification (GitHub Actions workflow signature) is also
+performed.  If cosign is not installed, the download proceeds with SHA-256
+verification only — still secure via HTTPS + checksum, just without supply
+chain provenance proof.  Installation runs in a background thread so startup
+never blocks.
+"""
+```
+
+</SourceBlock>
+
+这段 docstring 看似简洁，但里面藏着 4 个重要的工程决策：
+
+**第一个决策是把 exit code 作为唯一的 verdict 来源**。子进程通信通常会面对一个选择：是看 stdout 里返回的 JSON 解析「verdict」字段呢，还是看进程的 exit code？JSON 可以携带更丰富的信息（finding 列表、置信度、推荐操作），但也意味着解析失败、JSON 截断、字段缺失这些情况都需要处理。exit code 只有几个固定值（0、1、2），简单到几乎不可能出错。Hermes 的取舍是**用 exit code 决定 verdict，用 JSON 丰富 findings**：也就是说即使 tirith 返回的 JSON 完全损坏或者解析失败，verdict 仍然是明确的。JSON 只用来在 verdict 已定的前提下，给用户、log 看的「哪几条规则被命中、命中位置在哪、置信度多高」这种辅助信息。这种「简单胜复杂」的取舍在安全关键路径上很重要。
+
+**第二个决策是 fail_open 配置兜底**。子进程通信难免遇到「操作性失败」：子进程没启动、超时、返回了奇怪的 exit code（不在 0、1、2 范围）、突然 panic。这些情况下系统应该怎么办：继续放行（fail_open）还是默认拒绝（fail_closed）？两种选择没有绝对优劣：fail_open 对开发体验友好（tirith 没装也能用 agent），fail_closed 对生产部署友好（出问题宁可挡住）。Hermes 把这个决策交给用户配置：dev 环境配 `fail_open=true` 容错优先，生产环境配 `fail_open=false` 安全优先。
+
+**第三个决策是自动下载加 SHA-256 加可选 cosign 验签**。tirith 是一个独立的 Go 二进制，用户如果没装 Hermes 不会强制依赖它：而是检测到没有时从 GitHub releases 自动下载到 `$HERMES_HOME/bin/tirith`。但「自动下载二进制」本身是一个攻击面（DNS 劫持、man-in-the-middle、GitHub 账户被盗）。Hermes 用三层防御来保护这个流程：HTTPS 传输保证传输层安全、SHA-256 校验保证下载的二进制跟预期完全一致、如果系统上装了 cosign 还会验证 GitHub Actions 工作流签名（cosign 是 Sigstore 提供的供应链验签工具，证明这个二进制确实是从某个仓库的某个 workflow 编译出来的）。这是供应链安全在实际产品里的真实落地。
+
+**第四个决策是后台安装不阻塞启动**。tirith 的下载放在后台线程里，agent 主流程不会因为"第一次启动需要下载 100MB 二进制"卡住几十秒。
+
+跟前三家比起来，Hermes 不提供细粒度的审批 UI，也没有「用户可以临时放行」的概念：它把「什么算危险」这件事完全外包给 tirith 这个独立工具。这种分工的好处很清晰：agent 关注「业务和用户体验」，tirith 关注「安全决策」，两者用 exit code 这个最简单的协议通信。tirith 升级安全规则不需要 Hermes 改代码、Hermes 改对话逻辑也不需要碰安全规则。
+
+## §4 · 共同点
+
+虽然四家的权限模型在工程复杂度上差了一个数量级，但在三件最基本的事情上达成了共识：这三件事可以理解为 agent 权限系统的「必修课」。
+
+**第一件事是必须有「模式」这个粗粒度开关**。无论权限规则有多细，用户都需要一个一键切换的「模式」概念来快速调整 agent 的默认行为：「我现在很赶时间，给我 YOLO 模式」或者「我在生产环境，给我最严格的模式」。Codex 用 5 种 AskForApproval、Claude Code 用 5 种 PermissionMode、OpenClaw 用 3 种 ExecAsk、Hermes 用 fail_open 这个二元开关，颗粒度不同但都在做同一件事：让用户不需要逐条规则配也能快速切换。
+
+**第二件事是必须有缓存/会话级的"答过一次就别再问"机制**。如果每次都重新弹窗，体验会糟糕到没人能用。四家都做了缓存：Codex 在用户答复枚举里专门有一个 `ApprovedForSession`、Claude Code 在 8 种规则来源里有一个 `session`、OpenClaw 用 5 元组 binding 做缓存键、Hermes 通过 tirith 的内部缓存机制。背后的共识是：审批是有成本的（打断用户、消耗注意力），同一个上下文下的重复审批应该避免。
+
+**第三件事是必须把"可审批的操作"分类**。不同类型的操作风险等级、UI 要求、缓存策略都不一样，硬塞到一个统一的"审批"概念里会失去精度。Codex 用 6 种 GuardianAssessmentAction 强类型分类、Claude Code 通过 toolName 路由不同的审批 UI、OpenClaw 通过 ExecHost 区分 3 种执行宿主、Hermes 让 tirith 在 findings 里给操作分类。背后的共识是：审批不应该是个一刀切的概念。
+
+## §5 · 差异点
+
+<Diagram
+  src="/diagrams/12-tradeoff.svg"
+  alt="四家权限模型在枚举深度 × 运维可配置度上的相对位置"
+  caption="Hermes 子进程 verdict 偏左；OpenClaw 27 矩阵给运维最多旋钮；Claude Code 8 source × 5 mode 偏右上；Codex 全枚举最右。"
+/>
+
+四种典型场景的选型建议：
+
+- **要做 SaaS 控制面 / IDE 集成**：参考 Claude Code 8 种 PermissionRuleSource + 5 种 PermissionMode，体现配置叠加层次。
+- **要做认真的桌面 agent**：参考 Codex `AskForApproval` + `GranularApprovalConfig` + `default_available_decisions()` 智能按钮推断。
+- **要给平台管理员旋钮**：参考 OpenClaw 3x3x3 矩阵，让运维独立调每一维。
+- **想集中安全策略 + 外包审计**：参考 Hermes tirith 模式：子进程 + exit code + 供应链校验。
+
+## §6 · 我的点评
+
+<ScoreCard
+  rows={[
+    { system: 'Codex', value: '★★★★★', reason: 'AskForApproval 5 模式 + GranularApprovalConfig 5 类 + GuardianAssessmentAction 6 种 + ReviewDecision 5 种 + 智能按钮推断；类型化彻底，演化路径清楚（OnFailure 已 deprecated 但保留兼容）', risk: 'Granular 配置 5 个独立 bool 学习成本高；OnFailure deprecated 后老代码迁移要小心；6 种 GuardianAssessmentAction 加新类型要改 protocol' },
+    { system: 'Claude Code', value: '★★★★★', reason: '8 种 PermissionRuleSource 直接映射 IDE 配置层级；5 种 PermissionMode 覆盖 acceptEdits / bypassPermissions / plan 等真实工作流；toolName + ruleContent 让规则颗粒度到子命令', risk: '8 source 优先级需要文档说清；plan 模式跟 bypassPermissions 共存逻辑复杂；feature flag 后的 auto / bubble 模式增加心智负担' },
+    { system: 'OpenClaw', value: '★★★★', reason: '3x3x3=27 组合给运维 / 管理员真实旋钮；5-tuple binding 防 env-swap 攻击；exec-host 维度区分 sandbox / gateway / node 三种执行环境', risk: '27 组合大多数没人会用，文档要写好哪 4-5 个常用；envHash 严格化后 PATH 变了会失效缓存，调试时容易困惑' },
+    { system: 'Hermes', value: '★★★', reason: 'tirith 子进程 + exit code verdict 把决策外包给独立工具；fail_open 兜底符合生产实际；自动下载 + SHA-256 + cosign 是供应链安全的实际落地', risk: '没有用户介入选项，错杀只能改 tirith 规则；fail_open=true 时安全等于无；tirith 二进制升级 / 兼容性需要长期管' },
+  ]}
+  caption="评分依据：类型化深度 + 运维可配置度 + 失败处理 + 用户体验"
+  headers={['系统', '评分', '亮点', '风险']}
+/>
+
+## §7 · 自己实现 Permissions / Approvals 系统的最佳实践
+
+下面是从四家提炼的「自己写权限审批」配方。先把基础四件套打牢，再加生产级特性，最后避开五个常见死路。
+
+<BuildRecipe
+  title="复刻方案"
+  minimal={[
+    '定义 ApprovalMode 枚举 3 档（参考 OpenClaw 的 ExecAsk）：always-ask（每次都问）、on-miss（白名单未命中才问）、never（不问，按底层规则决定）。3 档够覆盖 90% 场景，简单清晰',
+    '审批操作类型化（参考 Codex）：至少 Command（shell 命令）、FileWrite（文件写入）、NetworkAccess（网络请求）、McpCall（MCP 调用）4 种。不同类型走不同 prompt 文案加缓存策略',
+    '答案枚举（参考 Codex）：Approved（仅这次）、ApprovedForSession（本会话内同样的请求都允许）、Abort（拒绝并中断）3 种。ApprovedForSession 是实用利器（不用每次都问）',
+    'approval 缓存按 (argv, cwd, agentId) 三元组 key（参考 OpenClaw 的 SystemRunApprovalBinding 简化版）：防止「在 ~/projects/A 批准了 git push 后，agent 跑到 ~/projects/B 也能 push」的越权',
+  ]}
+  advanced={[
+    'AskForApproval 5 档（参考 Codex）：UnlessTrusted（除非命令是 trusted 否则问）、OnRequest（模型主动 request_permissions 才问）、Granular（按 5 个 flag 单独配）、Never 加一个 deprecated 兼容档。5 档覆盖企业级精细化场景',
+    'GranularApprovalConfig（参考 Codex）：让用户独立配置 sandbox、rules、mcp、skill、request_permissions 5 个 bool。这种「打散成子开关」让不同团队能精确选自己的 risk profile',
+    'PermissionRuleSource 多层叠加（参考 Claude Code）：user、project、local、flag、policy、cliArg、command、session 8 种来源。多层来源让企业管理员能强制 policy（最高优先级）而开发者能在 project 层覆盖',
+    'envHash 加入 binding（参考 OpenClaw）：防 env-swap 攻击（攻击者改 PATH 让 git 指向恶意脚本，sneak through 已有的 git approval）。envHash 不一致就让 approval 失效',
+    '智能按钮推断（参考 Codex 的 default_available_decisions）：按 request 上下文决定弹窗哪些按钮（如 git push --force 不显示「ApprovedForSession」按钮，强制每次问）',
+    'plan 模式（参考 Claude Code）：所有副作用工具禁掉（Edit、Bash、Write 都关），模型只能规划不能动。做 PRD、需求讨论、code review 时都该开 plan 模式',
+    '内容安全外包子进程（参考 Hermes 的 tirith 模式）：把内容安全检查独立到子进程，exit code 是真理之源（不在乎子进程崩、输出 JSON 错），JSON 只丰富 findings 但不影响 verdict',
+    'fail_open 配置兜底（参考 Hermes）：开发环境 fail_open=true（检查器崩了让请求继续不要打断 dev 体验），生产 fail_open=false（检查器崩了拒绝请求安全第一）',
+  ]}
+  avoid={[
+    '别把「模式」做成单层 string：「--yolo」「--strict」这种 magic string 演化时只能加新值（migration 痛苦），用户也分不清各个 string 区别。用枚举加描述符（每个枚举值带文档说明）',
+    '别把权限规则跟工具列表混在一起：toolName 加 ruleContent 分开存才能跨工具复用（同一条规则可应用到多个工具），混在一起每加新工具都要复制规则',
+    '别让模型决定什么时候问：模型会偏向「少问以完成任务」（user friction 越少模型越能 finish），但安全性会下降。用 server 端 policy 拦截才稳',
+    '别用单 ID 做 approval 缓存：argv、cwd、env hash 都要，否则一处 approval 全局生效（在 A 项目批准的 git push 在 B 项目也能跑）。这是越权攻击的常见入口',
+    '别忘了 cosign、SHA-256 供应链验证：自动下载的安全检查 binary 也是攻击面（attacker 替换 cdn 上的 binary）。下载后必须验签加校验 SHA',
+  ]}
+/>
+
+## §8 · 四种权限决策流程并列
+
+<Diagram
+  src="/diagrams/12-permission-flows.svg"
+  alt="四种权限决策流程并列对照"
+  caption="Codex 多层枚举决策；Claude Code IDE 风格 8 source 规则；OpenClaw 3 维 27 组合 + 5-tuple binding；Hermes tirith 子进程 + exit-code verdict + 供应链校验。"
+/>
+
+把 4 种放一起，权限决策的"谁说了算"差异一眼可见：Codex/Claude Code 让用户精细配置，OpenClaw 让运维管理员配置，Hermes 让独立工具配置。
+
+## §9 · 延伸阅读 / 源码入口
+
+<SourceTrail
+  title="延伸阅读 / 源码入口"
+  entries={[
+    { system: 'Codex', path: 'REF/codex/codex-rs/protocol/src/protocol.rs', lines: '870-940', desc: 'AskForApproval 5 模式 + GranularApprovalConfig' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/protocol/src/approvals.rs', lines: '85-322', desc: 'GuardianAssessmentAction + ReviewDecision + default_available_decisions' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/protocol/src/models.rs', lines: '296-340', desc: 'PermissionProfile { Managed / Unmanaged }' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/protocol/src/request_permissions.rs', desc: 'request_permissions 工具协议' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/types/permissions.ts', lines: '1-100', desc: 'PermissionMode / PermissionBehavior / PermissionRule 完整定义' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/utils/permissions/permissions.ts', desc: '运行时权限决策实现' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/utils/permissions/permissionsLoader.ts', desc: '8 种 source 叠加加载' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/infra/exec-approvals.ts', lines: '1-80', desc: 'ExecHost / ExecSecurity / ExecAsk 类型 + binding' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/infra/system-run-approval-binding.ts', desc: '5-tuple binding 序列化与匹配' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/infra/exec-host.ts', desc: 'ExecHost 三档实际派发逻辑' },
+    { system: 'Hermes', path: 'REF/hermes-agent/tools/tirith_security.py', lines: '1-150', desc: 'tirith 子进程 wrapper + 自动下载 + cosign' },
+    { system: 'Hermes', path: 'REF/hermes-agent/tools/terminal_tool.py', desc: '_check_all_guards 调用 tirith + approval callback' },
+  ]}
+/>
+
+## §10 · 小练习
+
+1. **🟢 实现 ApprovalMode 枚举**：3 档 always-ask / on-miss / never。命中 allowlist 直接放行，未命中按 mode 决策。
+2. **🟠 ApprovalBinding 缓存**：用 (argv, cwd, env_hash) 三元组做 key 缓存用户答案。验证：改 env_hash（修改 PATH）应当 cache miss 重新弹窗。
+3. **🟠 智能按钮推断**：实现 `available_decisions(request)` 函数。如果 request 带 `proposed_execpolicy_amendment`，弹窗多一个"Approved + add to policy"按钮。验证：纯命令只有 Approve/Abort，网络请求有 4 个按钮。
+4. **🔴 多源规则叠加**：实现 PermissionRule 加载，按 user / project / local / cliArg / session 5 层叠加。后加载的层覆盖前面的。验证：cliArg `--allow-bash` 应覆盖 projectSettings 的 `Bash: deny`。
+
+## §11 · 面试题：10 道带答案的高频考点
+
+<details>
+<summary>**Q1 · 概念**：为什么 Codex 把审批模式做成枚举而不是字符串？</summary>
+
+枚举强制了 4 件事，每件都是字符串拿不到的：
+
+**1. 编译期保证全覆盖。** Rust `match AskForApproval { ... }` 漏掉一个分支编译不过。新增 `Granular(GranularApprovalConfig)` 时，每个 dispatch 点都被强制更新。字符串切换走 `if-else` 链，漏掉一个分支只在运行时炸。Codex 加 `Granular` 这一档时，大约 30 个 match 点同时被编译器揪出来，全部处理后才能编译通过。
+
+**2. 兼容老版本的演化路径明确。** `OnFailure` 标了 deprecated 但仍在 enum 里。enum 让"deprecated 但兼容"是一类 case，而非"代码里塞 if version < X 用旧路径"那种隐式逻辑。新代码新建 session 不能用 OnFailure（CLI 解析拒绝），但老 session resume 时还能 parse 出来。
+
+**3. 序列化对齐前后端。** `#[serde(rename = "untrusted")]` 等显式标注让 Rust 类型和 JSON 协议字段一一对齐。TUI 前端 / Plugin SDK 拿到的 JSON 永远是这几个 string，文档 / IDE auto-completion 全自动派生。字符串方案下，前后端容易写出"audit"和"audit_mode"两种拼写都接受这种坑。
+
+**源码**：[`codex/codex-rs/protocol/src/protocol.rs:889-920`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/protocol/src/protocol.rs#L889-L920)。
+
+**追问**：「如果未来真要 50 种模式怎么办？」分层枚举：`AskForApproval::Custom(CustomMode)`，CustomMode 是用户自定义结构。Codex 的 `Granular` 已经是这种思路的开端。
+</details>
+
+<details>
+<summary>**Q2 · 概念**：Claude Code 8 种 PermissionRuleSource 优先级怎么定？为什么不能简化？</summary>
+
+8 source 不是冗余，对应 IDE 配置叠加的 5 层 + 3 种临时来源：
+
+**5 层永久配置**（按优先级升序，后者覆盖前者）：
+
+1. `userSettings` (`~/.claude/settings.json`)：用户全局偏好
+2. `projectSettings` (`.claude/settings.json`)：项目共享（commit 进仓库）
+3. `localSettings` (`.claude/settings.local.json`)：项目本地（gitignore）
+4. `flagSettings`：CLI 启动 flag
+5. `policySettings`：企业 IT policy（最高优先级）
+
+**3 种临时来源**：
+
+6. `cliArg`：单次 `--allow-bash` 之类参数
+7. `command`：slash command 注入
+8. `session`：用户在会话中临时授权
+
+**为什么不能简化？**
+
+合并 user/project/local 为单层「config」会破坏团队协作。项目共享配置不能被个人偏好覆盖（否则 git pull 之后规则不生效），个人偏好也不能被项目配置覆盖（否则 ssh 到不同机器要重新配）。三层在实际用户工作流里都有清晰场景。
+
+**policySettings 单独存在**有一个企业 use case：IT 部门部署「禁止 Bash(rm -rf)」policy，开发者不能通过 user/project/local/cliArg 任一方式覆盖。这是合规要求。
+
+**源码**：`claude-code/src/types/permissions.ts:220-242`。
+
+**追问**：「conflict 解决用 last-wins 还是 most-restrictive？」Claude Code 用 last-wins（后加载覆盖）。理由：用户在 cliArg 里 explicit `--allow-bash` 应当覆盖 projectSettings 的 deny。如果用 most-restrictive，cliArg 永远没用。
+</details>
+
+<details>
+<summary>**Q3 · 架构**：OpenClaw 的 5-tuple binding 里为什么有 `envHash`？</summary>
+
+防 env-swap 拿假 approval。具体攻击场景：
+
+1. 用户在 `PATH=/usr/bin` 时 approve 了 `python script.py`（cache 这条 approval）
+2. 攻击者改 `PATH=/tmp/evil:/usr/bin` 让 `python` 指向恶意脚本
+3. agent 下次跑 `python script.py`，binding (argv, cwd, agentId, sessionKey) 都没变 → cache 命中 → 跳过用户审批 → 跑恶意脚本
+
+`envHash` 把 PATH / 环境变量哈希进 binding，env 变了 cache miss。即使 argv / cwd 一致，重新审批。
+
+**为什么不直接禁所有 env 变化？**
+
+agent 经常切换 env（启用 venv、source .env、export 临时变量）。每次都重新审批 UX 太差。envHash 让"真正影响 lookup 的 env"（PATH / LD_LIBRARY_PATH / 等）触发 reapproval，其他 env 变化（PS1 / TERM）忽略。
+
+**实现细节**：OpenClaw 只 hash 「security-relevant」env vars 子集，不是全 env。具体清单在 `infra/exec-approvals.ts`。
+
+**源码**：[`openclaw/src/infra/exec-approvals.ts`](https://github.com/openclaw/openclaw/blob/f6d0712f508b1f926ad6fc42f7d07b1a60e62730/src/infra/exec-approvals.ts) + `infra/system-run-approval-binding.ts`。
+
+**追问**：「Hermes / Codex 怎么防这种攻击？」Codex 用 `inherited_exec_policy`（chapter 10）+ Granular `sandbox_approval` 强制 sandbox-level 隔离；Hermes 把决策外包给 tirith 每次都重新分析，不用 cache。各家方案不同但都解决这个攻击面。
+</details>
+
+<details>
+<summary>**Q4 · 概念**：Hermes 把权限决策外包给 tirith 子进程，好处和代价是什么？</summary>
+
+**好处：**
+
+1. **关注点分离。** Agent 关心「业务和用户体验」；tirith 关心「安全决策」。两边独立演化：tirith 升级规则不需要 Hermes 改代码，Hermes 改对话流程不需要碰安全逻辑。
+2. **跨语言复用。** tirith 是 Go 二进制，可以被 Hermes (Python) / Codex (Rust) / Claude Code (Node) 任一 agent 调用。同一份安全规则跑所有 agent。
+3. **沙箱隔离。** tirith 在独立进程跑，崩溃 / 卡死 / 内存泄漏不影响 agent 主进程。supply chain 攻击受影响范围更小。
+4. **快速响应零日。** 出新攻击模式只需要更新 tirith binary（cosign 验签 + 自动下载），所有依赖它的 agent 自动获得防护。
+
+**代价：**
+
+1. **每次都要 spawn 子进程。** 启动 Go binary 开销 5-50ms（操作系统、ELF 加载、初始化）。对每个 tool call 都付这个成本。Codex 内嵌策略只是函数调用 < 1μs。
+2. **fail_open 配置成两难。** 生产 fail_open=false 时，tirith 不稳定就 block 所有命令（DoS 自己的 agent）；dev fail_open=true 时安全等于无。中间值不存在。
+3. **没有用户介入选项。** 错杀的命令只能改 tirith 规则，不能让用户「这次我确定 OK」。UX 比 Codex / Claude Code 差一截。
+4. **供应链管理负担。** 二进制要自动下载、SHA-256、cosign 验证；版本兼容、回退路径都要做。
+
+**适用场景**：服务器侧 agent，对延迟不敏感，需要集中化安全策略；不适合：桌面 agent，每个 tool call 都跑子进程影响 UX。
+
+**源码**：[`hermes-agent/tools/tirith_security.py:1-150`](https://github.com/NousResearch/hermes-agent/blob/2d59afd3da04812583ecbbf3be83539678a947c4/tools/tirith_security.py#L1-L150)。
+
+**追问**：「能不能 tirith long-running daemon 而不是 spawn-per-call？」可以，但要解决 IPC / 状态同步 / daemon crash recovery。Hermes 当前选 spawn-per-call 是简单换性能。
+</details>
+
+<details>
+<summary>**Q5 · 概念**：Codex 的 `default_available_decisions()` 函数为什么按 context 推按钮？</summary>
+
+不同请求类型该展示的按钮不同：
+
+- **纯 shell command**：用户选 Approve 一次或 Abort。两个按钮够。
+- **带 execpolicy 提案**：用户除了 Approve 这一次，可能想「把这条 command 加进白名单永久放行」。多一个 `ApprovedExecpolicyAmendment` 按钮。
+- **network 请求**：用户可能想「这一次 OK」「整个 session 都允许这个域名」「永久加到 network policy」。三个递进级别的允许 + 一个 Abort = 4 按钮。
+- **额外 file 权限**：只是 yes/no，不需要 amendment 按钮。
+
+如果按钮列表写死：要么 UI 永远显示所有 5 个（用户困惑「这个 amendment 按钮跟我有什么关系？」），要么写一堆 if-else 分散在 UI 代码里（每加一种 case UI 都要改）。
+
+`default_available_decisions(ctx)` 把"哪些按钮展示"集中到 protocol 层。UI 只渲染收到的列表，不关心业务逻辑。前端 / TUI / VS Code 插件 / IDE Webview 都展示同一组按钮，永不漂移。
+
+**类比**：表单系统的 "field schema → form fields"。结构化 schema 决定 UI，UI 不写 if-else。
+
+**源码**：[`codex/codex-rs/protocol/src/approvals.rs:288-322`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/protocol/src/approvals.rs#L288-L322)。
+
+**追问**：「ApprovedForSession 和 ApprovedExecpolicyAmendment 区别？」ApprovedForSession 只本次 session 有效（重启失效）；ApprovedExecpolicyAmendment 写进 user execpolicy 文件，跨 session 永久。前者是「短期 trust」后者是「长期 trust」。
+</details>
+
+<details>
+<summary>**Q6 · 实战**：你给自己的 agent 加审批系统，从 0 到生产怎么走？</summary>
+
+四阶段：**enum 基础 → 缓存 binding → 多源规则 → 子进程审计**。
+
+**Day 1-3 · Enum 基础**
+
+```python
+class ApprovalMode(Enum):
+    ALWAYS_ASK = "always-ask"
+    ON_MISS = "on-miss"  # 不在 allowlist 才问
+    NEVER = "never"      # YOLO / CI
+
+class ApprovalAction(Enum):
+    COMMAND = "command"
+    FILE_WRITE = "file_write"
+    NETWORK = "network"
+    MCP_CALL = "mcp_call"
+
+class ApprovalDecision(Enum):
+    APPROVED = "approved"
+    APPROVED_SESSION = "session"
+    ABORT = "abort"
+```
+
+参考 Codex 类型化思路。每个 enum 都有清晰语义。
+
+**Day 4-7 · 缓存 binding（防 env-swap）**
+
+```python
+@dataclass
+class ApprovalBinding:
+    argv: tuple
+    cwd: str
+    agent_id: str
+    env_hash: str  # hash of PATH/LD_LIBRARY_PATH/... not full env
+    
+    def __hash__(self): return hash((self.argv, self.cwd, self.agent_id, self.env_hash))
+
+cache: dict[ApprovalBinding, ApprovalDecision] = {}
+
+def check_approval(action: ApprovalAction, args):
+    binding = compute_binding(args)
+    if binding in cache: return cache[binding]
+    decision = ask_user(action, args)
+    if decision == APPROVED_SESSION: cache[binding] = decision
+    return decision
+```
+
+参考 OpenClaw 5-tuple binding。
+
+**Week 2 · 多源规则叠加**
+
+```python
+class RuleSource(Enum):
+    USER_SETTINGS = 1
+    PROJECT_SETTINGS = 2
+    LOCAL_SETTINGS = 3
+    CLI_ARG = 4
+    SESSION = 5
+
+def load_rules() -> list[PermissionRule]:
+    rules = []
+    rules.extend(load_user_settings())
+    rules.extend(load_project_settings())
+    rules.extend(load_local_settings())
+    rules.extend(load_cli_args())
+    rules.extend(load_session_rules())
+    return rules  # last wins
+```
+
+参考 Claude Code 8 source。
+
+**Week 3-4 · 子进程审计（可选 · 企业部署需要）**
+
+```python
+def deep_check(command: str) -> Verdict:
+    result = subprocess.run(
+        ["tirith", "--scan", command],
+        timeout=5,
+        capture_output=True,
+    )
+    if result.returncode == 0: return Verdict.ALLOW
+    if result.returncode == 1: return Verdict.BLOCK
+    if result.returncode == 2: return Verdict.WARN
+    return fail_open_config or Verdict.BLOCK
+```
+
+参考 Hermes tirith 模式。
+
+**关键经验**：
+
+1. **第一天 enum，不要 string**：演化痛苦的根源
+2. **第二周 binding 缓存**：防止「同样 argv 跑两次都弹窗」UX 灾难
+3. **多源规则等真有团队场景再上**：单人用，user_settings + cliArg 够
+4. **子进程审计是企业部署才上**：自用 / 桌面 agent 没必要
+
+**追问**：「这套权限系统怎么测？」三层：(1) 单元测试 enum / decision 函数；(2) 集成测试 binding cache 命中 / miss；(3) E2E 测试用户审批 → cache → 再次同 binding 不再弹窗。
+</details>
+
+<details>
+<summary>**Q7 · 架构**：Claude Code 的 `plan` 模式为什么独立存在？</summary>
+
+plan 模式让 agent 「思考但不执行」。具体行为：所有副作用工具（Bash / Write / Edit / NotebookEdit / WebFetch / TaskCreate）被禁，只能用 Read / Grep / Glob 等只读工具 + 写一个 todo / 计划文档。
+
+**为什么不用 `dontAsk` + 模型自觉？**
+
+模型不可靠。「请你只规划不要动手」很多模型会照做，但有一部分会突然「我看到这个文件有 bug 我直接修了」。plan 模式从工具层把所有副作用工具 disable，模型即使想动也没工具。强约束高于提示。
+
+**为什么不用 `bypassPermissions` + 用户每次拒绝？**
+
+bypassPermissions 是「不要弹窗」不是「不要执行」。用户拒绝是事后干预，已经发生的事情拦不住（比如 Bash 已经 `rm` 了）。plan 是事前阻断。
+
+**plan 跟 acceptEdits 是相反极端**：
+
+- acceptEdits：自动 approve 所有 edits，最少打扰
+- plan：禁所有副作用，最多保护
+
+两个都是「不弹窗」但行为截然相反。enum 化让用户一键切换，比手动配 8 个 source 容易。
+
+**适用场景**：
+
+- 用户给 agent 一个复杂需求，想先看看 agent 怎么拆解再执行
+- 团队 code review：让 agent 给修改方案不要直接动代码
+- 不熟悉的 codebase：先 plan 再让 agent 一步步执行
+
+**源码**：`claude-code/src/types/permissions.ts:198-204`。
+
+**追问**：「plan 模式下用户能切回 default 继续执行吗？」可以。Claude Code 让用户在 plan 结束后 `/exit-plan` 切回 default。plan 产出的计划文档作为后续 turn 的上下文。
+</details>
+
+<details>
+<summary>**Q8 · 实战**：用户反馈"审批弹窗太多打断思路"，怎么改善？</summary>
+
+四层优化：**缓存 → 批准范围扩大 → 自动分类 → 信任度建模**。
+
+**Layer 1 · 缓存覆盖**
+
+最常见的失败：用户对同一个命令重复审批。检查：
+
+- binding 是不是足够稳定（不能因为无关 env 变化就 invalidate）
+- ApprovedForSession 用户能不能明确选择
+- argv 标准化（`ls -l` vs `ls -l ./` 应当合并）
+
+**Layer 2 · 批准范围**
+
+让用户审批一次能覆盖更多：
+
+```
+弹窗: "运行 `npm install`?"
+按钮: [Approve once] [Approve all npm commands] [Approve all in this cwd] [Abort]
+```
+
+参考 Codex 的多按钮思路。让用户选 trust 范围。
+
+**Layer 3 · 自动分类（安全命令自动放）**
+
+`is_safe_command()` 函数（Codex 有现成的）：纯读命令（cat / ls / git diff / grep）默认放行。要从源码上限制：
+
+- 写操作（rm / mv / cp）问
+- 网络（curl / wget）问
+- 解释器执行（python / node / bash -c）问
+- 纯读（ls / cat / grep）放
+
+**Layer 4 · 信任度建模**
+
+agent 表现稳定后逐步放宽：
+
+- 前 100 个 turn：每个非读命令都问
+- 100-1000 turn：用户拒绝率低于 5% 的命令类型自动放行
+- 1000+ turn：用户专家级，默认 acceptEdits
+
+类似 Sublime Text 的「最近用的命令」概念，按用户实际使用模式调整。
+
+**避免的反模式**：
+
+1. **直接降为 bypassPermissions**：用户问题没解决，安全也丢了
+2. **用 LLM 当 gatekeeper**：模型决策不一致，无法稳定 build trust
+3. **把 approval 时间限定到几秒**：用户分心 / 离开就 timeout 自动拒，UX 灾难
+
+**Hermes 的设计 take**：tirith 自动决策不弹窗。问题是错杀只能改规则，UX 在不同方向：「没弹窗」是好的，「错杀的 fix path 长」是不好的。
+
+**源码参考**：Codex `is_safe_command()` + `default_available_decisions()` + `ApprovedForSession`。Claude Code `permissionsLoader.ts` 8 source 叠加 + session cache。
+</details>
+
+<details>
+<summary>**Q9 · 工程**：cosign / SHA-256 / 自动下载是 supply chain 安全的实际落地？</summary>
+
+Hermes 自动下载 tirith binary 是 supply chain 攻击的典型入口。三层防护：
+
+**Layer 1 · HTTPS + SHA-256（必需）**
+
+- 下载走 HTTPS（防中间人篡改传输）
+- SHA-256 校验下载后的文件（防服务器端被入侵后 push 恶意 binary）
+- SHA-256 hash 跟 binary 不在同一服务器（hash 在 release notes，binary 在 release artifacts）
+
+**Layer 2 · cosign provenance（可选但强烈推荐）**
+
+cosign 验证 GitHub Actions workflow signature：
+
+- 谁触发了构建（PR 编号 / commit SHA）
+- 构建 workflow 文件本身（`.github/workflows/release.yml`）
+- 构建运行的 commit hash
+
+意味着即使攻击者：
+
+- 拿到 GitHub release artifacts 上传权限 → cosign 验签失败
+- 改了 release workflow → workflow hash 跟历史不一致
+- 偷了 maintainer 的本地 GPG key → cosign 仍能查到「这个 binary 不是 GitHub Actions 产出的」
+
+**Layer 3 · 后台下载 / 不阻塞启动**
+
+如果下载放在主路径上，第一次启动卡 30 秒很糟糕。Hermes 启动时跑一个 background thread 下载，不影响用户输入。Tirith 没装时，第一个 tool call 退化为 fail_open 行为（或阻塞等下载完成，看配置）。
+
+**反模式：**
+
+- **不校验 SHA-256**：HTTPS 已经够安全 → 错。CDN 被入侵 / Cloudflare bug 都让 HTTPS 不够。
+- **校验 SHA-256 但 hash 跟 binary 同源**：攻击者改 binary 时也改 hash → 没用。hash 要从独立可信源（release notes / metadata API）拿。
+- **强制 cosign 没装就 fail**：cosign 不是所有用户都装的，应当 fall back 到 SHA-256-only。Hermes 这个选择是「best-effort cosign + 必备 SHA-256」。
+
+**业界对比**：
+
+- npm 用 `package-lock.json` 锁版本 + npm registry HTTPS。SHA 校验有但不强制。
+- Docker 用 image digest（content-addressable）。下载即校验。
+- Hugging Face model hub 用 commit SHA + LFS SHA。类似 Hermes。
+
+**源码**：[`hermes-agent/tools/tirith_security.py:25-150`](https://github.com/NousResearch/hermes-agent/blob/2d59afd3da04812583ecbbf3be83539678a947c4/tools/tirith_security.py#L25-L150)（下载 + 校验逻辑）。
+</details>
+
+<details>
+<summary>**Q10 · 开放**：综合四家长处，设计「通用权限框架」。</summary>
+
+5 层 API，按需启用：
+
+**Layer 1 · 模式枚举（必需）**
+
+```ts
+enum ApprovalMode {
+  AlwaysAsk = 'always-ask',
+  OnMiss = 'on-miss',        // 不在 allowlist 才问
+  GranularConfig = 'granular', // 5 个独立 bool
+  Plan = 'plan',              // 全禁副作用
+  Never = 'never',            // YOLO
+}
+```
+
+参考 Codex 5 + Claude Code plan。
+
+**Layer 2 · 操作枚举（必需）**
+
+```ts
+type ApprovalAction =
+  | { type: 'command'; argv: string[]; cwd: string }
+  | { type: 'file_write'; path: string }
+  | { type: 'network'; host: string; port: number }
+  | { type: 'mcp_call'; server: string; tool: string }
+  | { type: 'patch'; files: string[] }
+  | { type: 'request_permissions'; perms: string[] };
+```
+
+参考 Codex `GuardianAssessmentAction`。
+
+**Layer 3 · 决策枚举（必需）**
+
+```ts
+type ApprovalDecision =
+  | 'approved'
+  | 'approved_session'
+  | 'approved_amendment'   // 加进 user policy
+  | 'abort';
+
+function availableDecisions(action: ApprovalAction): ApprovalDecision[] {
+  // 参考 Codex default_available_decisions
+}
+```
+
+**Layer 4 · 缓存 binding（推荐）**
+
+```ts
+interface ApprovalBinding {
+  argv: string[];
+  cwd: string;
+  agent_id: string;
+  session_key: string;
+  env_hash: string;  // 防 env-swap
+}
+
+class ApprovalCache {
+  get(binding: ApprovalBinding): ApprovalDecision | null;
+  set(binding: ApprovalBinding, decision: ApprovalDecision): void;
+}
+```
+
+参考 OpenClaw 5-tuple。
+
+**Layer 5 · 多源规则（推荐 · 团队场景）**
+
+```ts
+type RuleSource = 'user' | 'project' | 'local' | 'flag' | 'policy' | 'cliArg' | 'command' | 'session';
+
+interface PermissionRule {
+  source: RuleSource;
+  behavior: 'allow' | 'deny' | 'ask';
+  toolName: string;
+  ruleContent?: string;
+}
+
+function loadRules(): PermissionRule[];  // 8 source 叠加，last wins
+```
+
+参考 Claude Code。
+
+**Layer 6 · 子进程审计（可选 · 企业部署）**
+
+```ts
+interface DeepCheck {
+  scan(command: string): Promise<DeepCheckVerdict>;
+}
+
+type DeepCheckVerdict = 'allow' | 'block' | 'warn' | 'fail_open';
+```
+
+参考 Hermes tirith。
+
+**Layer 7 · 智能按钮（推荐）**
+
+```ts
+function renderApprovalUi(
+  action: ApprovalAction,
+  decisions: ApprovalDecision[],
+): ApprovalDialog {
+  // 按 action 类型 + decisions 列表渲染按钮
+}
+```
+
+参考 Codex 按 context 推按钮。
+
+**vs 四家**：
+
+- Codex 贡献：mode 枚举 + action 枚举 + decision 枚举 + 智能按钮
+- Claude Code 贡献：8 source 叠加 + plan 模式 + per-tool ruleContent
+- OpenClaw 贡献：5-tuple binding + envHash 防 env-swap
+- Hermes 贡献：子进程审计 + 供应链校验
+
+**实现工作量**：
+
+- Layer 1-3：2 周
+- Layer 4-5：3 周
+- Layer 6-7：2 周
+
+7 周到 v0.1。
+
+**关键决策**：
+
+1. **第一天就枚举，永不字符串**
+2. **每个 enum 都要 `default_available_xxx` 智能推断函数**
+3. **缓存 binding 必带 env_hash**
+4. **子进程审计 fail_open 必须明确配置，不能默认**
+
+**追问**：「跨语言怎么共享？」核心 enum + binding schema 用 JSON Schema 定义，TypeScript / Rust / Python / Go 自动 codegen 类型。决策逻辑各语言独立实现（不可能跨语言共享 if-else），但协议 / 数据格式跨语言对齐。
+
+**源码组合**：Codex `protocol/src/protocol.rs` + `protocol/src/approvals.rs` → Claude Code `types/permissions.ts` + `utils/permissions/` → OpenClaw `infra/exec-approvals.ts` + `infra/system-run-approval-binding.ts` → Hermes `tools/tirith_security.py`。四家代码拼一起 = 权限框架 v0.1。
+</details>

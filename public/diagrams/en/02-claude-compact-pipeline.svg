@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 480" role="img"
+     aria-label="Claude Code 4-step compaction pipeline">
+  <defs>
+    <filter id="wb02"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="221" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar02" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .col  { font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .note { font: italic 10.5px sans-serif; fill: #92400e; }
+      .num  { font: 700 12.5px sans-serif; fill: #fff; }
+    </style>
+  </defs>
+  <text x="390" y="26" class="h" text-anchor="middle">Claude Code &#x00B7; 4-step chained pipeline (queryLoop line 379-468)</text>
+  <text x="390" y="44" class="t-s" text-anchor="middle">Each step decides independently whether to trigger; the first two are cheap, the last two are expensive</text>
+
+  <g filter="url(#wb02)">
+    <rect x="200" y="70" width="380" height="56" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="390" y="93" class="lbl" text-anchor="middle">&#x2460; applyToolResultBudget</text>
+    <text x="390" y="111" class="t-s" text-anchor="middle">trim current tool_use_result by per-tool budget (cheapest, almost lossless)</text>
+
+    <line x1="390" y1="126" x2="390" y2="155" stroke="#0f172a" stroke-width="2" marker-end="url(#ar02)" />
+
+    <rect x="200" y="158" width="380" height="56" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="390" y="181" class="lbl" text-anchor="middle">&#x2461; snipCompact + microCompact</text>
+    <text x="390" y="199" class="t-s" text-anchor="middle">snip &#x201C;obviously useless&#x201D; tool results (local LLM call)</text>
+
+    <line x1="390" y1="214" x2="390" y2="243" stroke="#0f172a" stroke-width="2" marker-end="url(#ar02)" />
+
+    <rect x="200" y="246" width="380" height="68" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="390" y="269" class="lbl" text-anchor="middle">&#x2462; contextCollapse</text>
+    <text x="390" y="287" class="t-s" text-anchor="middle">fold &#x201C;committed&#x201D; history into the collapse-store view</text>
+    <text x="390" y="301" class="t-s" text-anchor="middle">REPL array stays as-is; apiQuery sees the collapsed view</text>
+
+    <line x1="390" y1="314" x2="390" y2="343" stroke="#0f172a" stroke-width="2" marker-end="url(#ar02)" />
+
+    <rect x="200" y="346" width="380" height="68" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="390" y="369" class="lbl" text-anchor="middle">&#x2463; autoCompact (forked agent)</text>
+    <text x="390" y="387" class="t-s" text-anchor="middle">full-segment summary, replace REPL array</text>
+    <text x="390" y="401" class="t-s" text-anchor="middle">trigger: context_window &#x2212; AUTOCOMPACT_BUFFER_TOKENS (13k)</text>
+  </g>
+
+  <text x="390" y="450" class="note" text-anchor="middle">3 consecutive autocompact failures &#x2192; circuit breaker (MAX_CONSECUTIVE_AUTOCOMPACT_FAILURES=3)</text>
+</svg>

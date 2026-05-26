@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 420" role="img"
+     aria-label="One full tool round-trip: model -> before -> execute -> after -> tool_result">
+  <defs>
+    <filter id="wb04p"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="13" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar04p" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <marker id="ar04p-r" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#b91c1c" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12.5px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .hook { font: italic 10.5px sans-serif; fill: #92400e; }
+      .deny { font: italic 10.5px sans-serif; fill: #b91c1c; }
+    </style>
+  </defs>
+
+  <text x="410" y="26" class="h" text-anchor="middle">One full tool round-trip (OpenClaw style, 4 hook points)</text>
+  <text x="410" y="44" class="t-s" text-anchor="middle">Every layer can intercept, rewrite or log; deny short-circuits through the red path</text>
+
+  <g filter="url(#wb04p)">
+    <rect x="40" y="80" width="140" height="60" rx="10" fill="#fef3c7" stroke="#0f172a" stroke-width="2" />
+    <text x="110" y="105" class="lbl" text-anchor="middle">model</text>
+    <text x="110" y="123" class="t-s" text-anchor="middle">emits tool_use(args)</text>
+
+    <line x1="180" y1="110" x2="225" y2="110" stroke="#0f172a" stroke-width="2" marker-end="url(#ar04p)" />
+
+    <rect x="225" y="80" width="170" height="60" rx="10" fill="#bfdbfe" stroke="#0f172a" stroke-width="2" />
+    <text x="310" y="103" class="lbl" text-anchor="middle">before_tool_call</text>
+    <text x="310" y="121" class="t-s" text-anchor="middle">permission &#x00B7; rewrite &#x00B7; intercept</text>
+    <text x="310" y="64" class="hook" text-anchor="middle">hook #1</text>
+
+    <line x1="395" y1="110" x2="440" y2="110" stroke="#0f172a" stroke-width="2" marker-end="url(#ar04p)" />
+
+    <rect x="440" y="80" width="160" height="60" rx="10" fill="#dcfce7" stroke="#0f172a" stroke-width="2" />
+    <text x="520" y="103" class="lbl" text-anchor="middle">execute</text>
+    <text x="520" y="121" class="t-s" text-anchor="middle">sandbox &#x00B7; exec policy</text>
+    <text x="520" y="64" class="hook" text-anchor="middle">hook #2</text>
+
+    <line x1="600" y1="110" x2="645" y2="110" stroke="#0f172a" stroke-width="2" marker-end="url(#ar04p)" />
+
+    <rect x="645" y="80" width="160" height="60" rx="10" fill="#fed7aa" stroke="#0f172a" stroke-width="2" />
+    <text x="725" y="103" class="lbl" text-anchor="middle">after_tool_call</text>
+    <text x="725" y="121" class="t-s" text-anchor="middle">log &#x00B7; mutate &#x00B7; persist</text>
+    <text x="725" y="64" class="hook" text-anchor="middle">hook #3</text>
+
+    <path d="M725,140 Q725,225 410,225 Q110,225 110,150" stroke="#0f172a" stroke-width="2" fill="none" marker-end="url(#ar04p)" />
+    <text x="410" y="218" class="t-s" text-anchor="middle">tool_result &#x2192; next turn message</text>
+
+    <path d="M310,140 Q310,300 110,300 Q110,250 110,150" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6 4" fill="none" marker-end="url(#ar04p-r)" />
+    <text x="220" y="295" class="deny">deny &#x2192; feed a deny tool_result back to the model</text>
+
+    <rect x="225" y="335" width="580" height="55" rx="8" fill="#f5f4ef" stroke="#64748b" stroke-width="1.4" stroke-dasharray="4 3" />
+    <text x="515" y="355" class="t" text-anchor="middle">OpenClaw's tool-policy-pipeline = before / after / persist / mutation chain</text>
+    <text x="515" y="372" class="t-s" text-anchor="middle">Codex uses static execpolicy rules; Claude Code exposes canUseTool as a single hook; Hermes scatters checks inside tool functions</text>
+  </g>
+
+  <text x="20" y="408" class="t-s">Hook #4 (tool_result_persist) handles long-term event streams in OpenClaw; the others use trajectory / event stream equivalents</text>
+</svg>

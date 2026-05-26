@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 620" role="img"
+     aria-label="Four self-improvement pipelines side by side">
+  <defs>
+    <filter id="wb19F"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="197" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar19F" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .col  { font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .note { font: italic 10.5px sans-serif; fill: #92400e; }
+    </style>
+  </defs>
+
+  <text x="440" y="24" class="h" text-anchor="middle">Four self-improvement pipelines side by side</text>
+  <text x="440" y="42" class="t-s" text-anchor="middle">Phase 1+2 background LLM (Codex) &#x00B7; skillify user-driven (Claude Code) &#x00B7; passive indexing (OpenClaw) &#x00B7; explicit in-turn writes (Hermes)</text>
+
+  <g filter="url(#wb19F)">
+    <text x="120" y="70" class="col" text-anchor="middle">Codex &#x00B7; Phase 1 + Phase 2</text>
+    <rect x="40" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="103" class="lbl" text-anchor="middle">turn completes</text>
+
+    <line x1="120" y1="116" x2="120" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar19F)" />
+
+    <rect x="40" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="158" class="lbl" text-anchor="middle">Phase 1 per-turn</text>
+    <text x="120" y="174" class="t-s" text-anchor="middle">stage1_outputs extract</text>
+    <text x="120" y="188" class="t-s" text-anchor="middle">cwd + git_branch</text>
+
+    <line x1="120" y1="198" x2="120" y2="217" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar19F)" />
+
+    <rect x="40" y="220" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="240" class="lbl" text-anchor="middle">Phase 2 global</text>
+    <text x="120" y="256" class="t-s" text-anchor="middle">~800-line LLM prompt</text>
+    <text x="120" y="270" class="t-s" text-anchor="middle">6h cooldown</text>
+
+    <line x1="120" y1="280" x2="120" y2="299" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar19F)" />
+
+    <rect x="40" y="302" width="160" height="48" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="322" class="lbl" text-anchor="middle">wording preservation</text>
+    <text x="120" y="338" class="t-s" text-anchor="middle">keep the original phrasing as a grep hook</text>
+
+    <line x1="120" y1="350" x2="120" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar19F)" />
+
+    <rect x="40" y="372" width="160" height="60" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="392" class="lbl" text-anchor="middle">three outputs</text>
+    <text x="120" y="408" class="t-s" text-anchor="middle">MEMORY.md + memory_summary</text>
+    <text x="120" y="422" class="t-s" text-anchor="middle">+ skills/&lt;name&gt;/</text>
+
+    <text x="120" y="455" class="note" text-anchor="middle">most complete self-improvement</text>
+
+    <text x="330" y="70" class="col" text-anchor="middle">Claude Code &#x00B7; user-driven</text>
+    <rect x="250" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="103" class="lbl" text-anchor="middle">user presses the button</text>
+
+    <line x1="330" y1="116" x2="330" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar19F)" />
+
+    <rect x="250" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="158" class="lbl" text-anchor="middle">skillify (4 rounds)</text>
+    <text x="330" y="174" class="t-s" text-anchor="middle">disableModelInvocation</text>
+    <text x="330" y="188" class="t-s" text-anchor="middle">must be user-initiated</text>
+
+    <line x1="330" y1="198" x2="330" y2="217" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar19F)" />
+
+    <rect x="250" y="220" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="240" class="lbl" text-anchor="middle">/insights</text>
+    <text x="330" y="256" class="t-s" text-anchor="middle">Opus &#x00D7; 2 runs facet + narrative</text>
+    <text x="330" y="270" class="t-s" text-anchor="middle">over *.jsonl files</text>
+
+    <line x1="330" y1="280" x2="330" y2="299" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar19F)" />
+
+    <rect x="250" y="302" width="160" height="48" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="322" class="lbl" text-anchor="middle">autoMode critique</text>
+    <text x="330" y="338" class="t-s" text-anchor="middle">LLM reviews user-written rules</text>
+
+    <line x1="330" y1="350" x2="330" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar19F)" />
+
+    <rect x="250" y="372" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="392" class="lbl" text-anchor="middle">user previews SKILL.md</text>
+    <text x="330" y="408" class="t-s" text-anchor="middle">last gate before persisting</text>
+
+    <text x="330" y="450" class="note" text-anchor="middle">"no secret learning" philosophy</text>
+
+    <text x="540" y="70" class="col" text-anchor="middle">OpenClaw &#x00B7; passive indexing</text>
+    <rect x="460" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="103" class="lbl" text-anchor="middle">session JSONL persisted</text>
+
+    <line x1="540" y1="116" x2="540" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar19F)" />
+
+    <rect x="460" y="138" width="160" height="48" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="158" class="lbl" text-anchor="middle">redactSensitiveText</text>
+    <text x="540" y="174" class="t-s" text-anchor="middle">secrets stay out of the index</text>
+
+    <line x1="540" y1="186" x2="540" y2="205" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar19F)" />
+
+    <rect x="460" y="208" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="228" class="lbl" text-anchor="middle">chunk + embed</text>
+    <text x="540" y="244" class="t-s" text-anchor="middle">FTS5 + sqlite-vec</text>
+    <text x="540" y="258" class="t-s" text-anchor="middle">written to the index</text>
+
+    <line x1="540" y1="268" x2="540" y2="287" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar19F)" />
+
+    <rect x="460" y="290" width="160" height="60" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="310" class="lbl" text-anchor="middle">temporal decay</text>
+    <text x="540" y="326" class="t-s" text-anchor="middle">halfLife = 30d</text>
+    <text x="540" y="340" class="t-s" text-anchor="middle">evergreen exception</text>
+
+    <line x1="540" y1="350" x2="540" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar19F)" />
+
+    <rect x="460" y="372" width="160" height="60" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="392" class="lbl" text-anchor="middle">hybrid retrieval at query time</text>
+    <text x="540" y="408" class="t-s" text-anchor="middle">semantic + lexical + MMR</text>
+    <text x="540" y="422" class="t-s" text-anchor="middle">+ decay reranking</text>
+
+    <text x="540" y="455" class="note" text-anchor="middle">"learn" = "look up"</text>
+
+    <text x="760" y="70" class="col" text-anchor="middle">Hermes &#x00B7; explicit in-turn writes</text>
+    <rect x="680" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="103" class="lbl" text-anchor="middle">during the agent turn</text>
+
+    <line x1="760" y1="116" x2="760" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar19F)" />
+
+    <rect x="680" y="138" width="160" height="48" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="158" class="lbl" text-anchor="middle">memory_tool, 4 actions</text>
+    <text x="760" y="174" class="t-s" text-anchor="middle">add/replace/remove/read</text>
+
+    <line x1="760" y1="186" x2="760" y2="205" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar19F)" />
+
+    <rect x="680" y="208" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="228" class="lbl" text-anchor="middle">11 _MEMORY_THREAT</text>
+    <text x="760" y="244" class="t-s" text-anchor="middle">+ 10 invisible-unicode</text>
+    <text x="760" y="258" class="t-s" text-anchor="middle">blocked before writing</text>
+
+    <line x1="760" y1="268" x2="760" y2="287" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar19F)" />
+
+    <rect x="680" y="290" width="160" height="60" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="310" class="lbl" text-anchor="middle">hard char-limit</text>
+    <text x="760" y="326" class="t-s" text-anchor="middle">MEMORY.md 2200</text>
+    <text x="760" y="340" class="t-s" text-anchor="middle">USER.md 1375</text>
+
+    <line x1="760" y1="350" x2="760" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar19F)" />
+
+    <rect x="680" y="372" width="160" height="60" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="392" class="lbl" text-anchor="middle">frozen snapshot</text>
+    <text x="760" y="408" class="t-s" text-anchor="middle">prompt unchanged mid-session</text>
+    <text x="760" y="422" class="t-s" text-anchor="middle">prefix cache preserved</text>
+
+    <text x="760" y="455" class="note" text-anchor="middle">safest + most restrained</text>
+  </g>
+
+  <text x="440" y="490" class="t-s" text-anchor="middle">"When does the agent learn?" &#x2014; four answers.</text>
+
+  <g>
+    <rect x="40" y="505" width="800" height="95" rx="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1" />
+    <text x="60" y="525" class="lbl">Shared traits:</text>
+    <text x="60" y="543" class="t-s">&#x00B7; All assume raw sessions may contain injection / secrets and must be sanitised.</text>
+    <text x="60" y="559" class="t-s">&#x00B7; All have forgetting (Codex workspace diff / OpenClaw decay / Hermes char limit / Claude Code user delete).</text>
+    <text x="60" y="575" class="t-s">&#x00B7; All separate user preferences from reusable knowledge (different files, or different prompt blocks).</text>
+    <text x="60" y="591" class="t-s">&#x00B7; Consolidation prompts spell out "what to promote" and "what not to promote".</text>
+  </g>
+</svg>

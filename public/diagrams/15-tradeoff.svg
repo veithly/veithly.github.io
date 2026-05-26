@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 480" role="img"
+     aria-label="四家观测栈在观测投入 x 价格表精度上的位置">
+  <defs>
+    <filter id="wb15"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="151" /><feDisplacementMap in="SourceGraphic" scale="2" /></filter>
+    <marker id="ar15" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .ax   { font: 600 12.5px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #64748b; }
+      .pin  { font: 700 12.5px sans-serif; fill: #fff; }
+      .note { font: italic 10.5px sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <text x="390" y="26" class="h" text-anchor="middle">观测栈：观测投入 x 价格表精度</text>
+  <text x="390" y="44" class="t-s" text-anchor="middle">越往右观测代码越多；越往上「成本估算可信度」越高；不同 agent 形态需求不同</text>
+
+  <g filter="url(#wb15)">
+    <rect x="100" y="80" width="280" height="160" fill="#fef3c7" opacity="0.4" />
+    <rect x="380" y="80" width="280" height="160" fill="#dcfce7" opacity="0.4" />
+    <rect x="100" y="240" width="280" height="160" fill="#dbeafe" opacity="0.4" />
+    <rect x="380" y="240" width="280" height="160" fill="#fee2e2" opacity="0.4" />
+
+    <text x="120" y="100" class="t-s">观测少 · 价格准</text>
+    <text x="640" y="100" class="t-s" text-anchor="end">观测多 · 价格准</text>
+    <text x="110" y="394" class="t-s">观测少 · 价格糙</text>
+    <text x="650" y="394" class="t-s" text-anchor="end">观测多 · 价格糙</text>
+
+    <line x1="100" y1="400" x2="660" y2="400" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar15)" />
+    <line x1="100" y1="400" x2="100" y2="70" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar15)" />
+    <line x1="380" y1="80" x2="380" y2="400" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="100" y1="240" x2="660" y2="240" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+
+    <text x="660" y="420" class="ax" text-anchor="end">观测代码量 →</text>
+    <text x="110" y="68" class="ax">↑ 成本估算的「我有多确定」</text>
+
+    <!-- Hermes: top-left (5 source 高精度 + 中等观测) -->
+    <circle cx="280" cy="130" r="14" fill="#ea580c" stroke="#0f172a" stroke-width="2" />
+    <text x="280" y="134" class="pin" text-anchor="middle">HM</text>
+    <text x="280" y="161" class="t" text-anchor="middle">Hermes</text>
+    <text x="280" y="176" class="t-s" text-anchor="middle">CanonicalUsage</text>
+    <text x="280" y="189" class="t-s" text-anchor="middle">+ 5 CostSource 优先级</text>
+
+    <!-- Claude Code: top-middle (硬编码 5 tier 高精度 + 中等观测) -->
+    <circle cx="450" cy="160" r="14" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+    <text x="450" y="164" class="pin" text-anchor="middle">CC</text>
+    <text x="450" y="191" class="t" text-anchor="middle">Claude Code</text>
+    <text x="450" y="206" class="t-s" text-anchor="middle">modelCost 5 tier</text>
+    <text x="450" y="219" class="t-s" text-anchor="middle">+ /insights 命令</text>
+
+    <!-- Codex: right-middle (3 crate 大量观测 + 中等精度) -->
+    <circle cx="620" cy="240" r="14" fill="#1d4ed8" stroke="#0f172a" stroke-width="2" />
+    <text x="620" y="244" class="pin" text-anchor="middle">CX</text>
+    <text x="620" y="271" class="t" text-anchor="middle">Codex</text>
+    <text x="620" y="286" class="t-s" text-anchor="middle">3 个独立 crate</text>
+    <text x="620" y="299" class="t-s" text-anchor="middle">otel/analytics/trace</text>
+
+    <!-- OpenClaw: bottom-middle (13 事件类型，cost 留空) -->
+    <circle cx="430" cy="320" r="14" fill="#15803d" stroke="#0f172a" stroke-width="2" />
+    <text x="430" y="324" class="pin" text-anchor="middle">OC</text>
+    <text x="430" y="351" class="t" text-anchor="middle">OpenClaw</text>
+    <text x="430" y="366" class="t-s" text-anchor="middle">13 类 DiagnosticEvent</text>
+    <text x="430" y="379" class="t-s" text-anchor="middle">cost 留空给上游填</text>
+  </g>
+
+  <text x="20" y="465" class="t-s">CX = Codex · CC = Claude Code · OC = OpenClaw · HM = Hermes</text>
+</svg>

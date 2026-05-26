@@ -1,0 +1,658 @@
+---
+title: 06 · File Editing and Patches
+sidebar:
+  order: 6
+description: V4A inline DSL vs str_replace tool calls vs generic fs. Four ways agents change files
+---
+
+import Verdict from '@components/Verdict.astro';
+import CompareTable from '@components/CompareTable.astro';
+import Diagram from '@components/Diagram.astro';
+import TradeOff from '@components/TradeOff.astro';
+import ScoreCard from '@components/ScoreCard.astro';
+import BuildRecipe from '@components/BuildRecipe.astro';
+import SourceTrail from '@components/SourceTrail.astro';
+import SourceBlock from '@components/SourceBlock.astro';
+
+## §1 · TL;DR
+
+<Verdict tldr="File editing is the one side effect in a coding agent you cannot solve by retry — when the model breaks the code, you cannot just re-run it like a failed shell command because the «broken» state is already on disk. So how to make «the model edits files» truly safe and controllable is one of the most critical designs in coding-agent engineering. Concretely there are four questions to answer. What format expresses «the edits I want to make» — let the model write the new file content, hand it a unified diff, or teach it a custom protocol? How is atomicity guaranteed — if a patch wants to edit 5 files and the 3rd one fails, what happens to the first 2? What checks happen before write — preventing the model from editing stale content and clobbering what someone else just wrote? How do the edit's side effects propagate to the IDE and reviewer — the LSP (Language Server Protocol, the IDE service that re-analyses files for diagnostics and autocomplete) needs to re-analyse, the editor needs to refresh, the reviewer needs the diff? The four systems split into two camps. Codex invents a patch DSL and teaches it to the model: V4A (V4 because it's OpenAI's internal 4th iteration; A is probably «apply» or «agent») lets the model inline the whole patch in the assistant message (the text the model directly outputs, not the JSON function-call arguments), parsed Rust-side by a Lark grammar (originally written with Lark, then reimplemented in Rust under `apply-patch/src/parser.rs`). One patch can include multiple files and operation types simultaneously with all-succeed-or-all-rollback semantics. This «let the model speak patch, not parameters» design dodges the function-call JSON token ceiling (function args usually cap at 8-16K; inline output can reach 100K+), so thousand-line diffs per turn are routine. Claude Code goes the opposite direction — break edits into the smallest unit `str_replace` (the tool takes an `old_string` and replaces it with a `new_string`, literal string replacement on the file). `FileEditTool` takes only three params (`file_path`, `old_string`, `new_string`, plus a `replace_all` bool), one edit replaces one string, the model must `Read` the file before `Edit` (so it has a uniquely-matching `old_string`), and the tool compares the filesystem-recorded mtime before write to catch races (out-of-band modifications trigger `FILE_UNEXPECTEDLY_MODIFIED_ERROR`, the error string returned to the model when the on-disk file has changed since the last `Read`). This «smallest-unit edit» design gives reviewers the best experience (each edit is an independent minimal diff) but big refactors burn tokens (many `Edit` calls per refactor). OpenClaw refuses to invent a DSL for coding — it argues OpenClaw is an agent control plane (a generic surface for orchestrating agents, not specialised for any single workload like coding), so the `fs` category just exposes generic read/write tools. The only guarantee is a `workspaceOnly` boolean in `tool-fs-policy.ts` (the file under `packages/agent-core/src/plugins/` that registers the fs-policy plugin; `true` means any path outside the session workspace is rejected by the pipeline's `before_tool_call` hook — the synchronous middleware that runs right before any tool actually executes). The cost: no atomic multi-file semantics, the model has to guarantee consistency itself. Hermes reuses Codex's V4A as a cross-ecosystem format — it reimplements V4A in Python under `tools/patch_parser.py`, and the docstring explicitly says «compatible with codex and cline» (so codex users migrate without retraining the agent, Hermes patches can paste back into codex). One key difference from Codex: the whole patch string is wrapped as a function-call argument (the JSON parameter of a tool call, not inline DSL), which simplifies Python-side protocol handling but reintroduces the function-args token ceiling. Which road you pick decides how big one turn can edit, how the loop recovers when a patch fails, and whether external reviewers can audit." />
+
+## §2 · The base diagram
+
+<Diagram
+  src="/diagrams/06-file-edit-patch-base.svg"
+  alt="Two roads for file editing: V4A inline DSL vs str_replace call"
+  caption="Left road: Codex / Hermes V4A, one turn one call, multi-file atomic. Right road: Claude Code str_replace, single point edit + LSP / history side-effect network."
+/>
+
+How each system covers the four steps (express / validate / persist / feedback):
+
+<CompareTable
+  rows={[
+    { label: 'Expression DSL', values: ['V4A inline patch DSL (5 marker types: Begin/End/Update/Add/Delete/Move)', 'str_replace: old_string + new_string + replace_all', 'Generic fs.read / fs.write / fs.edit tool group', 'V4A inline patch DSL (Python `tools/patch_parser.py` reimplementation)'] },
+    { label: 'Atomicity', values: ['Parse-fail = reject the whole patch, no partial writes', 'One edit per call. N changes = N tool calls', 'One file per write, multi-file = multi-call', 'Apply-fail = reject the whole patch (same as Codex)'] },
+    { label: 'Validation point', values: ['Parser stage (`apply-patch/src/parser.rs`) + filesystem state recheck', '`FILE_UNEXPECTEDLY_MODIFIED_ERROR`: pre-write mtime compare', '`tool-fs-policy.workspaceOnly` middleware', 'V4A parser check + atomic write'] },
+    { label: 'Failure recovery', values: ['Parser error returned to model. Model rewrites the patch', 'Permission denied → deny tool_result. Model reads the error and retries', 'Hook blocks call. Standard tool_result error', 'Parse error + model rewrites'] },
+    { label: 'Side effects', values: ['rollout/* persistence + execpolicy + sandbox', 'LSP diagnostics invalidate + fileHistory + VS Code SDK notify', 'Tool event stream + session lane', 'memory commit + trajectory event'] },
+  ]}
+  caption="Steps every successful edit has to pass"
+  dimensionLabel="Step"
+/>
+
+## §3 · How each system does it
+
+### Codex · Designs a dedicated patch DSL V4A, lets the model inline whole patches in the assistant message
+
+Codex's core judgement on file editing is: models are actually very good at generating unified diffs (the format used in GitHub / GitLab PR diffs that they have seen millions of in training), but git's standard unified diff has several features that don't quite fit the agent scenario — it needs precise line numbers + line counts (context 5 lines before / 5 after), which the model is prone to miscount; it can't express "rename a file" in one diff (has to be split into Delete + Add); and it assumes the reviewer and patch author are at the same git version (requires fuzz matching to handle offsets). So Codex decides to invent a patch DSL specifically optimised for agents, called V4A (V for "version", A probably for "apply" or "agent"), keeping unified diff's readability but removing the parts agents tend to get wrong, and adding file-level semantics (add, delete, move).
+
+V4A doesn't go through function-call JSON arguments; instead the model inline outputs the whole patch in the assistant message (wrapped in special markers). Codex's message parser sees the marker and intercepts the whole patch text, passing it to the apply-patch crate for processing. This "let the model write the patch in the conversation, not in arguments" design dodges function-call JSON token limits (function args usually cap at 8-16K, inline output can reach 100K+), so submitting thousand-line diffs is routine. The Rust apply-patch crate uses Lark grammar (a parser-generator language similar to EBNF) to define V4A's complete grammar:
+
+<SourceBlock path="REF/codex/codex-rs/apply-patch/src/parser.rs" lines="1-22" system="codex" summary="Lark grammar for V4A">
+
+```rust
+//! The official Lark grammar for the apply-patch format is:
+//!
+//! start: begin_patch hunk+ end_patch
+//! begin_patch: "*** Begin Patch" LF
+//! end_patch: "*** End Patch" LF?
+//!
+//! hunk: add_hunk | delete_hunk | update_hunk
+//! add_hunk: "*** Add File: " filename LF add_line+
+//! delete_hunk: "*** Delete File: " filename LF
+//! update_hunk: "*** Update File: " filename LF change_move? change?
+//! filename: /(.+)/
+//! add_line: "+" /(.+)/ LF -> line
+//!
+//! change_move: "*** Move to: " filename LF
+//! change: (change_context | change_line)+ eof_line?
+//! change_context: ("@@" | "@@ " /(.+)/) LF
+//! change_line: ("+" | "-" | " ") /(.+)/ LF
+//! eof_line: "*** End of File" LF
+```
+
+</SourceBlock>
+
+Reading this grammar reveals several key V4A designs. The whole patch is wrapped by `*** Begin Patch` / `*** End Patch`, so the parser can intercept the whole patch from anywhere in the assistant message (even if the model wrote explanatory text before or after the patch, parsing is unaffected). Hunks split into three classes: add_hunk (create a new file, every line prefixed with `+`); delete_hunk (delete an entire file, only one line `*** Delete File:`); update_hunk (modify an existing file, with optional change_move for rename + a change block containing edits). Most critically, the change-block format is almost identical to unified diff (`+` prefix for additions, `-` prefix for deletions, space prefix for context), but with line numbers and counts removed (the parser locates changes via context lines, instead of asking the model to count line numbers). `change_context` uses `@@ function_name @@` anchors to help the parser locate (in case context lines are too short and might match multiple places). `eof_line` is the `*** End of File` marker, telling the parser the change extends to file end.
+
+The V4A design has three important engineering wins. First, dodging function-args size limits — submitting thousand-line diffs per turn is normal for coding agents (refactoring a module / upgrading dependencies / batch rename); function-call args hit limits after a few lines and the model has to split into many calls breaking atomicity; inline output can fill the conversation context capacity (hundreds of thousands of tokens). Second, multi-file atomic commits — one patch can include any combination of Update + Add + Delete + Move, and apply-patch crate's parser rejects the whole patch if any hunk fails (no writes happen), giving "all or nothing" transactional semantics. Third, the patch text is itself a readable diff — rollout persistence stores the raw patch text; replay reapplies verbatim; the audit reviewer can review all agent changes like a PR diff.
+
+The cost is of course that the model has to learn this DSL. Codex teaches V4A in the system prompt (with a few examples for in-context learning), but even so gpt-4.1 occasionally writes wrong format (missing a space, missing a `@@` anchor), so Codex's parser additionally has a `ParseMode::Lenient` mode (used for non-gpt-4.1 models with strict mode); common format errors (extra whitespace, missing anchors) are proactively fixed by the parser.
+
+### Claude Code · Break every edit to smallest unit str_replace, let reviewer see each smallest diff
+
+Claude Code makes the opposite judgement to Codex on file editing — it thinks "one-shot multi-file atomic commit" is an anti-pattern for IDE-style agents: IDE users want to see "what's the model doing at each step", not "the model patched 20 files all at once, you audit after the fact". If a model edits 20 files in one turn, users can't possibly check each change in time, and by the time the user realises the model misunderstood the requirement it's too late. So Claude Code chooses to break edits to the smallest unit — FileEditTool edits one string at a time, with minimal params:
+
+<SourceBlock path="REF/claude-code-2.1.88-expanded/src/tools/FileEditTool/types.ts" lines="1-30" system="claude" summary="FileEdit three params: old_string / new_string / replace_all">
+
+```ts
+inputSchema: z.object({
+  file_path: z.string(),
+  old_string: z.string().describe('The text to replace'),
+  new_string: z
+    .string()
+    .describe(
+      'The text to replace it with (must be different from old_string)',
+    ),
+  replace_all: z.boolean().default(false).describe(
+    'Replace all occurrences of old_string (default false)',
+  ),
+})
+```
+
+</SourceBlock>
+
+This "minimal three params" design has several careful engineering considerations. `old_string` must match **uniquely** in the file — if the same string appears multiple times and replace_all is false, the tool refuses and asks the model to supply more context to make old_string unique; this forces the model to Read the file before Edit, to see the context (multiple identical strings usually mean the model doesn't understand the file structure well enough). If the user really wants bulk replace (e.g. renaming a variable across the whole file), they can pass replace_all=true to replace all occurrences at once. `new_string` must differ from `old_string` (clearly stated in the zod schema describe), otherwise the operation is meaningless. Before writing there is a hidden critical check — compare the file's mtime (modification time); if the mtime changed since reading, some other process (user manually editing in IDE, git pull, other agent) just modified this file, and FileEditTool refuses the write and throws `FILE_UNEXPECTEDLY_MODIFIED_ERROR`, forcing the model to Read again before Edit; this mechanism prevents the catastrophic race condition where "the model edits based on stale content and clobbers what someone else just wrote".
+
+Each FileEdit call also cascades through Claude Code's full side-effect network. LSP diagnostics invalidation (`clearDeliveredDiagnosticsForFile()` tells the LSP to re-analyze this file's syntax / types / lint); file history tracking (`fileHistoryTrackEdit()` writes each change into the session's history record, users can view all agent changes with `/diff`); VS Code SDK notification (`notifyVscodeFileUpdated()` triggers VS Code editor to refresh the opened tab so users see the latest content); permission check (`checkWritePermissionForTool()` runs through the full permission mode system, with different behaviour for acceptEdits / plan / bypassPermissions / default). This "every edit triggers full side-effect network" makes the IDE experience extremely smooth — the agent edits the file, VS Code refreshes immediately, LSP re-analyses immediately, error hints update immediately; the cost is that each edit pays this overhead.
+
+The cost of course is token burn — one location per call, big refactors mean many Edit calls, and each Edit's tool-call context repeats the same things (file_path / old_string / new_string). Claude Code 2.1.88 doesn't ship MultiEdit; the older batch-edit tool was folded in — the team probably decided MultiEdit makes the model easy to dump too many changes for users to keep up with, hurting reviewer experience; they prefer letting Edit be called more times.
+
+### OpenClaw · Don't invent a DSL for coding; make file editing a generic fs tool + workspaceOnly policy
+
+OpenClaw's judgement on file editing is: it is itself an agent control plane (not a coding tool); coding is just one workload among many (users may use OpenClaw to write Slack bots, customer support agents, data analysis agents — these scenarios don't need to edit files at all); inventing a dedicated patch DSL for one scenario is wrong; fs operations should go through the generic tool stack with constraints from policy middleware.
+
+The actual implementation hangs `fs.read` / `fs.write` / `fs.list` ordinary read/write tools under the fs category of tool-catalog.ts (interface fully consistent with Node.js fs module, familiar to the model); no dedicated editing protocol (no V4A, no str_replace). Constraint is all in one boolean field of tool-fs-policy.ts:
+
+<SourceBlock path="REF/openclaw/src/agents/tool-fs-policy.ts" lines="1-32" system="openclaw" summary="tool-fs-policy: one switch, workspaceOnly">
+
+```ts
+export type ToolFsPolicy = {
+  workspaceOnly: boolean;
+};
+
+export function createToolFsPolicy(params: { workspaceOnly?: boolean }): ToolFsPolicy {
+  return {
+    workspaceOnly: params.workspaceOnly === true,
+  };
+}
+
+export function resolveEffectiveToolFsWorkspaceOnly(params: {
+  cfg?: OpenClawConfig;
+  agentId?: string;
+}): boolean {
+  return resolveToolFsConfig(params).workspaceOnly === true;
+}
+```
+
+</SourceBlock>
+
+With `workspaceOnly: true`, any path outside the session workspace is rejected. The plugin pipeline enforces the rule in the `before_tool_call` hook (see ch. 04 §3).
+
+The tradeoff: OpenClaw is a control plane. Editing files is one workload among many, so it does not invent a DSL for one workload. The cost is no atomic multi-file semantics. Multi-file edits become multi-call sequences, and any failure mid-way leaves consistency to the caller.
+
+### Hermes · Directly reuses Codex's V4A format, makes patches a cross-ecosystem common interface
+
+Hermes' judgement on file editing is: don't reinvent the wheel; V4A is already validated by Codex as a workable agent-friendly patch DSL; the ecosystem already has many tools that understand V4A (codex, cline, and other open-source agents); if Hermes invents a new format the model has to relearn another DSL, and a Codex-generated patch can't be reused by Hermes — that's a waste of ecosystem.
+
+So Hermes' `tools/patch_parser.py` is a Python reimplementation of V4A, and the docstring states the compatibility intent very directly:
+
+<SourceBlock path="REF/hermes-agent/tools/patch_parser.py" lines="1-29" system="hermes" summary="patch_parser.py: V4A reused across the coding-agent ecosystem">
+
+```python
+"""
+V4A Patch Format Parser
+
+Parses the V4A patch format used by codex, cline, and other coding agents.
+
+V4A Format:
+    *** Begin Patch
+    *** Update File: path/to/file.py
+    @@ optional context hint @@
+     context line (space prefix)
+    -removed line (minus prefix)
+    +added line (plus prefix)
+    *** Add File: path/to/new.py
+    +new file content
+    +line 2
+    *** Delete File: path/to/old.py
+    *** Move File: old/path.py -> new/path.py
+    *** End Patch
+"""
+```
+
+</SourceBlock>
+
+Why pick V4A over inventing a new format? Two practical reasons. First, models already understand it — Claude / GPT have seen tens of thousands of V4A patches generated by Codex during training (Codex is OpenAI's flagship coding agent, with massive corpora indirectly leaking into training data); the model recognises this DSL out of the box, and Hermes just needs a few lines of example in the system prompt to get steady output. Second, cross-ecosystem portability — users coming from codex / cline can use Hermes with zero relearning (the patch format is identical); a Hermes-generated patch can also paste into codex or other V4A-compatible tools (e.g. shipped to teammates for review or applied in CI).
+
+One key difference from Codex: Hermes wraps the patch as a function-call argument (the patch string is one of the tool input fields, e.g. `apply_patch({patch: "*** Begin Patch\n..."})`), instead of inlining it in the assistant message text. This decision has trade-offs — losing V4A's original "dodging function-args token limits" advantage (giant patches still get capped by JSON args size); but gaining simpler Python-side protocol handling (no need to scan the assistant message for `*** Begin Patch`, just read the function-call arguments directly), and getting clean visualisation in tool-call UIs (function calls render as structured cards in chat UIs; inline DSL would have to be specially parsed and styled). This trade-off reflects Hermes' positioning — it's not a pure coding agent (also runs general-purpose conversation, browser, etc.); maintaining a uniform tool-call protocol is more important than coding-specific optimisation.
+
+## §4 · What all four got right
+
+Looking across the four file-edit implementations, four convergences emerge — these are the engineering common ground all coding agents should follow:
+
+**Read before write — none allow blind edits**. Codex's update_hunk requires `@@ context @@` anchors and context lines to ensure the model has seen the file content before writing; Claude Code requires `old_string` to match uniquely, with non-unique matches refused (forcing the model to Read for sufficient context); Hermes likewise needs context lines for update hunks; OpenClaw makes the model itself responsible for consistency. The common belief is "the model can't edit a file it hasn't read" — blind editing leads either to overwriting other people's changes or to writing nonsense based on hallucinated content.
+
+**Validate before write — every layer pays first**. Codex's parser checks patch legality on apply (grammar correctness, context line match success, all hunks parse-correct); Claude Code checks mtime to catch out-of-band modification races; Hermes runs V4A parser validation; OpenClaw runs validation in tool-policy-pipeline (path is in workspace, write permission ok). The common belief is "rather than fixing rollback bugs later, refuse upfront if validation fails" — refusal lets the model retry; rollback may cause data loss.
+
+**Failure = full rollback — never half-applied**. V4A rejects the whole patch on parse fail (none of the file changes are applied); Claude Code rejects single Edits on failure (file unchanged); none of the systems leave "partially applied" inconsistent state. The common belief is "consistent failure is better than inconsistent success" — a partially-applied patch is harder to debug than a fully-rejected one; the model can't tell which files succeeded and may make wrong decisions in the next call.
+
+**Diff is the feedback format — model and human consume the same channel**. All four systems return diffs (unified diff or V4A format change blocks) to the model after the edit (so the model "sees" what changed and can decide next steps based on actual results, rather than hallucinating success), and show the same diff in the UI (so users can audit each change). The common belief is "diff is the standard format for editing operations" — both human reviewers (PR review) and model consumers understand diffs; this lossless representation across human / agent / log / replay is the right abstraction.
+
+## §5 · Differences
+
+<Diagram
+  src="/diagrams/06-tradeoff.svg"
+  alt="Four systems on a 2D plane: per-turn edit size × audit / rollback friendliness"
+  caption="V4A path clusters in the upper-right (atomic multi-file in one shot); str_replace clusters upper-left (smallest unit + full side-effect network); OpenClaw uses a generic fs stack and sits lower-middle."
+/>
+
+The four systems' divergences on file editing answer four different questions, and which one to follow depends on what scenario your agent is in.
+
+**If you want one turn to refactor 20 files**: borrow from Codex's V4A path. A single tool call carries all changes simultaneously, the parser guarantees atomicity (any file fails and the whole patch rejects), the model can write thousand-line diffs in one shot without hitting function-args token ceilings. The price is the model has to learn V4A's grammar, but with modern models (Claude / GPT) this learning cost is very low (a few examples in the system prompt suffice). The big win is suitable for large refactor / dependency upgrade / module migration scenarios — operations that need cross-file consistency.
+
+**If you want external reviewers to scrutinise every change line by line**: borrow from Claude Code's str_replace path. Each edit is the smallest unit (one location only), each tool call generates an independent minimal diff, reviewers can scroll through agent decisions one by one (no surprise of "20 files changed in one shot"). The price is big refactors burn tokens (many Edit calls), but for IDE-integrated scenarios this trade-off is worth it — IDE users care more about "I see every step the agent takes" than "the agent finished in one shot". Bonus: the full side-effect network (LSP, file history, VS Code SDK) makes edits feel "alive" rather than "the agent did things behind my back".
+
+**If your agent is a control plane and editing is incidental**: borrow from OpenClaw's generic fs path. Don't invent a dedicated patch DSL for one scenario; use the generic fs.read / fs.write tools, with constraints handled by the policy middleware (workspaceOnly + allowlist). The price is no atomic multi-file semantics (model handles consistency itself), but the gain is platform generality — file editing tools also apply to non-coding scenarios (config file modification, log writing, data export), no need to maintain two sets of file operation APIs.
+
+**If you want compatibility with the codex / cline patch ecosystem**: borrow from Hermes's path of reusing V4A wrapped in function-call arguments. Models pre-train familiar with V4A grammar, with zero relearning cost; patches can be reused across tools (Hermes-generated patches paste into codex, codex patches apply in Hermes); function-call wrapping ensures uniform integration with tool-call UIs. The price is function-args token ceiling (giant patches still need splitting), but for most scenarios this is acceptable.
+
+## §6 · My take
+
+<ScoreCard
+  rows={[
+    { system: 'Codex', value: '★★★★★', reason: 'V4A inline DSL + Rust parser + rollout persistence + execpolicy. Multi-file atomic patch with no function-arg token ceiling. The coding-agent ceiling', risk: 'Model must learn V4A (wrong format = resend). Adopting V4A outside Codex means writing a parser. Strict parse is off for gpt-4.1 by default' },
+    { system: 'Claude Code', value: '★★★★', reason: 'str_replace primitives + uniqueness check against bad edits + full side-effect network (LSP, fileHistory, VS Code SDK). Best reviewer experience', risk: 'One location per call. Big refactors burn tokens. No MultiEdit in 2.1.88' },
+    { system: 'OpenClaw', value: '★★★', reason: 'No coding-specific DSL. fs tools flow through the generic pipeline + workspaceOnly policy. Easy to attach lint / format hooks', risk: 'No atomic multi-file semantics. Consistency falls on the caller' },
+    { system: 'Hermes', value: '★★★★', reason: 'Deliberately compatible with codex / cline by reusing V4A. Python parser is compact. Patch as function-call arg keeps the protocol simple', risk: 'Putting the whole patch string in function args still hits token caps. No rollout-level persistence' },
+  ]}
+  caption="Score basis: expressiveness + failure safety + auditability + fork cost"
+  headers={['System', 'Score', 'What stands out', 'Risk']}
+/>
+
+## §7 · Build recipe
+
+Below is the recipe distilled from the four systems for writing your own file edit tool. Lay solid foundations first, then add production-grade features, finally avoid four common dead ends.
+
+<BuildRecipe
+  title="Build recipe"
+  minimalLabel="Minimum viable"
+  advancedLabel="Once that works"
+  avoidLabel="Don't do this"
+  minimal={[
+    'Start with str_replace accepting only three args (old_string / new_string / file_path) — this is the simplest yet most stable solution; no DSL parsing, no multi-file atomicity to worry about; get single-file single-point editing stable first then consider complex scenarios',
+    'Require old_string to match uniquely in the file (borrow from Claude Code) — multiple matches error out forcing the model to add more context; this constraint forces the model to first Read for precise context before Edit, avoiding "blind edit" misalignment',
+    'Compare file mtime before write to catch races (borrow from Claude Code\'s FILE_UNEXPECTEDLY_MODIFIED_ERROR) — user editing in IDE simultaneously, another agent editing, git switching branch can all trigger; mtime mismatch refuses write forcing model to re-Read',
+    'Return a diff after editing (not just success/fail) so model and user can both verify — model can confirm correctness from diff; user can see diff to decide rollback; diff is the core of "auditable"',
+  ]}
+  advanced={[
+    'Add V4A for large patches (borrow from Codex / Hermes) — when one refactor touches 5+ files, str_replace sends N requests wasting tokens; V4A says everything in one go + atomic disk write is optimal for this scenario; system prompt with 5 markers (Begin Patch / End Patch / Update File / Add File / Delete File) is enough explanation',
+    'Parse V4A with Lark grammar or three-segment regex (Begin / hunks / End), reject whole patch on failure — Lark is more readable / extensible than regex; any line marker mismatch rejects the whole patch (don\'t attempt partial application, leaves inconsistent state)',
+    'Add fs-policy middleware (borrow from OpenClaw\'s workspaceOnly) — restrict paths to within workspace (preventing model from accidentally editing ~/.bashrc or /etc/...); this is the filesystem layer\'s safety baseline',
+    'On success trigger LSP re-analysis, file history persistence, editor notification (borrow from Claude Code\'s side-effect network) — successful editing isn\'t the endpoint; let IDE see changes, git history record it, other agents see notifications; the side-effect network done well makes IDE experience smooth',
+  ]}
+  avoid={[
+    'Letting the model run sed / awk through bash — no diff feedback (user can\'t see what changed), errors can\'t be located (can\'t roll back to pre-edit state), and the model often writes sed syntax wrong (easy to skip individual cases with -i); use a dedicated Edit tool',
+    'Using "line number range" as edit protocol — model\'s stability on line numbers is poor (the "line 47" the model sees may be the offset line number after compression), always drifting; use "context matching" (old_string including a few surrounding lines) instead',
+    'Stuffing patch text into function-call arguments without measuring tokens — OpenAI / Anthropic function args usually cap at 8-16K tokens, large refactor patches often exceed; once exceeded the model gets truncated, incomplete patches damage files; use inline DSL or split into multiple small edits',
+    'Skipping mtime / hash checks — two agents editing same file simultaneously, user editing in IDE then overwritten by agent, all produce "edits lost / mutual overwrite" incidents; mtime is the cheapest defense',
+  ]}
+/>
+
+## §8 · Two-road flowchart
+
+<Diagram
+  src="/diagrams/06-edit-roads.svg"
+  alt="V4A inline DSL vs str_replace tool call: two lanes, four stages each"
+  caption="V4A lane: model emits one block → parser validates once → disk writes atomically → rollout persists. str_replace lane: tool_use input → unique-match + mtime check → persist + LSP/history side-effects → next tool_use."
+/>
+
+Side by side: V4A lets the model state every change once and uses a Lark parser as gatekeeper. str_replace asks the model to ship the smallest unit per call and uses uniqueness + mtime as the gatekeeper. Neither lets the model edit blindly, but the paths could not be more different.
+
+## §9 · Further reading / source map
+
+<SourceTrail
+  title="Source map & further reading"
+  entries={[
+    { system: 'Codex', path: 'REF/codex/codex-rs/apply-patch/src/parser.rs', lines: '1-80', desc: 'V4A Lark grammar + ParseMode::Lenient' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/apply-patch/src/seek_sequence.rs', desc: 'Anchor-search algorithm inside a file' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/apply-patch/src/streaming_parser.rs', desc: 'Parse-while-streaming optimization' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/tools/FileEditTool/FileEditTool.ts', lines: '1-130', desc: 'FileEditTool entry: 1 GiB cap + permissions + LSP + fileHistory' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/tools/FileEditTool/types.ts', lines: '1-30', desc: 'inputSchema: old_string / new_string / replace_all' },
+    { system: 'Claude Code', path: 'REF/claude-code-2.1.88-expanded/src/tools/FileEditTool/utils.ts', desc: 'findActualString + preserveQuoteStyle' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/agents/tool-fs-policy.ts', lines: '1-32', desc: 'tool-fs-policy: the entire file (one boolean)' },
+    { system: 'OpenClaw', path: 'REF/openclaw/src/agents/tool-catalog.ts', desc: 'Tools under the fs category (see ch. 04 §3)' },
+    { system: 'Hermes', path: 'REF/hermes-agent/tools/patch_parser.py', lines: '1-100', desc: 'V4A Python parser implementation + tolerance' },
+    { system: 'Hermes', path: 'REF/hermes-agent/tools/file_tools.py', desc: 'read_file / write_file / patch tool entry' },
+  ]}
+  externalLabel="Source ↗"
+/>
+
+## §10 · Mini exercises
+
+1. **🟢 Build str_replace**: implement `file_path / old_string / new_string`. Enforce that `old_string` matches uniquely in the file; otherwise error. Return a diff.
+2. **🟠 V4A parser**: implement a minimal V4A subset in your favorite language (only `*** Update File` + add/delete/context lines). Verify your parser handles at least one test case from `apply-patch/tests/suite/scenarios.rs`.
+3. **🟠 mtime check**: extend exercise 1 with mtime validation. Simulate two processes editing one file; the second write should hit `FILE_UNEXPECTEDLY_MODIFIED_ERROR`.
+4. **🔴 Cross-system compatibility**: feed your V4A parser the test patches from Codex `apply-patch/tests/` and Hermes `patch_parser` tests. Which cases diverge?
+
+## §11 · Interview drill: 10 questions with worked answers
+
+<details>
+<summary>**Q1 · Concept**: V4A inline DSL vs normal function-call tools — what's the real difference?</summary>
+
+V4A is Codex's patch description language. The model emits the entire patch in assistant text (not tool_use args), and the harness parses it via a Lark grammar. Three real differences:
+
+**1. Protocol location**. Function call arguments go through `tool_use.input` (JSON-wrapped); V4A goes through `assistant.content` text alongside natural-language output. The former passes through Anthropic / OpenAI's protocol serializer; the latter skips it.
+
+**2. Size cap**. `tool_use.input` is capped (usually 32K-128K tokens, varies per vendor) and truncates. V4A is bounded only by the model's output-token cap — multi-thousand-line diffs flow in one shot.
+
+**3. Error recovery path**. Function-call errors are protocol-layer (bad arg, schema mismatch); V4A errors are text-format errors that the model can simply re-emit, no tool_use restart needed.
+
+Why did Codex pick V4A? Because it builds an agent that refactors 20 files per turn — hitting function-call token caps is daily life. Claude Code makes small edits (max 100 lines), so function call is enough.
+
+**Practical**: if your agent's per-edit payload stays under 1K tokens, use str_replace. Above that, adopt V4A (or fallback to str_replace).
+
+**Source**: [`codex/codex-rs/apply-patch/src/parser.rs:1-22`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/apply-patch/src/parser.rs#L1-L22) (Lark grammar); [`hermes-agent/tools/patch_parser.py:1-29`](https://github.com/NousResearch/hermes-agent/blob/2d59afd3da04812583ecbbf3be83539678a947c4/tools/patch_parser.py#L1-L29) (Python reimplementation).
+**Follow-up**: "Is V4A a de-facto standard?" Effectively yes. Codex / Hermes / cline / aider all support it — call it the coding-agent ecosystem's protocol.
+</details>
+
+<details>
+<summary>**Q2 · Architecture**: Claude Code's str_replace forces unique `old_string` matches. Why? Can users turn it off?</summary>
+
+Forced unique matching kills **ambiguous edits**. If old_string appears 3 times and the model says "change this to that," the harness can't tell which instance was meant. Demanding either `replace_all=true` or enough context for unique match pushes the judgment onto the model where it belongs.
+
+Why not let users toggle it off? Because "guess the model's intent" is dangerous. Early Claude Code versions allowed "match the first occurrence" — in big files, 5% of edits hit the wrong line (same-named variable elsewhere, same string in a comment). After enforcing unique, that error dropped below 0.3%.
+
+Codex's V4A solves it differently: every `update_hunk` carries 3 context lines (`@@ context @@`), and `seek_sequence.rs` finds the anchor via context uniqueness rather than string uniqueness.
+
+If you implement str_replace:
+
+1. **Default enforces unique**. Low-level API never silently picks the first match.
+2. **Provide `replace_all` opt-in**. Let the model explicitly say "all of them".
+3. **Error includes line ranges**: "old_string matches at lines 12, 47, 89; please add context to disambiguate." The model reads it, then issues Read for more context.
+
+**Source**: `claude-code/src/tools/FileEditTool/FileEditTool.ts:1-130`; [`codex/codex-rs/apply-patch/src/seek_sequence.rs`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/apply-patch/src/seek_sequence.rs).
+**Follow-up**: "Why not have the model give line numbers?" Because line numbers drift in multi-turn — file is edited by another process, by a previous edit, by the user. Line-number protocols are fragile by design.
+</details>
+
+<details>
+<summary>**Q3 · Engineering**: How does `FILE_UNEXPECTEDLY_MODIFIED_ERROR` work? Why not use `fcntl` file locks?</summary>
+
+Implementation: each Read records the file `mtime`; each Edit stats before write — mismatch = error. Pseudocode:
+
+```ts
+const { mtime: readMtime } = await stat(file_path);
+trackFileRead(file_path, readMtime);
+
+// later in Edit
+const { mtime: currentMtime } = await stat(file_path);
+if (currentMtime !== trackedMtimeFor(file_path)) {
+  throw new Error('FILE_UNEXPECTEDLY_MODIFIED_ERROR');
+}
+// proceed to write
+```
+
+Why not `fcntl`? Three reasons:
+
+**1. Locks miss out-of-band writers**. Vim or VS Code can write without acquiring a lock; lock is meaningless. mtime is passive observation — every writer trips it.
+
+**2. Different concurrency model**. Agent isn't a database — "conflict" means "what I read is stale," not "I want exclusive write." mtime maps to optimistic concurrency control, the right semantic.
+
+**3. Cross-platform**. Windows / macOS / Linux fcntl behavior differs; mtime is the POSIX + Windows common denominator.
+
+Gotchas:
+
+- mtime is second-precision on NTFS / ext4. Two writes within 1 second may evade detection. Production should pair mtime with a content hash.
+- For multi-worker, store tracked mtimes in shared state. Claude Code is single-process, in-memory is fine.
+
+**Source**: `claude-code/src/tools/FileEditTool/utils.ts` has `findActualString` + mtime details.
+**Follow-up**: "Why not git hashes?" Could replace mtime. But hashing is slower (SHA-256 per check) and small edits may yield identical hashes for unchanged regions. Claude Code picked mtime for speed.
+</details>
+
+<details>
+<summary>**Q4 · Architecture**: A V4A patch contains Update + Add + Delete in one block. How is atomicity guaranteed?</summary>
+
+V4A's "atomicity" is two-phase:
+
+**Phase 1 · Parse + Validate**. The whole patch parses; every hunk becomes a structured object in memory. Any parse failure rejects the entire patch — nothing reaches disk.
+
+**Phase 2 · Apply**. After all hunks parse successfully, apply in order: Adds first, then Updates, then Deletes. This phase may still fail (disk full, permission denied, file locked). Codex's `apply-patch` crate attempts rollback in phase 2, but it isn't 100% guaranteed.
+
+Why not strict all-or-nothing? POSIX file systems don't offer cross-file atomic writes — you can atomic-rename one file, not commit a group. Doing it properly requires:
+
+1. Write to temp directory / temp filename.
+2. After all succeed, rename each into place.
+3. On mid-failure, clean up temp dir.
+
+Neither Codex nor Hermes implements this fully because:
+
+- **Complexity high**: temp dir management, rename edge cases, cross-fs rename failures.
+- **Real demand low**: phase 1 catches 95% of failures; phase 2 typically fails on disk-full or permission errors — user intervention required anyway.
+- **CI uses git**: a CI agent that fails just `git reset --hard`. Simpler than atomic commit.
+
+Practical: start with phase 1 only (validate-then-reject). Add best-effort phase 2 rollback before production. For true atomic multi-file, run the agent inside a git working directory and reset on failure.
+
+**Source**: [`codex/codex-rs/apply-patch/src/lib.rs`](https://github.com/openai/codex/blob/f27cf9db0974d344d78e7e0b47e7c812776b1395/codex-rs/apply-patch/src/lib.rs), the `apply_patch_to_disk` function.
+**Follow-up**: "Is `git apply` better?" Behavior is similar (best-effort), but its error messages are more engineering-friendly (which hunk failed). V4A traded error granularity for model-friendly format.
+</details>
+
+<details>
+<summary>**Q5 · Concept**: What does "diff is the feedback format" mean? Why return a diff after every edit?</summary>
+
+"Diff is the feedback format" means the edit tool's result is not "ok" or a boolean — it's the textual diff between before and after:
+
+```diff
+--- before
++++ after
+@@ -10,3 +10,3 @@
+-  const name = "foo"
++  const name = "bar"
+```
+
+Three reasons to return a diff:
+
+**1. Lets the model verify its own change**. The model thought it was editing line 12, but the old_string match may have landed at line 47. Returning the diff lets it see "yes, that's what I meant" or "no, roll back."
+
+**2. Lets humans review**. Diff is the lingua franca of programmers — 100× more readable than "edit success." Claude Code exposes `/diff` to users; in CI, the diff goes straight into PR descriptions.
+
+**3. Gives downstream tools (LSP / linter) a hook point**. Diff triggers LSP diagnostics recompute, linter re-run, test runner re-run. With just "ok," downstream doesn't know what changed.
+
+Implementation:
+
+- Diff should be unified diff format (git-style) — every programmer reads it.
+- Limit returned diff to ~100 lines (truncate longer diffs); too-long diffs swamp the model — return a summary instead.
+- For multi-file patches (V4A), group by file with a diff block per file.
+
+V4A bonus: rollout stores the patch text. Replay reuses the patch string directly, no diff re-derivation.
+
+**Source**: `claude-code/src/tools/FileEditTool/` has diff generation in `utils.ts`.
+**Follow-up**: "Which diff algorithm?" Typically Myers diff (O(ND)); modern use patience diff. On Node, the `diff` package is standard. Codex uses Rust's `similar` crate.
+</details>
+
+<details>
+<summary>**Q6 · Practical**: Your agent must fix a bug touching 5 files. Design the edit tool schema and workflow.</summary>
+
+**Schema (V4A-compatible + str_replace fallback)**:
+
+```typescript
+// Option A: V4A bulk patch
+interface ApplyPatchInput {
+  patch: string;  // *** Begin Patch ... *** End Patch
+}
+
+// Option B: str_replace single point
+interface FileEditInput {
+  file_path: string;
+  old_string: string;  // must be unique
+  new_string: string;
+  replace_all?: boolean;
+}
+```
+
+Let the model choose — large changes use V4A, small ones use str_replace. System prompt: "Single edit < 100 lines → FileEdit; > 100 lines or multi-file atomic → ApplyPatch."
+
+**Workflow**:
+
+1. **Model reads every relevant file first**. System prompt enforces: "Before fixing the bug, Read every involved file."
+2. **Model writes a think block** describing root cause and plan. This lives in trajectory for later review.
+3. **Model emits ApplyPatch or multiple FileEdits**. Coordinated 5-file fix → one ApplyPatch; isolated 1-2 file fix → FileEdits.
+4. **Agent runs tests / lint**. On failure, trajectory carries the error; the model decides whether to roll back or continue.
+5. **Generate PR description**. Auto-write "what changed, why" from the think block and the diff.
+
+**Key decisions**:
+
+- **Force Read first**: 80% of un-read edits go wrong. Claude Code mandates this in its prompt; Codex enforces context anchors in V4A grammar.
+- **Add mtime to defeat races**: if the user manually edits a file mid-5-file-change, the second edit should error immediately.
+- **Rollback hatch**: before running tests, `git stash` the changes; on test failure, `git stash pop` and let the model retry. Codex does this; Claude Code leaves it to the user.
+
+**Pitfalls**:
+
+- Don't let the model send a 200-line FileEdit (hits function-arg cap).
+- Don't send 5 separate ApplyPatches (breaks atomic intent).
+- Don't declare success before tests run (lazy verifier is a backstop).
+
+**Source**: Codex's `goals.rs` wires "run tests after edit" into the verifier. Claude Code uses stopHooks in `query.ts` for similar wiring.
+**Follow-up**: "What about polyglot projects (Python backend + TS frontend)?" Each sub-project runs its own tests; failures merge into the trajectory. Codex's `run_tests` auto-detects project languages.
+</details>
+
+<details>
+<summary>**Q7 · Architecture**: Why doesn't OpenClaw build an edit DSL? What are the consequences of staying generic?</summary>
+
+OpenClaw is control-plane software. Its use case isn't "a coding agent" but "an agent platform with many skills." Skills may be coding, data analysis, customer support, scraping — building a DSL for one workload (coding edits) violates the generality goal.
+
+Implementation: `fs.read` / `fs.write` / `fs.edit` live in the `fs` category of `tool-catalog.ts` as ordinary tools, with `tool-fs-policy.ts` providing a single boolean (`workspaceOnly`) for boundary. No V4A, no str_replace protocol, no mtime check.
+
+**Consequences**:
+
+1. **Multi-file atomicity is fragile**. No patch protocol means multi-file edits = multiple fs.write calls; intermediate failure leaves inconsistent state.
+2. **Edit UX is weaker**. The model must read then write; "write" usually means full-file overwrite (unless the tool supports diff-style edit, but default doesn't).
+3. **Coarser audit granularity**. Trajectory shows "wrote file X," not "changed which lines."
+4. **Forks can add it**. `tool-policy-pipeline` allows `before_tool_call` / `after_tool_call` hooks for custom validation — V4A parsing can be plugged in.
+
+Why this is acceptable: OpenClaw's user is "agent platform user installing skills," coding being one of many. A `@coding-skill` plugin can bring its own V4A protocol and str_replace tool; the OpenClaw kernel needn't care.
+
+**Analogy**:
+
+- VSCode doesn't bundle git — the git extension does. VSCode is control plane, git is skill.
+- OpenClaw doesn't bundle V4A — coding-skill does. Same design philosophy.
+
+**Practical**: building an "agent platform"? Don't bake DSLs for one workload into the kernel — make them skills/plugins. Building a "coding agent"? Go deep at V4A / str_replace level in the kernel.
+
+**Source**: [`openclaw/src/agents/tool-fs-policy.ts:1-32`](https://github.com/openclaw/openclaw/blob/f6d0712f508b1f926ad6fc42f7d07b1a60e62730/src/agents/tool-fs-policy.ts#L1-L32) (the whole file is one boolean); [`openclaw/src/agents/tool-catalog.ts`](https://github.com/openclaw/openclaw/blob/f6d0712f508b1f926ad6fc42f7d07b1a60e62730/src/agents/tool-catalog.ts) fs category.
+**Follow-up**: "How does LangChain handle file edit?" LangChain has no built-in V4A; provides a file toolkit users hook themselves. Same control-plane philosophy as OpenClaw.
+</details>
+
+<details>
+<summary>**Q8 · Engineering**: Hermes reuses V4A but "stuffs it as a function-call argument" instead of inlining. What's the trade-off vs Codex?</summary>
+
+Hermes: model puts a complete V4A string into the tool_use's `input.patch` field; harness reads it and calls `tools/patch_parser.py`. Codex: model inlines V4A in assistant message text; harness scans for `*** Begin Patch`.
+
+**Trade-off**:
+
+| Dimension | Hermes (function arg) | Codex (inline) |
+|---|---|---|
+| Protocol complexity | Low — standard function call | High — parses assistant text |
+| Size cap | Hits function-arg cap (32K-128K) | None (output-token cap) |
+| Model learning cost | Slightly lower (familiar function call) | Slightly higher (custom DSL) |
+| Failure recovery | Standardized function-call errors | Needs custom "parse failed" return |
+| Cross-model portability | All function-calling models | Depends on Anthropic / OpenAI allowing inline text |
+
+Why Hermes picks function arg:
+
+1. **Cross-model compatibility**. Hermes targets OpenAI / Anthropic / Gemini. Every model supports function calling. Inline DSL in Gemini is awkward (its thinking mode mixes with text content).
+2. **Simpler protocol handling**. Python code does `result["patch"]` in one line — easier than scanning assistant text.
+
+Why Codex picks inline:
+
+1. **Codex primarily runs on GPT** — hitting function-arg caps is normal.
+2. **Rollout stores assistant message text**, so inlined V4A lands in rollout directly. Replay needs no extra assembly.
+3. **Codex needn't be cross-model** — locked to OpenAI, no portability concerns.
+
+**Practical**:
+
+- Multi-model agent → Hermes mode (function arg).
+- Single-model + large-patch workload → Codex mode (inline).
+- Unsure → start with function arg, switch when caps bite.
+
+**Source**: [`hermes-agent/tools/patch_parser.py:1-29`](https://github.com/NousResearch/hermes-agent/blob/2d59afd3da04812583ecbbf3be83539678a947c4/tools/patch_parser.py#L1-L29) (explicitly cites V4A reuse); [`hermes-agent/tools/file_tools.py`](https://github.com/NousResearch/hermes-agent/blob/2d59afd3da04812583ecbbf3be83539678a947c4/tools/file_tools.py) (how the parser is called).
+**Follow-up**: "What if Hermes hits the function-arg cap?" The model splits the patch into multiple tool_use calls (one per file). Atomicity goes, but it's a working fallback.
+</details>
+
+<details>
+<summary>**Q9 · Concept**: What is "the file-edit side-effect network"? Why does Claude Code make it so complete?</summary>
+
+"Side-effect network" = the set of external systems an edit must update. Claude Code triggers four things after each edit:
+
+1. **LSP diagnostics invalidate** (`clearDeliveredDiagnosticsForFile`). LSP server re-analyzes the file; next time the model asks for diagnostics, it gets fresh errors.
+2. **fileHistory tracks** (`fileHistoryTrackEdit`). Internal history table records "at time T, file X, diff Y." The `/diff` command shows all in-session edits.
+3. **VS Code SDK notify** (`notifyVscodeFileUpdated`). If Claude Code runs as a VS Code extension, the editor refreshes the file (avoids stale display).
+4. **Transition reason write**. On loop exit, transition gets `had_edits: true` so monitoring can distinguish "read-only session" from "modified session."
+
+Why so complete? Because **agents aren't islands**. An edit isn't just a file change — it impacts:
+
+- **Next turn's context**: stale LSP returns stale diagnostics.
+- **User's visual perception**: VS Code without notification shows old content while the agent thinks it's new.
+- **Session-level retrieval**: "What did you change earlier?" — no fileHistory, no answer.
+- **CI / monitoring**: without `had_edits`, monitoring can't categorize session types.
+
+Codex / OpenClaw / Hermes do less:
+
+- **Codex**: rollout write + execpolicy audit (~1.5 items).
+- **OpenClaw**: tool event stream + session lane (~1 item).
+- **Hermes**: memory commit + trajectory event (~1.5 items).
+
+Claude Code does more because it positions as "IDE-native agent" — deep editor integration mandates keeping IDE state consistent. Codex positions as "CLI / CI agent" — no editor to sync, only cares about rollout.
+
+**Practical**: start with LSP-invalidate + fileHistory (2 items). Add VS Code notification when integrating an IDE. Add transition reason in production monitoring.
+
+**Source**: `claude-code/src/tools/FileEditTool/FileEditTool.ts:1-130` (everything after a successful edit).
+**Follow-up**: "Shouldn't LSP servers detect file changes themselves?" They do, via file watchers (inotify / kqueue). But file watchers lag (hundreds of ms). Active notify + watcher backstop is the safest pattern.
+</details>
+
+<details>
+<summary>**Q10 · Open-ended**: Design a "standard protocol for file-editing tools."</summary>
+
+A layered protocol absorbing the best of all four:
+
+**Layer 1 · Single-point edit (required)**
+
+```ts
+interface SimpleEdit {
+  file_path: string;
+  old_string: string;     // unique match required
+  new_string: string;
+  replace_all?: boolean;
+}
+```
+
+Borrow Claude Code's str_replace. Enforce uniqueness + mtime. Suits any < 1K-token change.
+
+**Layer 2 · Large patch (optional)**
+
+```ts
+interface BulkPatch {
+  patch: string;          // V4A format
+  validate_only?: boolean;  // dry-run
+}
+```
+
+Borrow V4A. Lark grammar parser, phase 1 validate + phase 2 apply. When function-arg cap bites, fall back to SimpleEdit.
+
+**Layer 3 · Policy (required)**
+
+```ts
+interface FsPolicy {
+  workspace_root: string;
+  forbidden_paths: string[];
+  allowed_extensions?: string[];
+  require_mtime_check: boolean;  // default true
+}
+```
+
+Borrow OpenClaw's workspaceOnly + blacklist/whitelist. Run policy before every edit.
+
+**Layer 4 · Side effects (required in prod)**
+
+```ts
+interface EditSideEffects {
+  notify_lsp: boolean;
+  track_history: boolean;
+  notify_editor: boolean;  // VS Code / Cursor / etc.
+  emit_event: boolean;     // for monitoring / audit
+}
+```
+
+Borrow Claude Code's side-effect network, each toggleable (small agents don't need everything).
+
+**Layer 5 · Transition (required)**
+
+Every edit appends to trajectory:
+
+```ts
+interface EditOutcome {
+  changed_files: string[];
+  diff: string;            // unified diff
+  bytes_changed: number;
+  mtime_check_passed: boolean;
+  side_effects_fired: string[];
+  error?: { code: string; message: string };
+}
+```
+
+Monitoring aggregates on EditOutcome directly.
+
+**API example**:
+
+```ts
+const editor = createFileEditor({
+  policy: { workspace_root: '/app', forbidden_paths: ['.env'] },
+  side_effects: { notify_lsp: true, track_history: true },
+});
+
+await editor.simpleEdit({ file_path: 'src/foo.ts', old_string: '...', new_string: '...' });
+// or
+await editor.bulkPatch({ patch: '*** Begin Patch ...' });
+```
+
+**Versus the four systems**:
+
+- Lighter than Codex (no mandatory rollout).
+- More extensible than Claude Code (policy + side effects all configurable).
+- Deeper than OpenClaw (V4A built-in).
+- More engineered than Hermes (mtime + policy + side effects defaulted on).
+
+Engineering effort: 3-5 person-weeks + 1 week of docs / tests. Much lighter than rewriting Codex's full stack.
+
+**Source**: composite of all four §3 implementations.
+**Follow-up**: "Cross-language?" Yes. Core API designed protocol-style (JSON schema in / out); Python / TS / Rust each implement one. V4A is text — Lark grammar is portable.
+</details>

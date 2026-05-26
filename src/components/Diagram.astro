@@ -1,0 +1,123 @@
+---
+/**
+ * <Diagram src="/diagrams/02-agent-loop.svg" caption="..." alt="..." />
+ *
+ * 渲染从 Excalidraw 导出（或手写）的 SVG。
+ *
+ * 关键设计：
+ *  - SVG 永远保持 readable 尺寸：在小屏幕上允许横向滚动，而不是无限缩小到字看不清。
+ *  - 默认随内容栏宽，但当 SVG 视口宽 > 内容栏，自动启用滚动条。
+ *  - `wide` prop：允许图在超大屏上突破内容栏（左右各 -32px），更舒展地呈现。
+ *  - `minWidth` prop：可手动覆盖最小宽度，默认根据 SVG 自身的 viewBox 决定。
+ *  - Locale-aware：当页面在 /en/ 路径下，自动尝试加载 /diagrams/en/<file>.svg；
+ *    若英文版不存在则回退到中文版（避免 404 与渲染断裂）。
+ */
+
+// Build-time glob: enumerate available English SVGs so we can decide whether to
+// rewrite the src or fall back to the Chinese original without doing per-render
+// filesystem lookups (which break under Astro's bundled SSG).
+const enDiagramModules = import.meta.glob('/public/diagrams/en/*.svg', { eager: true, query: '?url' });
+const enDiagramSet = new Set(
+  Object.keys(enDiagramModules).map((p) => p.replace('/public', '')),
+);
+
+interface Props {
+  src: string;
+  caption?: string;
+  alt: string;
+  /** 桌面端允许图突破内容栏（适合横向流程图）。 */
+  wide?: boolean;
+  /** SVG 不应该缩到比这个更窄，避免文字看不清；单位 px。 */
+  minWidth?: number;
+}
+const { src, caption, alt, wide = false, minWidth = 640 } = Astro.props;
+
+const pathname = Astro.url?.pathname ?? '';
+const isEnglishPage = pathname.startsWith('/en/');
+let resolvedSrc = src;
+if (isEnglishPage && src.startsWith('/diagrams/') && !src.startsWith('/diagrams/en/')) {
+  const enSrc = src.replace('/diagrams/', '/diagrams/en/');
+  if (enDiagramSet.has(enSrc)) {
+    resolvedSrc = enSrc;
+  }
+}
+---
+
+<figure class={`aap-diagram${wide ? ' aap-diagram--wide' : ''}`}>
+  <div class="aap-diagram__scroll" role="region" aria-label={alt} tabindex="0">
+    <img src={resolvedSrc} alt={alt} style={`min-width: ${minWidth}px;`} />
+  </div>
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+  .aap-diagram {
+    margin: var(--aap-sp-8) 0;
+    padding: var(--aap-sp-6) var(--aap-sp-4);
+    /* SVG diagrams are authored on a warm-white canvas. Keep the card
+     * background light-on-dark-mode too so semi-transparent fills and
+     * dark text inside the SVG remain readable. */
+    background: #fbfaf7;
+    border: 1px solid var(--aap-paper-line);
+    border-radius: var(--aap-radius-md);
+    box-shadow: var(--aap-shadow-soft);
+    transition: box-shadow 0.2s ease;
+  }
+  .aap-diagram:hover {
+    box-shadow: var(--aap-shadow-card);
+  }
+
+  /* In dark mode, soften the figure-caption color so it contrasts with the
+   * dark page chrome rather than the light diagram card. */
+  :global(:root[data-theme='dark']) .aap-diagram figcaption {
+    color: var(--aap-ink-muted);
+  }
+
+  /* breakout for very wide diagrams on large screens */
+  @media (min-width: 1100px) {
+    .aap-diagram--wide {
+      margin-left: calc(var(--aap-sp-8) * -1);
+      margin-right: calc(var(--aap-sp-8) * -1);
+    }
+  }
+
+  .aap-diagram__scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .aap-diagram__scroll:focus-visible {
+    outline: 2px solid var(--aap-color-tradeoff, #ea580c);
+    outline-offset: 2px;
+  }
+
+  .aap-diagram__scroll::-webkit-scrollbar {
+    height: 6px;
+  }
+  .aap-diagram__scroll::-webkit-scrollbar-thumb {
+    background: var(--aap-paper-line);
+    border-radius: 3px;
+  }
+  .aap-diagram__scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--aap-ink-muted);
+  }
+
+  .aap-diagram img {
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+    height: auto;
+  }
+
+  .aap-diagram figcaption {
+    margin-top: var(--aap-sp-3);
+    text-align: center;
+    font-size: var(--aap-fs-xs);
+    color: var(--aap-ink-muted);
+    font-family: var(--aap-font-body);
+    font-style: italic;
+    letter-spacing: 0.01em;
+  }
+</style>

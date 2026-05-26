@@ -1,0 +1,69 @@
+---
+title: Codex
+description: "OpenAI Codex CLI: Rust + native sandbox on three OSes + 50+ crate coding-agent backbone"
+sidebar:
+  order: 1
+---
+
+import Verdict from '@components/Verdict.astro';
+import CompareTable from '@components/CompareTable.astro';
+import SourceTrail from '@components/SourceTrail.astro';
+
+<Verdict tldr="Codex is the most engineering-heavy of the four, closer to an operating system than a script. Code is split into 50+ Rust crates: turn loop, state machine, memory pipeline, apply-patch, remote tasks, and three native sandboxes each compile independently. Strength: production-grade stability across IDE, TUI, and cloud worker. Cost: a steep Rust learning curve and heavy refactor surface." tone="insight" />
+
+## §1 · What Codex is
+
+OpenAI's own coding agent. A local `codex` binary runs interactive editing (a terminal UI plus a small Model Context Protocol / MCP suite); a `cloud-tasks` binary runs as a remote worker. The whole system is a Rust mono-repo where crates decouple through trait and protocol crates.
+
+## §2 · The 50+ crate layered architecture
+
+<CompareTable
+  rows={[
+    { label: 'Entry', values: ['`cli/` terminal entry (streaming stdin)', '`tui/` full-screen ratatui UI (with onboarding / trust)', '`app-server/` + `app-server-daemon/` speak JSON-RPC, called by IDE/plugins', '`cloud-tasks/` standalone remote-worker binary'] },
+    { label: 'Core loop', values: ['`core/` single turn closure (assemble prompt → model call → tool dispatch → apply)', '`core-api/` stable public interface', '`core-plugins/` plugin attachment points', '`protocol/` cross-crate shared types'] },
+    { label: 'State & memory', values: ['`state/` SQLite + lease/retry/backoff', '`memories/` two-phase consolidation (stage1 + global)', '`memory_citation` for traceback', '`agent-graph-store/` thread / branch topology'] },
+    { label: 'Tools', values: ['`apply-patch/` V4A patch parser', '`exec/` shell execution', '`builtin-mcps/` bundled MCP bridges', '`core-skills/` 8 sub-crate skill engine'] },
+    { label: 'Sandbox', values: ['macOS: `sandbox-macos-seatbelt/` emits .sbpl', 'Linux: `bwrap/` + `landlock/` + `seccomp/`', 'Windows: `windows-sandbox-rs/`', 'Unified: `sandbox/` + `execpolicy/`'] },
+    { label: 'Observability & cost', values: ['`analytics/` 20+ event types', '`codex-otel/` OpenTelemetry bridge', '`codex-rollout-trace/` full-session replay', '`codex-cost/` token → USD'] },
+  ]}
+  caption="Codex pushes every engineering concern into its own crate. A mono-repo extreme."
+/>
+
+## §3 · Engineering highlights
+
+1. **Rust type system as backstop**. `Result` and `enum` make state-machine errors impossible to silently swallow. `Stage1JobClaimOutcome`'s 5-way enum forces a `match` on every branch.
+2. **Three native sandboxes**. macOS uses seatbelt (works without disabling System Integrity Protection); Linux combines bubblewrap, landlock, and seccomp (no root required); Windows uses windows-sandbox-rs (no Windows Subsystem for Linux dependency). One implementation per platform.
+3. **Memory consolidation in the background**. `memory_consolidate_global` runs LLM-based rewrites of MEMORY.md and `skills/` as a background job. Zero cost on the main turn.
+4. **Replayable rollout-trace**. Every session persists to JSONL and can be replayed. The only reliable way to diagnose agent drift.
+5. **`apply-patch` V4A format**. A homegrown patch format more reliable than unified diff, more efficient than SEARCH/REPLACE, and more structured for LLMs.
+
+## §4 · Where it falls short
+
+1. **Refactor cost is high**. With 50+ crates, any cross-crate change touches `protocol/` and triggers long rebuilds.
+2. **Rust skill bar**. Async plus lifetimes plus tower-style trait composition. This is a Rust project first.
+3. **No explicit user-level memory**. MEMORY.md is cwd-scoped; cross-project preferences must live in personal-scope AGENTS.md.
+4. **TUI-first**. IDE integration runs through `app-server` JSON-RPC, but the ecosystem is far less mature than Claude Code's IDE plugins.
+
+## §5 · Five things worth stealing
+
+1. **Phase 2 consolidation prompt** (`codex-rs/memories/write/templates/memories/consolidation.md`). 800 lines that nail down what counts as high-signal memory, plus a wording-preservation rule. Reuse verbatim.
+2. **Three-OS sandbox abstraction** (`sandbox/` and `execpolicy/`). One interface, three native backends. The best cross-OS agent reference.
+3. **Stage1JobClaimOutcome 5-way state machine** (`state/src/model/memories.rs`). All five outcomes of claiming a job are enum variants. No implicit branches.
+4. **rollout-trace JSONL**. Persist every session for replay. Every agent project should have this.
+5. **app-server JSON-RPC protocol**. Run the agent engine as a separate process behind JSON-RPC. IDE plugins don't reimplement the turn loop.
+
+## §6 · Source map
+
+<SourceTrail
+  entries={[
+    { system: 'Codex', path: 'REF/codex/codex-rs/core/src/lib.rs', desc: 'Turn loop entry' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/state/src/model/memories.rs', desc: 'Stage1 / Phase2 state machine' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/memories/write/templates/memories/consolidation.md', desc: '800-line Phase2 prompt' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/sandbox-macos-seatbelt/src/lib.rs', desc: 'seatbelt policy generation' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/bwrap/src/lib.rs', desc: 'bubblewrap + seccomp assembly' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/cloud-tasks/src/main.rs', desc: 'Remote worker entry' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/analytics/src/event.rs', desc: '20+ event type definitions' },
+    { system: 'Codex', path: 'REF/codex/codex-rs/tui/src/onboarding/trust_directory.rs', desc: 'TrustLevel directory onboarding' },
+    { system: 'Codex', external: 'https://developers.openai.com/codex/cli', path: 'OpenAI Codex CLI docs', desc: 'Official product docs' },
+  ]}
+/>

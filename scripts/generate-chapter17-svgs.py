@@ -1,0 +1,245 @@
+#!/usr/bin/env python3
+"""Chapter 17 SVGs: TradeOff (结构化深度 x 易上手) + 四种 skill supply chain 并列图."""
+from pathlib import Path
+
+PUBLIC = Path("public/diagrams")
+
+TRADEOFF_SVG = """<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 480" role="img"
+     aria-label="四家 skill 系统在结构化深度 x 易上手上的位置">
+  <defs>
+    <filter id="wb17"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="171" /><feDisplacementMap in="SourceGraphic" scale="2" /></filter>
+    <marker id="ar17" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#1e293b" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #1e293b; }
+      .ax   { font: 600 12.5px sans-serif; fill: #1e293b; }
+      .t    { font: 11.5px sans-serif; fill: #334155; }
+      .t-s  { font: 10.5px sans-serif; fill: #64748b; }
+      .pin  { font: 700 12.5px sans-serif; fill: #fff; }
+      .note { font: italic 10.5px sans-serif; fill: #475569; }
+    </style>
+  </defs>
+
+  <text x="390" y="26" class="h" text-anchor="middle">Skill 系统：结构化深度 x 易上手</text>
+  <text x="390" y="44" class="t-s" text-anchor="middle">越往右越易上手；越往上结构化越深；选哪种取决于谁来写 skill</text>
+
+  <g filter="url(#wb17)">
+    <rect x="100" y="80" width="280" height="160" fill="#fef9c3" opacity="0.4" />
+    <rect x="380" y="80" width="280" height="160" fill="#dcfce7" opacity="0.4" />
+    <rect x="100" y="240" width="280" height="160" fill="#dbeafe" opacity="0.4" />
+    <rect x="380" y="240" width="280" height="160" fill="#fee2e2" opacity="0.4" />
+
+    <text x="120" y="100" class="t-s">高结构化 · 高门槛</text>
+    <text x="640" y="100" class="t-s" text-anchor="end">高结构化 · 易上手</text>
+    <text x="120" y="260" class="t-s">轻量 · 高门槛</text>
+    <text x="640" y="260" class="t-s" text-anchor="end">轻量 · 易上手</text>
+
+    <line x1="100" y1="400" x2="660" y2="400" stroke="#1e293b" stroke-width="2.5" marker-end="url(#ar17)" />
+    <line x1="100" y1="400" x2="100" y2="70" stroke="#1e293b" stroke-width="2.5" marker-end="url(#ar17)" />
+    <line x1="380" y1="80" x2="380" y2="400" stroke="#1e293b" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="100" y1="240" x2="660" y2="240" stroke="#1e293b" stroke-width="1" stroke-dasharray="3 3" />
+
+    <text x="660" y="420" class="ax" text-anchor="end">易上手 →</text>
+    <text x="110" y="68" class="ax">↑ 结构化深度</text>
+
+    <circle cx="180" cy="130" r="14" fill="#2563eb" stroke="#1e293b" stroke-width="2" />
+    <text x="180" y="134" class="pin" text-anchor="middle">CX</text>
+    <text x="180" y="161" class="t" text-anchor="middle">Codex</text>
+    <text x="180" y="176" class="t-s" text-anchor="middle">8 crate + Scope</text>
+    <text x="180" y="189" class="t-s" text-anchor="middle">+ Policy + Dependencies</text>
+
+    <circle cx="500" cy="160" r="14" fill="#7c3aed" stroke="#1e293b" stroke-width="2" />
+    <text x="500" y="164" class="pin" text-anchor="middle">CC</text>
+    <text x="500" y="191" class="t" text-anchor="middle">Claude Code</text>
+    <text x="500" y="206" class="t-s" text-anchor="middle">17 bundled + skillify</text>
+    <text x="500" y="219" class="t-s" text-anchor="middle">4 round AskUserQuestion</text>
+
+    <circle cx="290" cy="290" r="14" fill="#16a34a" stroke="#1e293b" stroke-width="2" />
+    <text x="290" y="294" class="pin" text-anchor="middle">OC</text>
+    <text x="290" y="321" class="t" text-anchor="middle">OpenClaw</text>
+    <text x="290" y="336" class="t-s" text-anchor="middle">scanner + install</text>
+    <text x="290" y="349" class="t-s" text-anchor="middle">完整 supply chain</text>
+
+    <circle cx="580" cy="320" r="14" fill="#f97316" stroke="#1e293b" stroke-width="2" />
+    <text x="580" y="324" class="pin" text-anchor="middle">HM</text>
+    <text x="580" y="351" class="t" text-anchor="middle">Hermes</text>
+    <text x="580" y="366" class="t-s" text-anchor="middle">12 格 trust matrix</text>
+    <text x="580" y="379" class="t-s" text-anchor="middle">agentskills.io 兼容</text>
+  </g>
+
+  <text x="20" y="465" class="t-s">CX = Codex · CC = Claude Code · OC = OpenClaw · HM = Hermes</text>
+</svg>
+"""
+
+FLOWS_SVG = """<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 600" role="img"
+     aria-label="四种 skill supply chain 并列对照">
+  <defs>
+    <filter id="wb17F"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="177" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar17F" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#1e293b" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #1e293b; }
+      .col  { font: 700 13px sans-serif; fill: #1e293b; }
+      .lbl  { font: 700 11px sans-serif; fill: #1e293b; }
+      .t-s  { font: 10.5px sans-serif; fill: #475569; }
+      .note { font: italic 10.5px sans-serif; fill: #b45309; }
+    </style>
+  </defs>
+
+  <text x="440" y="24" class="h" text-anchor="middle">四种 skill supply chain 并列</text>
+  <text x="440" y="42" class="t-s" text-anchor="middle">8 crate + Policy（Codex）· skillify 引导（Claude Code）· scanner+install（OpenClaw）· 12 格 trust（Hermes）</text>
+
+  <g filter="url(#wb17F)">
+    <text x="120" y="70" class="col" text-anchor="middle">Codex · 8 crate</text>
+    <rect x="40" y="80" width="160" height="36" rx="8" fill="#fef9c3" stroke="#1e293b" stroke-width="1.6" />
+    <text x="120" y="103" class="lbl" text-anchor="middle">SKILLS.md 发现</text>
+
+    <line x1="120" y1="116" x2="120" y2="135" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar17F)" />
+
+    <rect x="40" y="138" width="160" height="48" rx="8" fill="#bfdbfe" stroke="#1e293b" stroke-width="1.6" />
+    <text x="120" y="158" class="lbl" text-anchor="middle">SkillScope 4 层</text>
+    <text x="120" y="174" class="t-s" text-anchor="middle">user/project/org/bundled</text>
+
+    <line x1="120" y1="186" x2="120" y2="205" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar17F)" />
+
+    <rect x="40" y="208" width="160" height="60" rx="8" fill="#dcfce7" stroke="#1e293b" stroke-width="1.6" />
+    <text x="120" y="228" class="lbl" text-anchor="middle">SkillPolicy</text>
+    <text x="120" y="244" class="t-s" text-anchor="middle">allow_implicit_invocation</text>
+    <text x="120" y="258" class="t-s" text-anchor="middle">products gating</text>
+
+    <line x1="120" y1="268" x2="120" y2="287" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar17F)" />
+
+    <rect x="40" y="290" width="160" height="60" rx="8" fill="#fed7aa" stroke="#1e293b" stroke-width="1.6" />
+    <text x="120" y="310" class="lbl" text-anchor="middle">env_var_dependencies</text>
+    <text x="120" y="326" class="t-s" text-anchor="middle">缺则 RequestUserInput</text>
+    <text x="120" y="340" class="t-s" text-anchor="middle">自动补齐</text>
+
+    <line x1="120" y1="350" x2="120" y2="369" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar17F)" />
+
+    <rect x="40" y="372" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#1e293b" stroke-width="1.6" />
+    <text x="120" y="392" class="lbl" text-anchor="middle">ExecutorFileSystem</text>
+    <text x="120" y="408" class="t-s" text-anchor="middle">scope 限定执行</text>
+
+    <text x="120" y="450" class="note" text-anchor="middle">8 crate 拆得最细</text>
+
+    <text x="330" y="70" class="col" text-anchor="middle">Claude Code · skillify</text>
+    <rect x="250" y="80" width="160" height="36" rx="8" fill="#fef9c3" stroke="#1e293b" stroke-width="1.6" />
+    <text x="330" y="103" class="lbl" text-anchor="middle">SKILL.md frontmatter</text>
+
+    <line x1="330" y1="116" x2="330" y2="135" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar17F)" />
+
+    <rect x="250" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#1e293b" stroke-width="1.6" />
+    <text x="330" y="158" class="lbl" text-anchor="middle">when_to_use</text>
+    <text x="330" y="174" class="t-s" text-anchor="middle">trigger phrase</text>
+    <text x="330" y="188" class="t-s" text-anchor="middle">+ example user msg</text>
+
+    <line x1="330" y1="198" x2="330" y2="217" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar17F)" />
+
+    <rect x="250" y="220" width="160" height="48" rx="8" fill="#dcfce7" stroke="#1e293b" stroke-width="1.6" />
+    <text x="330" y="240" class="lbl" text-anchor="middle">allowed-tools 收敛</text>
+    <text x="330" y="256" class="t-s" text-anchor="middle">Bash(gh:*) 粒度</text>
+
+    <line x1="330" y1="268" x2="330" y2="287" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar17F)" />
+
+    <rect x="250" y="290" width="160" height="60" rx="8" fill="#fed7aa" stroke="#1e293b" stroke-width="1.6" />
+    <text x="330" y="310" class="lbl" text-anchor="middle">context inline / fork</text>
+    <text x="330" y="326" class="t-s" text-anchor="middle">inline = 共享 ctx</text>
+    <text x="330" y="340" class="t-s" text-anchor="middle">fork = Task agent 隔离</text>
+
+    <line x1="330" y1="350" x2="330" y2="369" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar17F)" />
+
+    <rect x="250" y="372" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#1e293b" stroke-width="1.6" />
+    <text x="330" y="392" class="lbl" text-anchor="middle">skillify 4 轮引导</text>
+    <text x="330" y="408" class="t-s" text-anchor="middle">session → skill 沉淀</text>
+
+    <text x="330" y="450" class="note" text-anchor="middle">17 bundled skill</text>
+
+    <text x="540" y="70" class="col" text-anchor="middle">OpenClaw · scanner+install</text>
+    <rect x="460" y="80" width="160" height="36" rx="8" fill="#fef9c3" stroke="#1e293b" stroke-width="1.6" />
+    <text x="540" y="103" class="lbl" text-anchor="middle">skills-install-download</text>
+
+    <line x1="540" y1="116" x2="540" y2="135" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar17F)" />
+
+    <rect x="460" y="138" width="160" height="48" rx="8" fill="#bfdbfe" stroke="#1e293b" stroke-width="1.6" />
+    <text x="540" y="158" class="lbl" text-anchor="middle">tar verbose 解压</text>
+    <text x="540" y="174" class="t-s" text-anchor="middle">resolveBrewExecutable</text>
+
+    <line x1="540" y1="186" x2="540" y2="205" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar17F)" />
+
+    <rect x="460" y="208" width="160" height="60" rx="8" fill="#dcfce7" stroke="#1e293b" stroke-width="1.6" />
+    <text x="540" y="228" class="lbl" text-anchor="middle">skill-scanner 静态扫描</text>
+    <text x="540" y="244" class="t-s" text-anchor="middle">critical / warn / info</text>
+    <text x="540" y="258" class="t-s" text-anchor="middle">8 扩展名 + 5000 cache</text>
+
+    <line x1="540" y1="268" x2="540" y2="287" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar17F)" />
+
+    <rect x="460" y="290" width="160" height="48" rx="8" fill="#fed7aa" stroke="#1e293b" stroke-width="1.6" />
+    <text x="540" y="310" class="lbl" text-anchor="middle">critical → block</text>
+    <text x="540" y="326" class="t-s" text-anchor="middle">warn → ask 用户</text>
+
+    <line x1="540" y1="338" x2="540" y2="357" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar17F)" />
+
+    <rect x="460" y="360" width="160" height="60" rx="8" fill="#e0e7ff" stroke="#1e293b" stroke-width="1.6" />
+    <text x="540" y="380" class="lbl" text-anchor="middle">workspace skill</text>
+    <text x="540" y="396" class="t-s" text-anchor="middle">+ bundled allowlist</text>
+    <text x="540" y="410" class="t-s" text-anchor="middle">+ skill-plugin sandbox</text>
+
+    <text x="540" y="450" class="note" text-anchor="middle">完整 supply chain</text>
+
+    <text x="760" y="70" class="col" text-anchor="middle">Hermes · 12 格 trust matrix</text>
+    <rect x="680" y="80" width="160" height="36" rx="8" fill="#fef9c3" stroke="#1e293b" stroke-width="1.6" />
+    <text x="760" y="103" class="lbl" text-anchor="middle">~/.hermes/skills/</text>
+
+    <line x1="760" y1="116" x2="760" y2="135" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar17F)" />
+
+    <rect x="680" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#1e293b" stroke-width="1.6" />
+    <text x="760" y="158" class="lbl" text-anchor="middle">4 trust level</text>
+    <text x="760" y="174" class="t-s" text-anchor="middle">builtin/trusted</text>
+    <text x="760" y="188" class="t-s" text-anchor="middle">community/agent-created</text>
+
+    <line x1="760" y1="198" x2="760" y2="217" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar17F)" />
+
+    <rect x="680" y="220" width="160" height="60" rx="8" fill="#dcfce7" stroke="#1e293b" stroke-width="1.6" />
+    <text x="760" y="240" class="lbl" text-anchor="middle">3 verdict</text>
+    <text x="760" y="256" class="t-s" text-anchor="middle">safe / caution</text>
+    <text x="760" y="270" class="t-s" text-anchor="middle">dangerous</text>
+
+    <line x1="760" y1="280" x2="760" y2="299" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar17F)" />
+
+    <rect x="680" y="302" width="160" height="60" rx="8" fill="#fed7aa" stroke="#1e293b" stroke-width="1.6" />
+    <text x="760" y="322" class="lbl" text-anchor="middle">12 格 INSTALL_POLICY</text>
+    <text x="760" y="338" class="t-s" text-anchor="middle">level × verdict 决策</text>
+    <text x="760" y="352" class="t-s" text-anchor="middle">allow / ask / block</text>
+
+    <line x1="760" y1="362" x2="760" y2="381" stroke="#1e293b" stroke-width="1.6" marker-end="url(#ar17F)" />
+
+    <rect x="680" y="384" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#1e293b" stroke-width="1.6" />
+    <text x="760" y="404" class="lbl" text-anchor="middle">progressive disclosure</text>
+    <text x="760" y="420" class="t-s" text-anchor="middle">name 64 / desc 1024</text>
+
+    <text x="760" y="450" class="note" text-anchor="middle">agentskills.io 兼容</text>
+  </g>
+
+  <text x="440" y="490" class="t-s" text-anchor="middle">沉淀经验为 skill，四种姿态对四种场景</text>
+
+  <g>
+    <rect x="40" y="505" width="800" height="90" rx="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1" />
+    <text x="60" y="525" class="lbl">共同点：</text>
+    <text x="60" y="543" class="t-s">· SKILL.md 都有 frontmatter（agentskills.io 是事实标准）</text>
+    <text x="60" y="559" class="t-s">· 都有 progressive disclosure（先 metadata 后 body）</text>
+    <text x="60" y="575" class="t-s">· 都关心 allowed-tools 收敛（不能 Bash 全开）</text>
+    <text x="60" y="589" class="t-s">· 都有「来源不同信任不同」的分级（Hermes 最显式，OpenClaw 走 scanner）</text>
+  </g>
+</svg>
+"""
+
+def write(slug, svg):
+    out = PUBLIC / f"{slug}.svg"
+    out.write_text(svg, encoding="utf-8")
+    print(f"wrote {out} ({out.stat().st_size} bytes)")
+
+
+if __name__ == "__main__":
+    PUBLIC.mkdir(parents=True, exist_ok=True)
+    write("17-tradeoff", TRADEOFF_SVG)
+    write("17-skill-supply-chain", FLOWS_SVG)

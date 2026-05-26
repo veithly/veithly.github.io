@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 600" role="img"
+     aria-label="Four observability stacks side by side">
+  <defs>
+    <filter id="wb15F"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="157" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <marker id="ar15F" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .col  { font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .note { font: italic 10.5px sans-serif; fill: #92400e; }
+    </style>
+  </defs>
+
+  <text x="440" y="24" class="h" text-anchor="middle">Four observability stacks side by side</text>
+  <text x="440" y="42" class="t-s" text-anchor="middle">3 crates (Codex) &#x00B7; modelCost + /insights (Claude Code) &#x00B7; 13 DiagnosticEvent kinds (OpenClaw) &#x00B7; CanonicalUsage + 5 CostSources (Hermes)</text>
+
+  <g filter="url(#wb15F)">
+    <text x="120" y="62" class="col" text-anchor="middle">Codex</text>
+    <text x="120" y="76" class="t-s" text-anchor="middle">3 independent crates</text>
+    <rect x="40" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="103" class="lbl" text-anchor="middle">hot-path writer API</text>
+
+    <line x1="120" y1="116" x2="120" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar15F)" />
+
+    <rect x="40" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="158" class="lbl" text-anchor="middle">codex-otel</text>
+    <text x="120" y="174" class="t-s" text-anchor="middle">4 exporters: None / Statsig</text>
+    <text x="120" y="188" class="t-s" text-anchor="middle">OtlpGrpc / OtlpHttp</text>
+
+    <line x1="120" y1="198" x2="120" y2="217" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar15F)" />
+
+    <rect x="40" y="220" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="240" class="lbl" text-anchor="middle">codex-analytics</text>
+    <text x="120" y="256" class="t-s" text-anchor="middle">TrackEventRequest x 20+</text>
+    <text x="120" y="270" class="t-s" text-anchor="middle">AcceptedLineFingerprints</text>
+
+    <line x1="120" y1="280" x2="120" y2="299" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar15F)" />
+
+    <rect x="40" y="302" width="160" height="60" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="120" y="322" class="lbl" text-anchor="middle">codex-rollout-trace</text>
+    <text x="120" y="338" class="t-s" text-anchor="middle">trace.jsonl + manifest</text>
+    <text x="120" y="352" class="t-s" text-anchor="middle">reducer offline replay</text>
+
+    <text x="120" y="395" class="note" text-anchor="middle">debug disables reporting</text>
+    <text x="120" y="410" class="note" text-anchor="middle">cfg!(debug_assertions)</text>
+
+    <text x="330" y="62" class="col" text-anchor="middle">Claude Code</text>
+    <text x="330" y="76" class="t-s" text-anchor="middle">modelCost + /insights</text>
+    <rect x="250" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="103" class="lbl" text-anchor="middle">hot-path usage</text>
+
+    <line x1="330" y1="116" x2="330" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar15F)" />
+
+    <rect x="250" y="138" width="160" height="60" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="158" class="lbl" text-anchor="middle">modelCost.ts</text>
+    <text x="330" y="174" class="t-s" text-anchor="middle">5 cost tiers hard-coded</text>
+    <text x="330" y="188" class="t-s" text-anchor="middle">tokensToUSDCost(usage)</text>
+
+    <line x1="330" y1="198" x2="330" y2="217" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar15F)" />
+
+    <rect x="250" y="220" width="160" height="60" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="240" class="lbl" text-anchor="middle">unknown-model fallback</text>
+    <text x="330" y="256" class="t-s" text-anchor="middle">default value + warning</text>
+    <text x="330" y="270" class="t-s" text-anchor="middle">tengu_unknown_model_cost</text>
+
+    <line x1="330" y1="280" x2="330" y2="299" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar15F)" />
+
+    <rect x="250" y="302" width="160" height="60" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="322" class="lbl" text-anchor="middle">sessionStorage</text>
+    <text x="330" y="338" class="t-s" text-anchor="middle">~/.claude/projects/</text>
+    <text x="330" y="352" class="t-s" text-anchor="middle">sessions/*.json</text>
+
+    <line x1="330" y1="362" x2="330" y2="381" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar15F)" />
+
+    <rect x="250" y="384" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="330" y="404" class="lbl" text-anchor="middle">/insights command</text>
+    <text x="330" y="420" class="t-s" text-anchor="middle">Opus x 2, terminal report</text>
+
+    <text x="540" y="62" class="col" text-anchor="middle">OpenClaw</text>
+    <text x="540" y="76" class="t-s" text-anchor="middle">DiagnosticEvent x 13</text>
+    <rect x="460" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="103" class="lbl" text-anchor="middle">hot path</text>
+
+    <line x1="540" y1="116" x2="540" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar15F)" />
+
+    <rect x="460" y="138" width="160" height="48" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="158" class="lbl" text-anchor="middle">emitDiagnosticEvent</text>
+    <text x="540" y="174" class="t-s" text-anchor="middle">seq++, ts, dispatchDepth</text>
+
+    <line x1="540" y1="186" x2="540" y2="205" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar15F)" />
+
+    <rect x="460" y="208" width="160" height="72" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="226" class="lbl" text-anchor="middle">13 event kinds</text>
+    <text x="540" y="240" class="t-s" text-anchor="middle">model.usage / webhook x3</text>
+    <text x="540" y="254" class="t-s" text-anchor="middle">message x2 / session x2</text>
+    <text x="540" y="268" class="t-s" text-anchor="middle">queue x2 / run / heartbeat</text>
+
+    <line x1="540" y1="280" x2="540" y2="299" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar15F)" />
+
+    <rect x="460" y="302" width="160" height="48" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="322" class="lbl" text-anchor="middle">tool.loop detector</text>
+    <text x="540" y="338" class="t-s" text-anchor="middle">repeat / poll / circuit / ping-pong</text>
+
+    <line x1="540" y1="350" x2="540" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar15F)" />
+
+    <rect x="460" y="372" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="540" y="392" class="lbl" text-anchor="middle">listener pattern</text>
+    <text x="540" y="408" class="t-s" text-anchor="middle">deployer chooses where it lands</text>
+
+    <text x="540" y="440" class="note" text-anchor="middle">cost field left blank</text>
+
+    <text x="760" y="62" class="col" text-anchor="middle">Hermes</text>
+    <text x="760" y="76" class="t-s" text-anchor="middle">CanonicalUsage + 5 sources</text>
+    <rect x="680" y="80" width="160" height="36" rx="8" fill="#fef3c7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="103" class="lbl" text-anchor="middle">usage data</text>
+
+    <line x1="760" y1="116" x2="760" y2="135" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar15F)" />
+
+    <rect x="680" y="138" width="160" height="48" rx="8" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="158" class="lbl" text-anchor="middle">CanonicalUsage</text>
+    <text x="760" y="174" class="t-s" text-anchor="middle">input/output/cache_r/w/reasoning</text>
+
+    <line x1="760" y1="186" x2="760" y2="205" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar15F)" />
+
+    <rect x="680" y="208" width="160" height="48" rx="8" fill="#dcfce7" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="228" class="lbl" text-anchor="middle">BillingRoute</text>
+    <text x="760" y="244" class="t-s" text-anchor="middle">provider + model + base_url</text>
+
+    <line x1="760" y1="256" x2="760" y2="275" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar15F)" />
+
+    <rect x="680" y="278" width="160" height="72" rx="8" fill="#fed7aa" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="296" class="lbl" text-anchor="middle">5 CostSource priorities</text>
+    <text x="760" y="310" class="t-s" text-anchor="middle">provider_cost_api highest</text>
+    <text x="760" y="324" class="t-s" text-anchor="middle">generation / models / docs</text>
+    <text x="760" y="338" class="t-s" text-anchor="middle">override / contract lowest</text>
+
+    <line x1="760" y1="350" x2="760" y2="369" stroke="#0f172a" stroke-width="1.6" marker-end="url(#ar15F)" />
+
+    <rect x="680" y="372" width="160" height="48" rx="8" fill="#e0e7ff" stroke="#0f172a" stroke-width="1.6" />
+    <text x="760" y="392" class="lbl" text-anchor="middle">CostResult, 4 states</text>
+    <text x="760" y="408" class="t-s" text-anchor="middle">actual/estimated/included/unknown</text>
+
+    <text x="760" y="445" class="note" text-anchor="middle">SQLite + terminal InsightsEngine</text>
+  </g>
+
+  <text x="440" y="475" class="t-s" text-anchor="middle">Instrumentation effort vs cost precision: four trade-offs for four scenarios.</text>
+
+  <g>
+    <rect x="40" y="490" width="800" height="95" rx="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1" />
+    <text x="60" y="510" class="lbl">Shared traits:</text>
+    <text x="60" y="528" class="t-s">&#x00B7; All track at least four token dimensions (input / output / cache_read / cache_write).</text>
+    <text x="60" y="544" class="t-s">&#x00B7; The hot path is decoupled from telemetry (writer API / emit / queue).</text>
+    <text x="60" y="560" class="t-s">&#x00B7; Unknown-model fallback (never crash, never silently zero).</text>
+    <text x="60" y="576" class="t-s">&#x00B7; Debug / test environments do not report by default.</text>
+  </g>
+</svg>

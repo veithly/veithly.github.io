@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 480" role="img"
+     aria-label="Two routes for file edits">
+  <defs>
+    
+    <filter id="wobble">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="7" />
+      <feDisplacementMap in="SourceGraphic" scale="2" />
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#0f172a" />
+    </marker>
+
+    <style>
+    .h     { font: 600 14px sans-serif; fill: #0f172a; }
+    .t     { font: 12px sans-serif; fill: #0f172a; }
+    .t-sub { font: 12px sans-serif; fill: #334155; }
+    .sys   { font: 700 13px sans-serif; fill: #fbfaf7; }
+    .stage { font: 600 12px sans-serif; fill: #0f172a; }
+    .num   { font: 700 16px sans-serif; fill: #ea580c; }
+</style>
+  </defs>
+
+  <text x="20" y="30" class="h">Two routes for file edits</text>
+  <text x="20" y="50" class="t-sub">V4A inline DSL (Codex / Hermes) vs str_replace tool calls (Claude Code)</text>
+
+  <g filter="url(#wobble)">
+    <rect x="20" y="80" width="360" height="380" rx="12"
+          fill="#fbfaf7" stroke="#1d4ed8" stroke-width="2.5" />
+    <text x="200" y="108" class="t" text-anchor="middle" fill="#1d4ed8" font-weight="700">V4A inline DSL</text>
+
+    <rect x="50" y="130" width="300" height="58" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="200" y="152" class="t" text-anchor="middle">1. Model emits a whole patch block</text>
+    <text x="200" y="170" class="t-sub" text-anchor="middle">*** Begin Patch ... *** End Patch</text>
+    <text x="200" y="184" class="t-sub" text-anchor="middle">5 markers: Update / Add / Delete / Move / EOF</text>
+
+    <line x1="200" y1="188" x2="200" y2="208" stroke="#0f172a" stroke-width="2" marker-end="url(#arrow)" />
+
+    <rect x="50" y="212" width="300" height="58" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="200" y="234" class="t" text-anchor="middle">2. Lark grammar parser</text>
+    <text x="200" y="252" class="t-sub" text-anchor="middle">apply-patch/src/parser.rs</text>
+    <text x="200" y="266" class="t-sub" text-anchor="middle">any invalid hunk &#x2192; reject the whole patch</text>
+
+    <line x1="200" y1="270" x2="200" y2="290" stroke="#0f172a" stroke-width="2" marker-end="url(#arrow)" />
+
+    <rect x="50" y="294" width="300" height="58" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="200" y="316" class="t" text-anchor="middle">3. Commit multi-file atomically</text>
+    <text x="200" y="334" class="t-sub" text-anchor="middle">Update + Add + Delete + Move</text>
+    <text x="200" y="348" class="t-sub" text-anchor="middle">one call per turn</text>
+
+    <line x1="200" y1="352" x2="200" y2="372" stroke="#0f172a" stroke-width="2" marker-end="url(#arrow)" />
+
+    <rect x="50" y="376" width="300" height="58" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="200" y="398" class="t" text-anchor="middle">4. rollout / execpolicy</text>
+    <text x="200" y="416" class="t-sub" text-anchor="middle">patch text is the audit log</text>
+    <text x="200" y="430" class="t-sub" text-anchor="middle">byte-for-byte replayable</text>
+
+    <rect x="400" y="80" width="340" height="380" rx="12"
+          fill="#fbfaf7" stroke="#6d28d9" stroke-width="2.5" />
+    <text x="570" y="108" class="t" text-anchor="middle" fill="#6d28d9" font-weight="700">str_replace tool calls</text>
+
+    <rect x="430" y="130" width="280" height="58" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="570" y="152" class="t" text-anchor="middle">1. tool_use #N</text>
+    <text x="570" y="170" class="t-sub" text-anchor="middle">old_string / new_string / replace_all</text>
+    <text x="570" y="184" class="t-sub" text-anchor="middle">one edit per call</text>
+
+    <line x1="570" y1="188" x2="570" y2="208" stroke="#0f172a" stroke-width="2" marker-end="url(#arrow)" />
+
+    <rect x="430" y="212" width="280" height="58" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="570" y="234" class="t" text-anchor="middle">2. unique match + mtime</text>
+    <text x="570" y="252" class="t-sub" text-anchor="middle">old_string ambiguous &#x2192; error</text>
+    <text x="570" y="266" class="t-sub" text-anchor="middle">FILE_UNEXPECTEDLY_MODIFIED_ERROR</text>
+
+    <line x1="570" y1="270" x2="570" y2="290" stroke="#0f172a" stroke-width="2" marker-end="url(#arrow)" />
+
+    <rect x="430" y="294" width="280" height="58" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="570" y="316" class="t" text-anchor="middle">3. Atomic single-point write</text>
+    <text x="570" y="334" class="t-sub" text-anchor="middle">writeTextContent</text>
+    <text x="570" y="348" class="t-sub" text-anchor="middle">many spots = many tool_use calls</text>
+
+    <line x1="570" y1="352" x2="570" y2="372" stroke="#0f172a" stroke-width="2" marker-end="url(#arrow)" />
+
+    <rect x="430" y="376" width="280" height="58" rx="8" fill="#fbfaf7" stroke="#0f172a" stroke-width="1.8" />
+    <text x="570" y="398" class="t" text-anchor="middle">4. LSP / fileHistory / SDK</text>
+    <text x="570" y="416" class="t-sub" text-anchor="middle">clearDiagnostics + trackEdit</text>
+    <text x="570" y="430" class="t-sub" text-anchor="middle">notifyVscodeFileUpdated</text>
+  </g>
+</svg>

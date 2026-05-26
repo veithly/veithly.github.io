@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 460" role="img"
+     aria-label="Same repository, four different shapes of git abstraction">
+  <defs>
+    <filter id="wb08L"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="59" /><feDisplacementMap in="SourceGraphic" scale="1.5" /></filter>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .col  { font: 700 13px sans-serif; fill: #0f172a; }
+      .lbl  { font: 700 12px sans-serif; fill: #0f172a; }
+      .t-s  { font: 12px sans-serif; fill: #334155; }
+      .axis { font: 600 12px sans-serif; fill: #0f172a; }
+    </style>
+  </defs>
+
+  <text x="410" y="24" class="h" text-anchor="middle">Same repo &#x2014; four agents see four different "git"s</text>
+  <text x="410" y="42" class="t-s" text-anchor="middle">From a structured crate down to a one-line subprocess &#x2014; abstraction thickness spans an order of magnitude</text>
+
+  <g filter="url(#wb08L)">
+    <text x="105" y="75" class="col" text-anchor="middle">Codex</text>
+    <text x="305" y="75" class="col" text-anchor="middle">Claude Code</text>
+    <text x="505" y="75" class="col" text-anchor="middle">OpenClaw</text>
+    <text x="705" y="75" class="col" text-anchor="middle">Hermes</text>
+
+    <line x1="200" y1="55" x2="200" y2="420" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="400" y1="55" x2="400" y2="420" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="600" y1="55" x2="600" y2="420" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="3 3" />
+
+    <rect x="35" y="90" width="140" height="320" rx="8" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.6" />
+    <text x="105" y="110" class="lbl" text-anchor="middle">git-utils crate</text>
+
+    <rect x="50" y="120" width="110" height="30" rx="5" fill="#fff" stroke="#0f172a" stroke-width="1" />
+    <text x="105" y="139" class="t-s" text-anchor="middle">3-part GitInfo</text>
+
+    <rect x="50" y="155" width="110" height="30" rx="5" fill="#fff" stroke="#0f172a" stroke-width="1" />
+    <text x="105" y="174" class="t-s" text-anchor="middle">strongly-typed GitSha</text>
+
+    <rect x="50" y="190" width="110" height="30" rx="5" fill="#fff" stroke="#0f172a" stroke-width="1" />
+    <text x="105" y="209" class="t-s" text-anchor="middle">baseline repo snapshot</text>
+
+    <rect x="50" y="225" width="110" height="30" rx="5" fill="#fff" stroke="#0f172a" stroke-width="1" />
+    <text x="105" y="244" class="t-s" text-anchor="middle">apply_git_patch</text>
+
+    <rect x="50" y="260" width="110" height="30" rx="5" fill="#fff" stroke="#0f172a" stroke-width="1" />
+    <text x="105" y="279" class="t-s" text-anchor="middle">git_diff_to_remote</text>
+
+    <rect x="50" y="295" width="110" height="30" rx="5" fill="#fff" stroke="#0f172a" stroke-width="1" />
+    <text x="105" y="314" class="t-s" text-anchor="middle">recent_commits</text>
+
+    <rect x="50" y="330" width="110" height="30" rx="5" fill="#fff" stroke="#0f172a" stroke-width="1" />
+    <text x="105" y="349" class="t-s" text-anchor="middle">merge_base_with_head</text>
+
+    <rect x="50" y="365" width="110" height="30" rx="5" fill="#fff" stroke="#0f172a" stroke-width="1" />
+    <text x="105" y="384" class="t-s" text-anchor="middle">5s timeout &#x00B7; parallel</text>
+
+    <rect x="235" y="90" width="140" height="260" rx="8" fill="#ede9fe" stroke="#6d28d9" stroke-width="1.6" />
+    <text x="305" y="110" class="lbl" text-anchor="middle">IDE infrastructure</text>
+
+    <rect x="250" y="120" width="110" height="30" rx="5" fill="#fff" stroke="#0f172a" stroke-width="1" />
+    <text x="305" y="139" class="t-s" text-anchor="middle">findGitRoot LRU 50</text>
+
+    <rect x="250" y="155" width="110" height="30" rx="5" fill="#fff" stroke="#0f172a" stroke-width="1" />
+    <text x="305" y="174" class="t-s" text-anchor="middle">gitFilesystem cache</text>
+
+    <rect x="250" y="190" width="110" height="30" rx="5" fill="#fff" stroke="#0f172a" stroke-width="1" />
+    <text x="305" y="209" class="t-s" text-anchor="middle">gitSafety double defence</text>
+
+    <rect x="250" y="225" width="110" height="30" rx="5" fill="#fff" stroke="#0f172a" stroke-width="1" />
+    <text x="305" y="244" class="t-s" text-anchor="middle">/review prompt</text>
+
+    <rect x="250" y="260" width="110" height="30" rx="5" fill="#fff" stroke="#0f172a" stroke-width="1" />
+    <text x="305" y="279" class="t-s" text-anchor="middle">/pr_comments flow</text>
+
+    <rect x="250" y="295" width="110" height="30" rx="5" fill="#fff" stroke="#0f172a" stroke-width="1" />
+    <text x="305" y="314" class="t-s" text-anchor="middle">gh CLI integration</text>
+
+    <rect x="250" y="330" width="110" height="20" rx="5" fill="#fff" stroke="#0f172a" stroke-width="1" />
+    <text x="305" y="344" class="t-s" text-anchor="middle">/ultrareview remote</text>
+
+    <rect x="435" y="90" width="140" height="120" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.6" />
+    <text x="505" y="110" class="lbl" text-anchor="middle">minimal set</text>
+
+    <rect x="450" y="120" width="110" height="30" rx="5" fill="#fff" stroke="#0f172a" stroke-width="1" />
+    <text x="505" y="139" class="t-s" text-anchor="middle">findGitRoot walk-up</text>
+
+    <rect x="450" y="155" width="110" height="30" rx="5" fill="#fff" stroke="#0f172a" stroke-width="1" />
+    <text x="505" y="174" class="t-s" text-anchor="middle">read .git/HEAD for SHA</text>
+
+    <rect x="450" y="190" width="110" height="15" rx="5" fill="#fff" stroke="#0f172a" stroke-width="1" />
+    <text x="505" y="201" class="t-s" text-anchor="middle">no git binary calls</text>
+
+    <text x="505" y="245" class="t-s" text-anchor="middle">git ops go through shell + tool-policy</text>
+    <text x="505" y="262" class="t-s" text-anchor="middle">never enters model's system context</text>
+
+    <rect x="635" y="90" width="140" height="80" rx="8" fill="#fed7aa" stroke="#ea580c" stroke-width="1.6" />
+    <text x="705" y="110" class="lbl" text-anchor="middle">single-line banner</text>
+
+    <rect x="650" y="120" width="110" height="40" rx="5" fill="#fff" stroke="#0f172a" stroke-width="1" />
+    <text x="705" y="137" class="t-s" text-anchor="middle">upstream &#x00B7; local</text>
+    <text x="705" y="151" class="t-s" text-anchor="middle">+N commits ahead</text>
+
+    <text x="705" y="205" class="t-s" text-anchor="middle">25 LOC banner.py</text>
+    <text x="705" y="222" class="t-s" text-anchor="middle">git relies on terminal_tool</text>
+  </g>
+
+  <line x1="50" y1="440" x2="770" y2="440" stroke="#0f172a" stroke-width="2" />
+  <text x="105" y="455" class="axis" text-anchor="middle">thickest</text>
+  <text x="705" y="455" class="axis" text-anchor="middle">thinnest</text>
+</svg>

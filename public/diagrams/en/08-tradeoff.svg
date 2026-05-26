@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 480" role="img"
+     aria-label="Four git workflows plotted across abstraction depth and model freedom">
+  <defs>
+    <filter id="wb08"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="53" /><feDisplacementMap in="SourceGraphic" scale="2" /></filter>
+    <marker id="ar08" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a" /></marker>
+    <style>
+      .h    { font: 600 14px sans-serif; fill: #0f172a; }
+      .ax   { font: 600 12.5px sans-serif; fill: #0f172a; }
+      .t    { font: 12px sans-serif; fill: #334155; }
+      .t-s  { font: 12px sans-serif; fill: #64748b; }
+      .pin  { font: 700 12.5px sans-serif; fill: #fff; }
+      .note { font: italic 10.5px sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <text x="390" y="26" class="h" text-anchor="middle">Git Workflow: abstraction depth &#x00D7; model freedom</text>
+  <text x="390" y="44" class="t-s" text-anchor="middle">Thicker abstractions box the model in more &#x2014; the architectural choice follows the agent's identity (coding agent vs generic control plane)</text>
+
+  <g filter="url(#wb08)">
+    <rect x="100" y="80" width="280" height="160" fill="#dcfce7" opacity="0.4" />
+    <rect x="380" y="80" width="280" height="160" fill="#fef3c7" opacity="0.4" />
+    <rect x="100" y="240" width="280" height="160" fill="#fee2e2" opacity="0.4" />
+    <rect x="380" y="240" width="280" height="160" fill="#dbeafe" opacity="0.4" />
+
+    <text x="120" y="100" class="t-s">thin + free &#x00B7; control-plane zone</text>
+    <text x="640" y="100" class="t-s" text-anchor="end">thick + free &#x00B7; contradictory zone</text>
+    <text x="110" y="394" class="t-s">thin + boxed in (worst)</text>
+    <text x="650" y="394" class="t-s" text-anchor="end">thick + boxed in &#x00B7; coding-agent zone</text>
+
+    <line x1="100" y1="400" x2="660" y2="400" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar08)" />
+    <line x1="100" y1="400" x2="100" y2="70" stroke="#0f172a" stroke-width="2.5" marker-end="url(#ar08)" />
+    <line x1="380" y1="80" x2="380" y2="400" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+    <line x1="100" y1="240" x2="660" y2="240" stroke="#0f172a" stroke-width="1" stroke-dasharray="3 3" />
+
+    <text x="660" y="420" class="ax" text-anchor="end">how deep git abstractions reach into the agent &#x2192;</text>
+    <text x="110" y="68" class="ax">&#x2191; freedom for the model to use git directly</text>
+
+    <circle cx="180" cy="130" r="15" fill="#ea580c" stroke="#0f172a" stroke-width="2" />
+    <text x="180" y="134" class="pin" text-anchor="middle">HM</text>
+    <text x="180" y="162" class="t" text-anchor="middle">Hermes</text>
+    <text x="180" y="177" class="t-s" text-anchor="middle">one-line banner</text>
+    <text x="180" y="190" class="t-s" text-anchor="middle">git fully delegated to shell</text>
+
+    <circle cx="280" cy="175" r="15" fill="#15803d" stroke="#0f172a" stroke-width="2" />
+    <text x="280" y="179" class="pin" text-anchor="middle">OC</text>
+    <text x="280" y="207" class="t" text-anchor="middle">OpenClaw</text>
+    <text x="280" y="222" class="t-s" text-anchor="middle">git-root + version stamp</text>
+    <text x="280" y="235" class="t-s" text-anchor="middle">restrained as a control plane</text>
+
+    <circle cx="500" cy="285" r="15" fill="#6d28d9" stroke="#0f172a" stroke-width="2" />
+    <text x="500" y="289" class="pin" text-anchor="middle">CC</text>
+    <text x="500" y="317" class="t" text-anchor="middle">Claude Code</text>
+    <text x="500" y="332" class="t-s" text-anchor="middle">gitFilesystem cache &#x00B7; /review</text>
+    <text x="500" y="345" class="t-s" text-anchor="middle">gitSafety double defence</text>
+
+    <circle cx="610" cy="320" r="15" fill="#1d4ed8" stroke="#0f172a" stroke-width="2" />
+    <text x="610" y="324" class="pin" text-anchor="middle">CX</text>
+    <text x="610" y="352" class="t" text-anchor="middle">Codex</text>
+    <text x="610" y="367" class="t-s" text-anchor="middle">git-utils crate &#x00B7; GitInfo</text>
+    <text x="610" y="380" class="t-s" text-anchor="middle">baseline snapshot &#x00B7; most boxed-in</text>
+  </g>
+
+  <text x="20" y="465" class="t-s">CX = Codex &#x00B7; CC = Claude Code &#x00B7; OC = OpenClaw &#x00B7; HM = Hermes</text>
+</svg>

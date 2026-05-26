@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 560" role="img" aria-labelledby="title desc">
+  <title id="title">Agent Harness 的执行状态面</title>
+  <desc id="desc">Plan、todo、工具进度、任务进度、MCP progress、终端状态和 away summary 作为不同执行状态面分层展示。</desc>
+  <defs>
+    <style>
+      .bg { fill: #fbfaf7; }
+      .panel { fill: #ffffff; stroke: #d8d1c3; stroke-width: 2; }
+      .plan { fill: #dbeafe; stroke: #1d4ed8; }
+      .todo { fill: #ede9fe; stroke: #6d28d9; }
+      .tool { fill: #dcfce7; stroke: #15803d; }
+      .task { fill: #ffedd5; stroke: #ea580c; }
+      .status { fill: #f1f5f9; stroke: #475569; }
+      .title { font: 700 24px Inter, Arial, sans-serif; fill: #0f172a; }
+      .head { font: 700 17px Inter, Arial, sans-serif; fill: #0f172a; }
+      .text { font: 500 13px Inter, Arial, sans-serif; fill: #475569; }
+      .code { font: 600 12px "JetBrains Mono", Consolas, monospace; fill: #1f2933; }
+      .arrow { stroke: #64748b; stroke-width: 2.5; fill: none; marker-end: url(#arrow); }
+      .dash { stroke-dasharray: 7 6; }
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#64748b" />
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1180" height="560" />
+  <text class="title" x="48" y="48">执行状态不是一张表</text>
+  <text class="text" x="48" y="76">可靠的 harness 会把方案、当前焦点、工具事实、后台任务和恢复提示分开路由。</text>
+
+  <g transform="translate(48 118)">
+    <rect class="panel plan" width="196" height="128" rx="12" />
+    <text class="head" x="18" y="34">审批计划</text>
+    <text class="code" x="18" y="62">PlanDelta</text>
+    <text class="text" x="18" y="88">执行前方案</text>
+    <text class="text" x="18" y="110">需要用户确认</text>
+  </g>
+
+  <g transform="translate(286 118)">
+    <rect class="panel todo" width="196" height="128" rx="12" />
+    <text class="head" x="18" y="34">执行 Todo</text>
+    <text class="code" x="18" y="62">update_plan / TodoWrite</text>
+    <text class="text" x="18" y="88">当前执行焦点</text>
+    <text class="text" x="18" y="110">一个 active 项</text>
+  </g>
+
+  <g transform="translate(524 118)">
+    <rect class="panel tool" width="196" height="128" rx="12" />
+    <text class="head" x="18" y="34">工具进度</text>
+    <text class="code" x="18" y="62">tool_progress</text>
+    <text class="text" x="18" y="88">工具事实流</text>
+    <text class="text" x="18" y="110">开始 / 更新 / 完成</text>
+  </g>
+
+  <g transform="translate(762 118)">
+    <rect class="panel task" width="196" height="128" rx="12" />
+    <text class="head" x="18" y="34">任务进度</text>
+    <text class="code" x="18" y="62">task_started</text>
+    <text class="text" x="18" y="88">后台任务</text>
+    <text class="text" x="18" y="110">owner / 子代理</text>
+  </g>
+
+  <g transform="translate(1000 118)">
+    <rect class="panel status" width="132" height="128" rx="12" />
+    <text class="head" x="18" y="34">状态面</text>
+    <text class="code" x="18" y="62">OSC 9;4</text>
+    <text class="text" x="18" y="88">终端</text>
+    <text class="text" x="18" y="110">标题栏</text>
+  </g>
+
+  <path class="arrow" d="M244 182 H274" />
+  <path class="arrow" d="M482 182 H512" />
+  <path class="arrow" d="M720 182 H750" />
+  <path class="arrow" d="M958 182 H988" />
+
+  <g transform="translate(72 318)">
+    <rect class="panel" width="1036" height="154" rx="16" />
+    <text class="head" x="26" y="38">投影策略</text>
+    <text class="text" x="26" y="68">每个状态面都有自己的受众：模型上下文、用户聊天、TUI、IDE、operator stream、日志或恢复卡片。</text>
+    <g transform="translate(26 96)">
+      <rect class="plan" x="0" y="0" width="164" height="38" rx="8" />
+      <text class="code" x="16" y="24">仅 proposal</text>
+      <rect class="todo" x="186" y="0" width="164" height="38" rx="8" />
+      <text class="code" x="202" y="24">模型上下文</text>
+      <rect class="tool" x="372" y="0" width="164" height="38" rx="8" />
+      <text class="code" x="388" y="24">操作者流</text>
+      <rect class="task" x="558" y="0" width="164" height="38" rx="8" />
+      <text class="code" x="574" y="24">后台 lane</text>
+      <rect class="status" x="744" y="0" width="224" height="38" rx="8" />
+      <text class="code" x="760" y="24">终端 / away summary</text>
+    </g>
+  </g>
+
+  <path class="arrow dash" d="M384 246 C384 286, 460 300, 590 318" />
+  <path class="arrow dash" d="M622 246 C622 286, 620 300, 590 318" />
+  <path class="arrow dash" d="M860 246 C860 286, 720 300, 590 318" />
+</svg>
