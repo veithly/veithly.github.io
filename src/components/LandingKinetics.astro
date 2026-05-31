@@ -1,0 +1,137 @@
+<script is:inline>
+  (() => {
+    const root = document.documentElement;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const frameEls = Array.from(document.querySelectorAll('[data-home-frame]'));
+    const scrollEls = Array.from(document.querySelectorAll('[data-home-scroll]'));
+    const themeEls = Array.from(document.querySelectorAll('[data-home-theme]'));
+    const countEls = Array.from(document.querySelectorAll('[data-count]'));
+    const magnets = Array.from(document.querySelectorAll('.aap-magnetic'));
+
+    let targetX = 0;
+    let targetY = 0;
+    let currentX = 0;
+    let currentY = 0;
+    let frame = 0;
+
+    const pad = (value, length = 4) => String(value).padStart(length, '0');
+
+    const setThemeLabel = () => {
+      const explicit = root.dataset.theme;
+      const dark =
+        explicit === 'dark' ||
+        (explicit === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      const label = dark ? 'ink mode' : 'paper mode';
+      themeEls.forEach((el) => {
+        el.textContent = label;
+      });
+    };
+
+    const setScroll = () => {
+      const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      const progress = Math.min(1, Math.max(0, window.scrollY / max));
+      root.style.setProperty('--home-scroll', progress.toFixed(4));
+      scrollEls.forEach((el) => {
+        el.textContent = `${Math.round(progress * 100)}%`;
+      });
+    };
+
+    const countUp = (el) => {
+      if (el.dataset.counted) return;
+      el.dataset.counted = 'true';
+      const target = Number(el.dataset.count || 0);
+      const start = performance.now();
+      const duration = 900;
+
+      const step = (now) => {
+        const t = Math.min(1, (now - start) / duration);
+        const eased = 1 - (1 - t) ** 3;
+        el.textContent = pad(Math.round(target * eased), 2);
+        if (t < 1) window.requestAnimationFrame(step);
+      };
+
+      window.requestAnimationFrame(step);
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) countUp(entry.target);
+        });
+      },
+      { threshold: 0.45 }
+    );
+
+    countEls.forEach((el) => observer.observe(el));
+
+    window.addEventListener(
+      'pointermove',
+      (event) => {
+        document.body.classList.add('aap-pointer-active');
+        targetX = event.clientX / Math.max(1, window.innerWidth) - 0.5;
+        targetY = event.clientY / Math.max(1, window.innerHeight) - 0.5;
+        root.style.setProperty('--home-cursor-x', `${event.clientX}px`);
+        root.style.setProperty('--home-cursor-y', `${event.clientY}px`);
+        root.style.setProperty('--home-mx', `${Math.round(event.clientX)}px`);
+        root.style.setProperty('--home-my', `${Math.round(event.clientY)}px`);
+      },
+      { passive: true }
+    );
+
+    magnets.forEach((el) => {
+      el.addEventListener('pointermove', (event) => {
+        if (reduceMotion) return;
+        const rect = el.getBoundingClientRect();
+        const x = (event.clientX - rect.left - rect.width / 2) * 0.08;
+        const y = (event.clientY - rect.top - rect.height / 2) * 0.1;
+        el.style.setProperty('--magnetic-x', `${x.toFixed(1)}px`);
+        el.style.setProperty('--magnetic-y', `${y.toFixed(1)}px`);
+      });
+
+      el.addEventListener('pointerleave', () => {
+        el.style.setProperty('--magnetic-x', '0px');
+        el.style.setProperty('--magnetic-y', '0px');
+      });
+    });
+
+    window.addEventListener('scroll', setScroll, { passive: true });
+    window.addEventListener('resize', setScroll);
+
+    new MutationObserver(setThemeLabel).observe(root, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+
+    setScroll();
+    setThemeLabel();
+    document.body.classList.add('aap-home-ready');
+
+    if (reduceMotion) {
+      root.style.setProperty('--home-parallax-x', '0');
+      root.style.setProperty('--home-parallax-y', '0');
+      frameEls.forEach((el) => {
+        el.textContent = 'frame 0000';
+      });
+      countEls.forEach(countUp);
+      return;
+    }
+
+    const tick = () => {
+      frame += 1;
+      currentX += (targetX - currentX) * 0.08;
+      currentY += (targetY - currentY) * 0.08;
+      root.style.setProperty('--home-parallax-x', currentX.toFixed(4));
+      root.style.setProperty('--home-parallax-y', currentY.toFixed(4));
+
+      if (frame % 6 === 0) {
+        frameEls.forEach((el) => {
+          el.textContent = `frame ${pad(frame % 10000)}`;
+        });
+      }
+
+      window.requestAnimationFrame(tick);
+    };
+
+    window.requestAnimationFrame(tick);
+  })();
+</script>

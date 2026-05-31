@@ -3,63 +3,136 @@ title: Harness Architecture
 description: Architecture review of four real agent harnesses (Codex, Claude Code, OpenClaw, Hermes), distilled into copyable engineering patterns
 template: splash
 hero:
-  tagline: "Engineering notes from four real agent harnesses: what to borrow, what to avoid, and why."
+  tagline: "Put Codex, Claude Code, OpenClaw, and Hermes on the same editorial desk: not a logo row, but a marked-up view of where loop, context, tools, verifier, memory, and sandbox decisions happen."
   image:
-    alt: Diagram of four agent systems orbiting the Observe / Plan / Act / Verify loop
-    file: ../../../assets/homepage-hero.png
+    alt: Editorial proof-wall collage for Codex, Claude Code, OpenClaw, and Hermes agent harnesses
+    file: ../../../assets/homepage-editorial-proofwall.png
   actions:
-    - text: "Start reading · 01 Overview"
+    - text: Read 01 overview
       link: /en/patterns/01-overview/
       icon: right-arrow
       variant: primary
-    - text: System profiles
+    - text: Inspect systems
       link: /en/systems/codex/
       variant: minimal
-    - text: Interview index
-      link: /en/interview/
+    - text: Companion skill
+      link: /en/skill/
       variant: minimal
 ---
 
-import Verdict from '@components/Verdict.astro';
-import AgentLoopSVG from '@components/AgentLoopSVG.astro';
+import LandingKinetics from '@components/LandingKinetics.astro';
 
-<Verdict tldr="An architecture review of four real agent harnesses. After each chapter you can answer: when I build my own agent, which part do I borrow from which system, and why." tone="insight" />
+<div className="aap-landing" data-world="editorial-interference">
+  <div className="aap-lens" aria-hidden="true">
+    <span data-home-theme>paper</span>
+  </div>
 
-## What this book covers
+  <section className="aap-home-strip" aria-label="Homepage status">
+    <span>world 02 / editorial interference</span>
+    <span data-home-theme>paper mode</span>
+    <span data-home-frame>frame 0000</span>
+    <span>scroll <b data-home-scroll>0%</b></span>
+  </section>
 
-The book is organized by agent engineering module. Each chapter answers 5 questions:
+  <section className="aap-signal-section" aria-labelledby="aap-signal-title">
+    <div className="aap-signal-copy">
+      <p className="aap-kicker">issue 02 / first spread</p>
+      <h2 id="aap-signal-title">The homepage gives a verdict before it sells a concept.</h2>
+      <div className="aap-copy-line">
+        This landing page is arranged like an editorial desk: the oversized title carries recognition, the image reads like a marked-up proof wall, and the index below turns 22 chapters into reviewable engineering questions.
+      </div>
+    </div>
+    <div className="aap-proof-card" aria-label="Homepage design rules">
+      <span className="aap-proof-mark">02</span>
+      <p>white paper / black type / one red interrupt</p>
+      <p>dark mode keeps the editorial grid, swapping paper and ink instead of inverting screenshots.</p>
+    </div>
+  </section>
 
-1. What problem does this module solve inside an agent system?
-2. How does Codex, Claude Code, OpenClaw, and Hermes each solve it?
-3. What do they agree on, and why do the differences exist?
-4. If you build your own agent, what to borrow and what to avoid?
-5. Can one architecture diagram explain the runtime?
+  <section className="aap-proof-section" aria-labelledby="aap-proof-title">
+    <div className="aap-section-head">
+      <p className="aap-kicker">contents / no generic best practices</p>
+      <h2 id="aap-proof-title">Enter the architecture like a magazine contents page.</h2>
+    </div>
+    <ol className="aap-magazine-contents">
+      <li>
+        <span className="aap-row-num">01</span>
+        <div>
+          <h3>Start with the overview</h3>
+          <p>Decide whether your agent should stay light, go heavy, or borrow one layer.</p>
+        </div>
+        <i></i>
+        <strong data-count="14">00</strong>
+      </li>
+      <li>
+        <span className="aap-row-num">02</span>
+        <div>
+          <h3>Dissect the runtime loop</h3>
+          <p>Observe, plan, act, and verify are recovery boundaries, not just a diagram.</p>
+        </div>
+        <i></i>
+        <strong data-count="32">00</strong>
+      </li>
+      <li>
+        <span className="aap-row-num">03</span>
+        <div>
+          <h3>Compare the four systems</h3>
+          <p>Put each decision through Codex, Claude Code, OpenClaw, and Hermes.</p>
+        </div>
+        <i></i>
+        <strong data-count="47">00</strong>
+      </li>
+      <li>
+        <span className="aap-row-num">04</span>
+        <div>
+          <h3>Package the companion skill</h3>
+          <p>The reading ends as operating memory you can load before the next implementation.</p>
+        </div>
+        <i></i>
+        <strong data-count="68">00</strong>
+      </li>
+    </ol>
+  </section>
 
-## Four reference systems
+  <section className="aap-system-section" aria-labelledby="aap-system-title">
+    <div className="aap-section-head">
+      <p className="aap-kicker">reference systems / collisions</p>
+      <h2 id="aap-system-title">The four systems behave like evidence pinned into the layout.</h2>
+    </div>
+    <div className="aap-system-grid">
+      <a className="aap-system-tile aap-system-codex aap-magnetic" href="/en/systems/codex/">
+        <span>Codex</span>
+        <strong>coding loop and sandbox layering</strong>
+        <em>Rust workspace / local + cloud agent</em>
+      </a>
+      <a className="aap-system-tile aap-system-claude aap-magnetic" href="/en/systems/claude-code/">
+        <span>Claude Code</span>
+        <strong>IDE-first UX and skill engine</strong>
+        <em>TypeScript / Node developer tool</em>
+      </a>
+      <a className="aap-system-tile aap-system-openclaw aap-magnetic" href="/en/systems/openclaw/">
+        <span>OpenClaw</span>
+        <strong>multi-channel control plane and session routing</strong>
+        <em>personal agent control plane</em>
+      </a>
+      <a className="aap-system-tile aap-system-hermes aap-magnetic" href="/en/systems/hermes/">
+        <span>Hermes</span>
+        <strong>long-running self-improvement with restrained safety boundaries</strong>
+        <em>long-running Python agent</em>
+      </a>
+    </div>
+  </section>
 
-- **Codex** (OpenAI): local and cloud coding agent. Use it to study the closed-loop coding cycle and three-OS sandbox.
-- **Claude Code** (Anthropic): agentic coding tool. Use it to study developer UX and the skill engine.
-- **OpenClaw**: multi-channel personal agent control plane. Use it to study session routing and sandbox boundaries.
-- **Hermes** (Nous Research): long-running, self-improving agent. Use it to study engineering restraint, memory, and out-of-process security.
+  <section className="aap-skill-section" aria-labelledby="aap-skill-title">
+    <div>
+      <p className="aap-kicker">colophon / companion skill</p>
+      <h2 id="aap-skill-title">The last page is an operating index, not a CTA.</h2>
+      <div className="aap-copy-line">
+        <a href="/en/skill/">build-your-own-agent</a> compresses the 22 chapters into 10 rules, an 8-dimension decision table, a Python scaffold, diagnostic scripts, and safety checks. It is an editorial manual you can load before the next build.
+      </div>
+    </div>
+    <a className="aap-final-cta aap-magnetic" href="/en/skill/">Open companion skill</a>
+  </section>
+</div>
 
-<AgentLoopSVG caption="Every agent runs the same minimal loop: Observe → Plan → Act → Verify" />
-
-## How to read
-
-- **Building an agent from scratch**: start at [01 · Overview](/en/patterns/01-overview/) and read in order.
-- **Copying a specific subsystem**: jump to the chapter. Each §6 "Build Recipe" lists minimal, advanced, and avoid options.
-- **Researching one system**: see [System Profiles](/en/systems/codex/). One page per system, with five things worth copying.
-- Each chapter's §9 points to specific files and line numbers under `REF/`.
-
-22 chapters total: an overview, plus one chapter each on agent loop, context, tool system, verifier, file edit, shell, git, code review, subagents, session, permissions, sandbox, multi-channel entry, observability/cost, memory, skills, cron, self-improvement, security, todo-list progress, and execution-state surfaces.
-
-## Companion Skill: load the book into Claude or Cursor
-
-For implementation work, the book is packaged as a working index. The [`build-your-own-agent`](/en/skill/) skill compresses the source-backed conclusions into a Claude Code / Cursor skill you can load with one command:
-
-- 10 iron laws (every reference system obeys them) and an 8-axis spectrum for design decisions;
-- 12-file Python scaffold ready to reuse;
-- 9 reference docs: build, diagnose, selection, refactor, security, production deploy, interview prep, cross-skill;
-- A lint script that statically checks your scaffold against the 10 laws. Drop it into CI.
-
-See [Companion Skill](/en/skill/) for install and one-line invocation patterns.
+<LandingKinetics />
